@@ -576,7 +576,7 @@ export default function BoloDetailPage() {
                     nombre_musics: bolo.num_musics
                 },
                 articles,
-                total: articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0),
+                total: articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0),
                 descriptionText: descriptionText
             };
 
@@ -2238,7 +2238,7 @@ export default function BoloDetailPage() {
                                 ))}
                                 <div className="flex justify-end pr-10 pt-2">
                                     <div className="text-lg font-black text-primary">
-                                        TOTAL: {articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0).toFixed(2)}€
+                                        TOTAL: {articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0).toFixed(2)}€
                                     </div>
                                 </div>
                             </div>

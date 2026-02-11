@@ -146,7 +146,7 @@ export async function generatePDF(data: PDFData) {
         doc.setFont('helvetica', 'bold');
         doc.text("Nombre de músics:", margin, boloY);
         doc.setFont('helvetica', 'normal');
-        doc.text(data.instrumentsCount ? Object.values(data.instrumentsCount).reduce((a, b) => a + b, 0).toString() : '', margin + 40, boloY);
+        doc.text(data.instrumentsCount ? Object.values(data.instrumentsCount).reduce((a: number, b: number) => a + b, 0).toString() : '', margin + 40, boloY);
     }
 
     // --- General Description Text ---
@@ -211,7 +211,7 @@ export async function generatePDF(data: PDFData) {
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
-    const total = articles.reduce((sum, a) => sum + a.preu, 0);
+    const total = articles.reduce((sum: number, a: DocumentArticle) => sum + a.preu, 0);
 
     // Total Line
     doc.setDrawColor(PRIMARY_COLOR);

@@ -139,7 +139,7 @@ export default function PressupostosPage() {
                     nombre_musics: selectedBolo.num_musics
                 },
                 articles: articles,
-                total: articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0),
+                total: articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0),
                 descriptionText: descriptionText
             };
 
@@ -471,7 +471,7 @@ export default function PressupostosPage() {
                                 {articles.length > 0 && (
                                     <div className="flex justify-end pr-12 pt-2 border-t mt-2">
                                         <div className="text-xl font-black text-gray-900">
-                                            TOTAL: {articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0).toFixed(2)} €
+                                            TOTAL: {articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0).toFixed(2)} €
                                         </div>
                                     </div>
                                 )}
@@ -528,7 +528,7 @@ export default function PressupostosPage() {
                                     <div className="flex-1">
                                         <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Total Document</label>
                                         <div className="w-full p-3 bg-white/50 border border-gray-100 rounded-2xl font-black text-lg text-primary">
-                                            {articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0).toFixed(2)}€
+                                            {articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0).toFixed(2)}€
                                         </div>
                                     </div>
                                 </div>

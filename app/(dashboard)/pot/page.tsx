@@ -91,13 +91,13 @@ export default function GestioPotPage() {
             .select('pot_delta_final')
             .not('pot_delta_final', 'is', null);
 
-        const totalBoloPot = (boloData || []).reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+        const totalBoloPot = (boloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         // Fetch All DespesesIngressos Sum
         const { data: allMovements } = await supabase.from('despeses_ingressos').select('import, tipus');
         let totalExtraPot = 0;
         if (allMovements) {
-            totalExtraPot = allMovements.reduce((sum, m) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+            totalExtraPot = allMovements.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
         }
 
         // C. Annual Bolo Pot
@@ -108,7 +108,7 @@ export default function GestioPotPage() {
             .gte('data_bolo', start)
             .lte('data_bolo', end);
 
-        const yearBoloPot = (yearBoloData || []).reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+        const yearBoloPot = (yearBoloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         // Annual Extra Pot
         const yearExtraPot = ing - desp;
@@ -129,7 +129,7 @@ export default function GestioPotPage() {
         fetchPot();
         // Fetch bolos for dropdown
         supabase.from('bolos').select('id, nom_poble, data_bolo').order('data_bolo', { ascending: false }).limit(20)
-            .then(({ data }) => setBolos(data as any || []));
+            .then(({ data }: { data: any }) => setBolos(data || []));
     }, [year]);
 
     const handleAdd = async () => {

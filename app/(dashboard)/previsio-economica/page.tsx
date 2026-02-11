@@ -46,18 +46,18 @@ export default function ForecastPage() {
         try {
             // A. Calculate Current Pot (Logic from Pot Page)
             const { data: boloData } = await supabase.from('bolos').select('pot_delta_final').not('pot_delta_final', 'is', null);
-            const totalBoloPot = (boloData || []).reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+            const totalBoloPot = (boloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
             const { data: allMovements } = await supabase.from('despeses_ingressos').select('import, tipus');
-            const totalExtraPot = (allMovements || []).reduce((sum, m) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+            const totalExtraPot = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
             setCurrentPot(totalBoloPot + totalExtraPot);
 
             // B. Fetch Forecast Items
             const { data: items } = await supabase.from('forecast_items').select('*').order('date', { ascending: true });
             if (items) {
-                setExpenses(items.filter(i => i.type === 'expense'));
-                setInvestments(items.filter(i => i.type === 'investment'));
+                setExpenses(items.filter((i: ForecastItem) => i.type === 'expense'));
+                setInvestments(items.filter((i: ForecastItem) => i.type === 'investment'));
             }
 
             // C. Fetch Settings
@@ -85,14 +85,14 @@ export default function ForecastPage() {
         return expenses
             .filter(e => e.is_active)
             .filter(e => !e.date || isBefore(parseISO(e.date), horizonDate))
-            .reduce((sum, e) => sum + (e.amount || 0), 0);
+            .reduce((sum: number, e: ForecastItem) => sum + (e.amount || 0), 0);
     }, [expenses, horizonDate]);
 
     const activeInvestmentsTotal = useMemo(() => {
         return investments
             .filter(i => i.is_active) // using 'is_active' as 'include_in_calc'
             .filter(i => !i.date || isBefore(parseISO(i.date), horizonDate))
-            .reduce((sum, i) => sum + (i.amount || 0), 0);
+            .reduce((sum: number, i: ForecastItem) => sum + (i.amount || 0), 0);
     }, [investments, horizonDate]);
 
     const projectedPotAfterExpenses = currentPot - activeExpensesTotal;

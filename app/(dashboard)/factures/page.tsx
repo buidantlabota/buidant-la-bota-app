@@ -192,8 +192,8 @@ export default function BillingPage() {
         return r.type === typeFilter;
     });
 
-    const totalInvoices = records.filter(r => r.type === 'factura').reduce((acc, curr) => acc + curr.total_amount, 0);
-    const totalQuotes = records.filter(r => r.type === 'pressupost').reduce((acc, curr) => acc + curr.total_amount, 0);
+    const totalInvoices = records.filter((r: any) => r.type === 'factura').reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
+    const totalQuotes = records.filter((r: any) => r.type === 'pressupost').reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
 
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
