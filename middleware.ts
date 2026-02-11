@@ -36,7 +36,10 @@ export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // 1. Redirect to login if no user and trying to access protected route
-    if (!user && pathname !== '/login' && !pathname.includes('.')) {
+    // Exclude public API routes from redirect
+    const isPublicRoute = pathname === '/login' || pathname.startsWith('/api/formulari') || pathname.includes('.')
+
+    if (!user && !isPublicRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
@@ -59,8 +62,9 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
+         * - api/formulari (public api)
          * Feel free to modify this pattern to include more paths.
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|api/formulari|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
