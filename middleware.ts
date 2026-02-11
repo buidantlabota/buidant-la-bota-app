@@ -36,10 +36,13 @@ export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // 1. Redirect to login if no user and trying to access protected route
-    // Exclude public API routes from redirect
-    const isPublicRoute = pathname === '/login' || pathname.startsWith('/api/formulari') || pathname.includes('.')
+    // IMPORTANT: Exclude /api/formulari and its subroutes from authentication
+    const isPublicPath =
+        pathname === '/login' ||
+        pathname.startsWith('/api/formulari') ||
+        pathname.includes('.')
 
-    if (!user && !isPublicRoute) {
+    if (!user && !isPublicPath) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
@@ -58,13 +61,12 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         /*
-         * Match all request paths except for the ones starting with:
+         * Match all request paths except for:
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - api/formulari (public api)
-         * Feel free to modify this pattern to include more paths.
          */
-        '/((?!_next/static|_next/image|favicon.ico|api/formulari|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!api/formulari|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
