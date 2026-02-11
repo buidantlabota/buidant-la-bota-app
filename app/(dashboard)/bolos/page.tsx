@@ -35,14 +35,14 @@ export default function BolosPage() {
             setBolos(data || []);
 
             // Extract years
-            const years = Array.from(new Set((data || []).map((b: any) => new Date(b.data_bolo).getFullYear().toString()))).sort().reverse();
+            const years = Array.from(new Set((data || []).map((b: Bolo) => new Date(b.data_bolo).getFullYear().toString()))).sort().reverse();
             setAvailableYears(years as string[]);
         }
         setLoading(false);
     };
 
     // Filter logic
-    const filteredBolos = bolos.filter((bolo: any) => {
+    const filteredBolos = bolos.filter((bolo: Bolo) => {
         const searchLower = searchTerm.toLowerCase();
         const clientNom = bolo.client?.nom || '';
         const matchesSearch =

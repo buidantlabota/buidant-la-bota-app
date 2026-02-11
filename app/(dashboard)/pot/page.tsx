@@ -69,8 +69,8 @@ export default function GestioPotPage() {
             setMovements(yearData);
 
             // Year Stats
-            ing = yearData.filter(m => m.tipus === 'ingrés').reduce((sum, m) => sum + m.import, 0);
-            desp = yearData.filter(m => m.tipus === 'despesa').reduce((sum, m) => sum + m.import, 0);
+            ing = yearData.filter((m: DespesaIngres) => m.tipus === 'ingrés').reduce((sum: number, m: DespesaIngres) => sum + m.import, 0);
+            desp = yearData.filter((m: DespesaIngres) => m.tipus === 'despesa').reduce((sum: number, m: DespesaIngres) => sum + m.import, 0);
 
             // setStats(prev => ({ ...prev, yearIngressos: ing, yearDespeses: desp, yearBalance: ing - desp })); 
             // We do global update at the end now to be cleaner
