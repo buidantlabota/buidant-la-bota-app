@@ -28,16 +28,16 @@ export async function POST(request: Request) {
 
         // Importar puppeteer i chromium dinàmicament per a Vercel
         const puppeteer = await import('puppeteer-core');
-        const chromium = await import('@sparticuz/chromium');
+        const chromium = await import('@sparticuz/chromium') as any;
 
         // Configuració de chromium
-        const executablePath = await chromium.default.executablePath();
+        const executablePath = await chromium.executablePath || await chromium.default.executablePath();
 
         const browser = await puppeteer.default.launch({
-            args: chromium.default.args,
-            defaultViewport: chromium.default.defaultViewport,
+            args: chromium.args || chromium.default.args,
+            defaultViewport: chromium.defaultViewport || chromium.default.defaultViewport,
             executablePath: executablePath || '/usr/bin/google-chrome', // Fallback local
-            headless: chromium.default.headless,
+            headless: chromium.headless || chromium.default.headless,
         });
 
         const page = await browser.newPage();
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
         }
 
         // Retornar el PDF com a resposta
-        return new NextResponse(pdfBuffer, {
+        return new NextResponse(pdfBuffer as any, {
             headers: {
                 'Content-Type': 'application/pdf',
                 'Content-Disposition': `attachment; filename="${data.type}_${data.number.replace('/', '-')}.pdf"`,

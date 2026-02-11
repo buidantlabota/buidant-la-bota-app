@@ -1,4 +1,4 @@
-export type BoloStatus = 'Nova' | 'Pendent de confirmació' | 'Confirmada' | 'Pendents de cobrar' | 'Per pagar' | 'Tancades' | 'Cancel·lats'
+export type BoloStatus = 'Nova' | 'Pendent de confirmació' | 'Confirmada' | 'Pendents de cobrar' | 'Per pagar' | 'Tancades' | 'Cancel·lats' | 'Tancat' | 'Cancel·lat' | 'Sol·licitat' | 'Confirmat'
 export type SolicitudStatus = 'NOVA' | 'ACCEPTADA' | 'REBUTJADA'
 
 export interface Bolo {

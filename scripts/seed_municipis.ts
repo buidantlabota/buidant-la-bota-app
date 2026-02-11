@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { normalizePlace } from "../utils/normalization.ts";
+import { normalizePlace } from "../utils/normalization";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
