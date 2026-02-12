@@ -94,8 +94,11 @@ export async function POST(request: Request) {
             });
         }
 
-        // 2. (Opcional) Pujar a Supabase Storage
-        // Implementarem el bucket si està configurat
+        // Verificar que la clau de servei existeix (Server-side check)
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            throw new Error('CONFIG_ERROR: La clau SUPABASE_SERVICE_ROLE_KEY no està configurada a Vercel.');
+        }
+
         const bucket = data.type === 'factura' ? 'factures' : 'pressupostos';
         const fileName = `${data.number.replace('/', '-')}_${Date.now()}.pdf`;
 
@@ -108,6 +111,7 @@ export async function POST(request: Request) {
 
         if (uploadError) {
             console.error('Error uploading to storage:', uploadError);
+            throw new Error(`STORAGE_ERROR: No s'ha pogut pujar al bucket '${bucket}'. Detall: ${uploadError.message}`);
         }
 
         // Retornar el PDF com a resposta
