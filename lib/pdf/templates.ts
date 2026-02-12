@@ -80,7 +80,6 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .header-info p {
             margin: 2pt 0;
             font-size: 10pt;
-            font-weight: bold;
             color: #000;
         }
         .logo-box {
@@ -100,7 +99,6 @@ export const getHTMLTemplate = (data: TemplateData) => {
             display: flex;
             justify-content: space-between;
             margin-bottom: 20pt;
-            font-weight: bold;
             font-size: 9pt;
         }
         .main-section {
@@ -230,7 +228,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
     <div class="header">
         <div class="header-info">
             <h1>BUIDANT LA BOTA</h1>
-            <p>Associació Buidant la Bota</p>
+            <p style="font-weight: bold;">Associació Buidant la Bota</p>
             <p>C/ Rocafort, 51</p>
             <p>08271 - Artés (BARCELONA)</p>
             <p>CIF. G13919436</p>
