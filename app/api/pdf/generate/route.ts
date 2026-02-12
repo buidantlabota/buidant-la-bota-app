@@ -81,7 +81,9 @@ export async function POST(request: Request) {
                 bolo_id: boloId,
                 total_amount: data.total,
                 articles: data.articles,
-                paid: false
+                paid: false,
+                notes: data.descriptionText,
+                status: 'sent'
             });
         } else {
             await registerQuote({
@@ -90,7 +92,9 @@ export async function POST(request: Request) {
                 client_id: clientId,
                 bolo_id: boloId,
                 total_amount: data.total,
-                articles: data.articles
+                articles: data.articles,
+                notes: data.descriptionText,
+                status: 'sent'
             });
         }
 

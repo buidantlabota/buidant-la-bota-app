@@ -54,6 +54,8 @@ export async function registerInvoice(data: {
     total_amount: number;
     articles: any[];
     paid?: boolean;
+    notes?: string;
+    status?: string;
 }) {
     const supabase = createAdminClient();
     const creationDate = new Date();
@@ -70,7 +72,9 @@ export async function registerInvoice(data: {
             due_date: format(dueDate, 'yyyy-MM-dd'),
             total_amount: data.total_amount,
             paid: data.paid || false,
-            articles: data.articles
+            articles: data.articles,
+            notes: data.notes,
+            status: data.status || 'sent'
         })
         .select()
         .single();
@@ -90,6 +94,8 @@ export async function registerQuote(data: {
     bolo_id?: number;
     total_amount: number;
     articles: any[];
+    notes?: string;
+    status?: string;
 }) {
     const supabase = createAdminClient();
 
@@ -102,7 +108,9 @@ export async function registerQuote(data: {
             bolo_id: data.bolo_id,
             creation_date: format(new Date(), 'yyyy-MM-dd'),
             total_amount: data.total_amount,
-            articles: data.articles
+            articles: data.articles,
+            notes: data.notes,
+            status: data.status || 'sent'
         })
         .select()
         .single();

@@ -116,8 +116,6 @@ export default function PressupostosPage() {
         if (!modalOpen || !selectedBolo || !selectedClient) return;
         setPdfGenerating(true);
         try {
-            const { generateClientPDF } = await import('@/utils/pdf-client-generator');
-
             const payload = {
                 type: modalOpen,
                 number: manualNumber,
@@ -131,6 +129,7 @@ export default function PressupostosPage() {
                     codi_postal: selectedClient.codi_postal
                 },
                 bolo: {
+                    id: selectedBolo.id, // Passem la ID per al backend
                     nom_poble: selectedBolo.nom_poble,
                     concepte: selectedBolo.concepte,
                     durada: selectedBolo.durada,
@@ -140,72 +139,33 @@ export default function PressupostosPage() {
                 },
                 articles: articles,
                 total: articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0),
-                descriptionText: descriptionText
+                descriptionText: descriptionText,
+                bolo_id: selectedBolo.id // També el passem directament per si de cas
             };
 
-            const doc = await generateClientPDF(payload as any);
-            doc.save(`${modalOpen}_${manualNumber.replace('/', '-')}.pdf`);
+            // Fem la crida al nostre BACKEND API que genera i guarda l'arxiu
+            const response = await fetch('/api/pdf/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-            // 2. Register Direct to DB (Robust)
-            const today = new Date();
-            const dueDate = modalOpen === 'factura'
-                ? addMonths(today, 3)
-                : addMonths(today, 1);
-
-            const recordPayload = {
-                invoice_number: manualNumber,
-                type: modalOpen, // 'factura' or 'pressupost'
-                client_name: selectedClient.nom,
-                client_id: selectedClient.id,
-                bolo_id: selectedBolo.id,
-                creation_date: format(today, 'yyyy-MM-dd'),
-                due_date: format(dueDate, 'yyyy-MM-dd'),
-                total_amount: payload.total,
-                paid: false,
-                articles: articles,
-                notes: descriptionText,
-                status: 'sent'
-            };
-
-            const { error: insertError } = await supabase
-                .from('invoice_records')
-                .insert(recordPayload);
-
-            if (insertError) {
-                console.error("DB INSERT ERROR:", insertError);
-                if (insertError.code === '23505') {
-                    alert(`Avís: El document ${manualNumber} ja existeix. El PDF s'ha baixat, però no s'ha duplicat el registre.`);
-                } else {
-                    throw new Error(`Error guardant a base de dades: ${insertError.message}`);
-                }
-            } else {
-                console.log("Registered successfully:", recordPayload);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || errorData.error || 'Error generant el PDF');
             }
 
-            // 3. Update Counter (only for Invoices)
-            if (modalOpen === 'factura') {
-                try {
-                    const [yearStr, numStr] = manualNumber.split('/');
-                    const num = parseInt(numStr);
-                    const currentYearTwoDigits = parseInt(today.getFullYear().toString().slice(-2));
+            // Descarregar el PDF rebut del servidor
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${modalOpen}_${manualNumber.replace('/', '-')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
 
-                    if (parseInt(yearStr) === currentYearTwoDigits) {
-                        const { data: config } = await supabase.from('app_config').select('value').eq('key', 'invoice_counter').single();
-                        const currentMax = (config?.value as any)?.last_number || 0;
-
-                        if (num >= currentMax) {
-                            await supabase.from('app_config').upsert({
-                                key: 'invoice_counter',
-                                value: { last_number: num, year: currentYearTwoDigits }
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.error("Counter update error:", e);
-                }
-            }
-
-            alert('Document generat i registrat correctament!');
+            alert('Document generat, registrat i guardat correctament!');
             resetForm();
         } catch (error: any) {
             console.error("Process error:", error);
