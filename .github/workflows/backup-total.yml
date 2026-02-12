@@ -22,27 +22,24 @@ jobs:
       - name: Install dependencies
         run: npm install resend
 
-      - name: Install PostgreSQL client
+      - name: Install Supabase CLI
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          npm install -f -g supabase
 
       - name: Generate SQL Dump and ZIP
         env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          # Per Frankfurt (eu-central-1), l'adreça IPv4 corregida
-          HOST="aws-0-eu-central-1.pooler.supabase.com"
-          PORT="5432"
-          USER="postgres.nkkekyhtybfheqjtxlgx"
-          DB="postgres"
+          PROJECT_REF="nkkekyhtybfheqjtxlgx"
           DATE=$(date +%Y-%m-%d)
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          echo "Generant dump SQL via IPv4 Pooler Host..."
-          # Forcem IPv4 des del terminal per evitar que resolgui a l'adreça IPv6 fallida
-          pg_dump -h $HOST -p $PORT -U $USER -d $DB --no-owner --no-acl > $SQL_FILE
+          # La CLI de Supabase soluciona els problemes d'IPv6 usant el port del pooler (6543)
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@db.${PROJECT_REF}.supabase.co:6543/postgres"
+          
+          echo "Generant dump SQL via Supabase CLI..."
+          supabase db dump --db-url "$DB_URL" > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
