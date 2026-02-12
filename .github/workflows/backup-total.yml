@@ -35,17 +35,21 @@ jobs:
           DATE=$(date +%Y-%m-%d)
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
+          HOSTNAME="db.${PROJECT_REF}.supabase.co"
           
-          # Obtenim la IP de Frankfurt (IPv4) dinàmicament per saltar-nos el bloqueig d'IPv6
-          # Fem servir el pooler regional que garanteix IPv4
-          IP=$(dig +short aws-0-eu-central-1.pooler.supabase.com A | head -n1)
-          echo "Connectant a la IP de Frankfurt: $IP"
+          # 1. Trobem la IP (IPv4) del teu projecte
+          IPV4=$(dig +short $HOSTNAME A | head -n1)
+          echo "IPv4 resolta: $IPV4"
           
-          export PGPASSWORD="$DB_PASSWORD"
+          # 2. Codifiquem la contrasenya
+          ENCODED_PW=$(node -e "console.log(encodeURIComponent(process.env.DB_PASSWORD))")
           
-          echo "Generant dump SQL directament via IPv4..."
-          # Connectem a la IP, port 5432, amb l'usuari prefixat pel projecte
-          pg_dump -h "$IP" -p 5432 -U "postgres.${PROJECT_REF}" -d postgres --no-owner --no-acl > $SQL_FILE
+          # 3. La URL màgica: HOSTNAME pel nom (SSL) i HOSTADDR per la connexió (IPv4)
+          # Això soluciona tant l'error de xarxa com el de 'Tenant not found'
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PW}@${HOSTNAME}:6543/postgres?hostaddr=${IPV4}"
+          
+          echo "Generant dump SQL via hostaddr (SNI + IPv4 Connection)..."
+          pg_dump "$DB_URL" --no-owner --no-acl > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
