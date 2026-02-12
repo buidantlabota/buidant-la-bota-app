@@ -22,10 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm install resend
 
-      - name: Install PostgreSQL client and DNS tools
+      - name: Install PostgreSQL client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client dnsutils
+          sudo apt-get install -y postgresql-client
 
       - name: Generate SQL Dump and ZIP
         env:
@@ -36,30 +36,24 @@ jobs:
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          # 1. Fem servir el Pooler d'AWS de Supabase (Frankfurt) que té IPv4 garantida
-          POOLER_HOST="aws-0-eu-central-1.pooler.supabase.com"
+          # EL TRUC FINAL: Obtenir la IP numèrica IPv4 de Frankfurt de forma infal·lible
+          # Fem servir Python que resol el CNAME fins arribar a la IP real (A record)
+          echo "Resolent IP IPv4 de Frankfurt..."
+          IPV4=$(python3 -c "import socket; print(socket.gethostbyname('aws-0-eu-central-1.pooler.supabase.com'))")
+          echo "IP Resolta: $IPV4"
           
-          echo "Resolent IP del Pooler d'AWS..."
-          # Busquem la IP numèrica del pooler regional
-          IPV4=$(dig +short $POOLER_HOST | head -n1)
-          
-          if [ -z "$IPV4" ]; then
-            echo "Error: No s'ha pogut resoldre l'adreça del Pooler. Provant IP de reserva..."
-            # IP genèrica de Frankfurt de Supabase/AWS (com a últim recurs)
-            IPV4="3.125.109.117"
-          fi
-          
-          echo "IP del Pooler: $IPV4"
-
-          # 2. Codifiquem la contrasenya
+          # Codifiquem la contrasenya
           ENCODED_PW=$(node -e "console.log(encodeURIComponent(process.env.DB_PASSWORD))")
           
-          # 3. La URL de connexió DIRECTA al Pooler regional
-          # Hostaddr ens permet saltar-nos qualsevol lio de DNS/IPv6 de GitHub
-          # L'usuari ha de ser postgres.[PROJECT_REF]
-          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PW}@${POOLER_HOST}:5432/postgres?hostaddr=${IPV4}"
+          # Paràmetres de connexió:
+          # - Host: el nom oficial (per SSL)
+          # - Port: 5432 (Pooler en mode Session, ideal per dumps)
+          # - user: postgres.[PROJECT_REF]
+          # - hostaddr: l'IP numèrica (per saltar-nos el bloqueig IPv6 de GitHub)
+          HOSTNAME="aws-0-eu-central-1.pooler.supabase.com"
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PW}@${HOSTNAME}:5432/postgres?hostaddr=${IPV4}"
           
-          echo "Generant dump SQL via IPv4 Pooler..."
+          echo "Generant dump SQL (via Session Pooler + IPv4 Direct)..."
           pg_dump "$DB_URL" --no-owner --no-acl > $SQL_FILE
           
           echo "Comprimint en ZIP..."
