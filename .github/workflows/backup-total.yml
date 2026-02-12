@@ -26,6 +26,12 @@ jobs:
         run: |
           npm install supabase --save-dev
 
+      - name: Prepare Network (Force IPv4 Preference)
+        run: |
+          # Aquest truc força el sistema de GitHub Actions a prioritzar IPv4 sobre IPv6
+          # Soluciona l'error "Network is unreachable" amb adreces 2a05:...
+          sudo sed -i 's/#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/g' /etc/gai.conf
+
       - name: Generate SQL Dump and ZIP
         env:
           DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -35,22 +41,22 @@ jobs:
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          # Creem l'URL de connexió codificant la contrasenya per evitar errors amb caràcters especials
-          DB_URL=$(node -e "console.log('postgresql://postgres.${PROJECT_REF}:' + encodeURIComponent(process.env.DB_PASSWORD) + '@db.${PROJECT_REF}.supabase.co:6543/postgres')")
+          # Codifiquem la contrasenya correctament
+          ENCODED_PASSWORD=$(node -e "console.log(encodeURIComponent(process.env.DB_PASSWORD))")
           
-          echo "Generant dump SQL via Supabase CLI (HTTPS Resolver)..."
-          # --dns-resolver https: Força a GitHub a buscar la IP clàssica (IPv4)
-          npx supabase --dns-resolver https db dump --db-url "$DB_URL" > $SQL_FILE
+          # URL de connexió al port 6543 (Pooler) que és el més estable
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PASSWORD}@db.${PROJECT_REF}.supabase.co:6543/postgres"
+          
+          echo "Generant dump SQL (IPv4 Preference enabled)..."
+          npx supabase db dump --db-url "$DB_URL" > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
           
-          # Guardem el nom per al següent pas
           echo "BACKUP_FILENAME=$ZIP_FILE" >> $GITHUB_ENV
 
       - name: Send Email with Backup
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
-          # Fem servir la variable de terminal per enviar el correu
           node scripts/send-backup-email.js $BACKUP_FILENAME
