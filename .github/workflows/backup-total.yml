@@ -22,15 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm install resend
 
-      - name: Install Supabase CLI locally
+      - name: Install PostgreSQL client and DNS tools
         run: |
-          npm install supabase --save-dev
-
-      - name: Prepare Network (Force IPv4 Preference)
-        run: |
-          # Aquest truc força el sistema de GitHub Actions a prioritzar IPv4 sobre IPv6
-          # Soluciona l'error "Network is unreachable" amb adreces 2a05:...
-          sudo sed -i 's/#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/g' /etc/gai.conf
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client dnsutils
 
       - name: Generate SQL Dump and ZIP
         env:
@@ -41,18 +36,21 @@ jobs:
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          # Codifiquem la contrasenya correctament
-          ENCODED_PASSWORD=$(node -e "console.log(encodeURIComponent(process.env.DB_PASSWORD))")
+          # Obtenim la IP de Frankfurt (IPv4) dinàmicament per saltar-nos el bloqueig d'IPv6
+          # Fem servir el pooler regional que garanteix IPv4
+          IP=$(dig +short aws-0-eu-central-1.pooler.supabase.com A | head -n1)
+          echo "Connectant a la IP de Frankfurt: $IP"
           
-          # URL de connexió al port 6543 (Pooler) que és el més estable
-          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PASSWORD}@db.${PROJECT_REF}.supabase.co:6543/postgres"
+          export PGPASSWORD="$DB_PASSWORD"
           
-          echo "Generant dump SQL (IPv4 Preference enabled)..."
-          npx supabase db dump --db-url "$DB_URL" > $SQL_FILE
+          echo "Generant dump SQL directament via IPv4..."
+          # Connectem a la IP, port 5432, amb l'usuari prefixat pel projecte
+          pg_dump -h "$IP" -p 5432 -U "postgres.${PROJECT_REF}" -d postgres --no-owner --no-acl > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
           
+          # Guardem el nom del fitxer per al següent pas
           echo "BACKUP_FILENAME=$ZIP_FILE" >> $GITHUB_ENV
 
       - name: Send Email with Backup
