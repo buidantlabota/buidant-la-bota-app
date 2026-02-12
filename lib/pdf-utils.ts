@@ -29,6 +29,15 @@ export function formatPlantilla(counts?: Record<string, number>) {
     return parts.join(', ') + ' i ' + last;
 }
 
+const smartTitleCase = (str: string) => {
+    if (!str) return '';
+    const minorWords = ['a', 'de', 'del', 'dels', 'el', 'els', 'la', 'les', 'i', 'o', 'per', 'en', 'amb', 'd\'', 'l\''];
+    return str.toLowerCase().split(' ').map((word, index) => {
+        if (index > 0 && minorWords.includes(word)) return word;
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+};
+
 export function generateDescriptionText(tipus: string, bolo: Bolo, client: Client, instrumentsCount?: Record<string, number>) {
     const dataObj = bolo.data_bolo ? parseISO(bolo.data_bolo) : new Date();
     const diaSetmana = format(dataObj, 'eeee', { locale: ca });
@@ -46,14 +55,18 @@ export function generateDescriptionText(tipus: string, bolo: Bolo, client: Clien
         horaFi = format(end, 'HH:mm');
     }
 
+    const poble = smartTitleCase(bolo.nom_poble);
+    const clientNom = smartTitleCase(client.nom);
+    const concepte = smartTitleCase(bolo.concepte || '');
+
     if (tipus === 'factura') {
         const plantilla = formatPlantilla(instrumentsCount);
-        return `Actuació musical de la xaranga Buidant la Bota a ${bolo.nom_poble} organitzat per ${client.nom}.
+        return `Actuació musical de la xaranga Buidant la Bota a ${poble} organitzat per ${clientNom}.
 \nL'actuació va esdevenir el ${diaSetmana} dia ${dia} de ${mes}, de les ${horaInici} a les ${horaFi}h.
 \nLa plantilla va ser composta per ${plantilla}.`;
     } else {
         const nMusics = bolo.num_musics || 10;
-        return `Actuació musical de la xaranga Buidant La Bota a ${bolo.nom_poble}, a la ${bolo.concepte || ''}, el dia ${dia} de ${mes} de ${any}, a les ${horaInici} hores.
+        return `Actuació musical de la xaranga Buidant La Bota a ${poble}, a la ${concepte}, el dia ${dia} de ${mes} de ${any}, a les ${horaInici} hores.
 \nL'actuació es realitzarà amb una formació de ${nMusics} músics.
 \nOferim un repertori divers i que s'adapta a les característiques de l'actuació, des de pasdobles, cançons actuals, "hits" històrics o inclús músiques populars de la festa on anem.
 \nEn cas que l'actuació es programés en un horari que impliqués la necessitat de dietes pels membres del grup, sol·licitem amablement que se'ns proporcioni. En aquest sentit agrairíem que se'ns informés tan bon punt es tingui decidida la planificació per tal d'organitzar-nos la jornada com a grup.

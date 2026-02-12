@@ -171,11 +171,11 @@ export const getHTMLTemplate = (data: TemplateData) => {
             padding: 3pt;
             font-weight: bold;
             font-size: 10pt;
-            border: 1px solid #000;
+            border: 0.5pt solid #000;
             border-bottom: none;
         }
         .description-content {
-            border: 1px solid #000;
+            border: 0.5pt solid #000;
             padding: 20pt; 
             font-size: 9pt;
             min-height: 50pt; /* Reduced min-height slightly */
@@ -311,7 +311,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
 
     <div class="description-section">
         <div class="description-header">Descripció general</div>
-        <div class="description-content">${formatText(data.descriptionText)}</div>
+        <div class="description-content">${data.descriptionText}</div>
     </div>
 
     <table class="table">
