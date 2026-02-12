@@ -1,8 +1,8 @@
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { addMonths, format } from 'date-fns';
 
 export async function getNextInvoiceNumber() {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Obtenir el comptador de la configuració
     const { data: config, error: configError } = await supabase
@@ -31,7 +31,7 @@ export async function getNextInvoiceNumber() {
 }
 
 export async function incrementInvoiceCounter(lastNumberStr: string) {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const parts = lastNumberStr.split('/');
     if (parts.length !== 2) return;
 
@@ -55,7 +55,7 @@ export async function registerInvoice(data: {
     articles: any[];
     paid?: boolean;
 }) {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const creationDate = new Date();
     const dueDate = addMonths(creationDate, 3);
 
@@ -91,7 +91,7 @@ export async function registerQuote(data: {
     total_amount: number;
     articles: any[];
 }) {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: record, error } = await supabase
         .from('quote_records')

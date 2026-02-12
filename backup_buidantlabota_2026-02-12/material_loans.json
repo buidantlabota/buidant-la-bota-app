@@ -1,0 +1,30 @@
+[
+  {
+    "id": "aa8e81fb-4a32-443f-aec9-a1a37ed32d2f",
+    "bolo_id": 48,
+    "suplent_id": "4372fc25-29c8-40be-b91c-460360c92ac6",
+    "stock_id": "8f57e0c2-d3c6-4f48-b412-f2ab3b2b9151",
+    "item_id": null,
+    "item_type": "samarreta",
+    "loan_date": "2025-12-21",
+    "return_date_expected": null,
+    "return_date_real": "2026-01-20",
+    "status": "retornat",
+    "notes": null,
+    "created_at": "2025-12-21T20:25:58.409294+00:00"
+  },
+  {
+    "id": "fe5000f7-280c-4e48-894e-3720f32424da",
+    "bolo_id": 57,
+    "suplent_id": "4372fc25-29c8-40be-b91c-460360c92ac6",
+    "stock_id": "c5690a87-7cca-45f8-8096-7795b78fa806",
+    "item_id": null,
+    "item_type": "dessuadora",
+    "loan_date": "2026-02-05",
+    "return_date_expected": null,
+    "return_date_real": null,
+    "status": "prestat",
+    "notes": null,
+    "created_at": "2026-02-05T21:09:31.460178+00:00"
+  }
+]

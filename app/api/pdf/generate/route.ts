@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getHTMLTemplate, TemplateData } from '@/lib/pdf/templates';
 import { registerInvoice, registerQuote } from '@/lib/billing-utils';
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import path from 'path';
 import fs from 'fs';
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         await browser.close();
 
         // 1. Guardar metadades a la base de dades
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // Extract bolo_id and client_id from the payload if available
         let boloId: number | undefined;

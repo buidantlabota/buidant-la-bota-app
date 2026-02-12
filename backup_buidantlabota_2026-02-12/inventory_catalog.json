@@ -1,0 +1,68 @@
+[
+  {
+    "id": "435b6782-922c-4f16-a658-c2ff3ecc79da",
+    "name": "Samarreta Oficial",
+    "type": "samarreta",
+    "created_at": "2025-12-18T09:57:51.709842+00:00"
+  },
+  {
+    "id": "9f72b092-4dbd-4611-a604-9381067e533f",
+    "name": "Dessuadora Oficial",
+    "type": "dessuadora",
+    "created_at": "2025-12-18T09:57:51.709842+00:00"
+  },
+  {
+    "id": "5c34084d-c6c0-4553-8d0a-cad69c2149dd",
+    "name": "Llibret Partitures",
+    "type": "llibret",
+    "created_at": "2025-12-18T09:57:51.709842+00:00"
+  },
+  {
+    "id": "84ceb662-a6b1-4f6c-b798-c11790eaac9a",
+    "name": "Llibret Trompeta 1",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "eccb47d0-6310-48a9-bbe1-dcefeba49858",
+    "name": "Llibret Trompeta 2",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "ee2b09ff-85c2-4c0a-b0ee-2bf9bf4c7fe3",
+    "name": "Llibret Trombó 1",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "40247072-c039-47c3-ada4-f6c7471851aa",
+    "name": "Llibret Trombó 2",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "9c09f571-85c8-4547-9dc9-0216a403e2f9",
+    "name": "Llibret Tuba",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "59a9dcbe-9533-4c1d-941b-c1fb17e187a8",
+    "name": "Llibret Saxo Alto",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "87461623-e0e4-4952-8385-f3c6005c9be0",
+    "name": "Llibret Saxo Tenor",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  },
+  {
+    "id": "4e31896d-59c2-43e4-ba2d-c15b2060a5de",
+    "name": "Partitures Sueltes Saxo",
+    "type": "llibret",
+    "created_at": "2025-12-18T20:43:27.931948+00:00"
+  }
+]
