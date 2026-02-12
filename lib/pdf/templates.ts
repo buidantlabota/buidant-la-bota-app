@@ -29,13 +29,25 @@ export const getHTMLTemplate = (data: TemplateData) => {
     const secondaryColor = '#000000';
 
     // Helper to calculate musicians count if not explicitly provided
-    // This is a rough estimation or we should pass it in 'data'. 
-    // For now, we'll try to extract it from the description or simply omit if not available, 
-    // but the screenshot shows it. We'll verify if we can get it from the bolo data or args.
-    // In strict mode, we might need to update the interface, but let's check 'data.bolo'.
     const numMusics = (data as any).instrumentsCount
         ? Object.values((data as any).instrumentsCount).reduce((a: any, b: any) => a + b, 0)
         : (data.bolo as any).num_musics || ' - ';
+
+    // Helper for Smart Title Case: "Sant Feliu Sasserra" (handling particles)
+    const formatText = (str: string) => {
+        if (!str) return '';
+        // List of words to keep lowercase (unless first word)
+        const minorWords = ['a', 'de', 'del', 'dels', 'el', 'els', 'la', 'les', 'i', 'o', 'per', 'en', 'amb', 'd\'', 'l\''];
+
+        return str.toLowerCase().split(' ').map((word, index) => {
+            // Handle apostrophes basic support (e.g., l'Estel -> L'Estel)
+            // Ideally we'd split by apostrophe too but simple per-word check helps
+            if (index > 0 && minorWords.includes(word)) {
+                return word;
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(' ');
+    };
 
     return `
 <!DOCTYPE html>
@@ -49,22 +61,22 @@ export const getHTMLTemplate = (data: TemplateData) => {
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             margin: 0;
-            padding: 40pt 50pt; /* Page margins: top/bottom left/right */
+            padding: 35pt 50pt; /* Reduced vertical padding to fit on page */
             color: #000;
             font-size: 10pt;
-            line-height: 1.3;
+            line-height: 1.25; /* Slightly tighter line height */
         }
         .header-bar {
             background-color: ${primaryColor};
             height: 20px;
             width: 100%;
-            margin-bottom: 25pt;
+            margin-bottom: 20pt; /* Reduced margin */
         }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 20pt;
+            margin-bottom: 15pt; /* Reduced margin */
         }
         .header-info {
             max-width: 60%;
@@ -72,7 +84,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .header-info h1 {
             color: ${primaryColor};
             font-size: 26pt;
-            margin: 0 0 10pt 0;
+            margin: 0 0 5pt 0; /* Reduced margin */
             font-weight: bold;
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -98,7 +110,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .doc-meta {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 25pt;
+            margin-bottom: 20pt; /* Reduced margin */
             font-weight: bold; /* Requested to be bold */
             font-size: 9pt;
         }
@@ -106,7 +118,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 25pt;
+            margin-bottom: 15pt; /* Reduced margin */
         }
         .bolo-details {
             width: 60%;
@@ -114,7 +126,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .bolo-details h2 {
             color: ${primaryColor};
             font-size: 20pt;
-            margin: 0 0 15pt 0;
+            margin: 0 0 10pt 0; /* Reduced margin */
             font-weight: bold;
             text-transform: uppercase;
         }
@@ -125,7 +137,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
             border-collapse: collapse;
         }
         .details-table td {
-            padding: 4pt 0;
+            padding: 3pt 0; /* Slightly tighter padding */
             vertical-align: top;
         }
         .details-table .label {
@@ -136,21 +148,21 @@ export const getHTMLTemplate = (data: TemplateData) => {
         
         .beneficiary-box {
             width: 35%;
-            padding-top: 40pt; 
+            padding-top: 35pt; /* Adjusted */
         }
         .beneficiary-box h3 {
             font-size: 10pt;
-            margin: 0 0 10pt 0;
+            margin: 0 0 5pt 0; /* Reduced margin */
             font-weight: bold;
             color: #000;
             text-transform: uppercase;
         }
         .beneficiary-info {
             font-size: 10pt;
-            line-height: 1.4;
+            line-height: 1.35;
         }
         .description-section {
-            margin-bottom: 25pt;
+            margin-bottom: 20pt; /* Reduced margin */
         }
         .description-header {
             background-color: ${primaryColor};
@@ -164,16 +176,16 @@ export const getHTMLTemplate = (data: TemplateData) => {
         }
         .description-content {
             border: 2px solid #000;
-            padding: 20pt; /* More internal padding/margin as requested */
+            padding: 20pt; 
             font-size: 9pt;
-            min-height: 60pt;
+            min-height: 50pt; /* Reduced min-height slightly */
             white-space: pre-wrap;
             text-align: justify;
         }
         .table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15pt;
+            margin-bottom: 10pt; /* Reduced margin */
         }
         .table th {
             color: #ba4a4a;
@@ -185,7 +197,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         }
         .table th.right { text-align: right; }
         .table td {
-            padding: 8pt 0;
+            padding: 6pt 0; /* Reduced padding */
             font-size: 10pt;
         }
         .table td.right { text-align: right; }
@@ -193,7 +205,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
             border-top: 2px solid ${primaryColor};
             text-align: right;
             padding-top: 5pt;
-            margin-bottom: 30pt;
+            margin-bottom: 20pt; /* Reduced margin */
         }
         .total-amount {
             color: ${primaryColor};
@@ -201,7 +213,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
             font-weight: bold;
         }
         .footer-section {
-            margin-top: 10pt;
+            margin-top: 5pt; /* Reduced margin */
             page-break-inside: avoid;
         }
         .footer-title {
@@ -216,7 +228,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #000;
-            margin-bottom: 15pt;
+            margin-bottom: 10pt; /* Reduced margin */
             font-size: 10pt;
         }
         .payment-table td {
@@ -269,11 +281,11 @@ export const getHTMLTemplate = (data: TemplateData) => {
             <table class="details-table">
                 <tr>
                     <td class="label">Actuació a:</td>
-                    <td>${data.bolo.nom_poble}</td>
+                    <td>${formatText(data.bolo.nom_poble)}</td>
                 </tr>
                 <tr>
                     <td class="label">Concepte:</td>
-                    <td>${data.bolo.concepte || ''}</td>
+                    <td>${formatText(data.bolo.concepte || '')}</td>
                 </tr>
                 <tr>
                     <td class="label">Durada de l'actuació:</td>
