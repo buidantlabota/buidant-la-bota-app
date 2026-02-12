@@ -27,6 +27,7 @@ export async function POST(request: Request) {
         html = html.replace('LOGO_PLACEHOLDER', logoBase64);
 
         // Importar puppeteer i chromium dinàmicament per a Vercel
+        // Importar puppeteer i chromium dinàmicament per a Vercel
         const puppeteer = await import('puppeteer-core');
         const chromium = await import('@sparticuz/chromium') as any;
 
@@ -35,18 +36,12 @@ export async function POST(request: Request) {
         let chromiumError: any = null;
 
         try {
-            // Optimització per a Vercel
-            chromium.setGraphicsMode = false;
-
-            // Intentar trobar el path correcte dels binaris
-            // En Vercel, a vegades els node_modules estan en llocs diferents
+            // Intentar trobar el path correcte dels binaris en Vercel
             let binPath = undefined;
             if (process.env.VERCEL) {
-                // Intentar localitzar la carpeta bin
                 const possiblePaths = [
                     path.join(process.cwd(), 'node_modules', '@sparticuz', 'chromium', 'bin'),
-                    path.join(process.cwd(), '..', 'node_modules', '@sparticuz', 'chromium', 'bin'), // En cas de monorepo
-                    path.join(__dirname, '..', '..', '..', '..', 'node_modules', '@sparticuz', 'chromium', 'bin')
+                    path.join(process.cwd(), '..', 'node_modules', '@sparticuz', 'chromium', 'bin'),
                 ];
 
                 for (const p of possiblePaths) {
@@ -55,18 +50,32 @@ export async function POST(request: Request) {
                         break;
                     }
                 }
-                console.log('Detected bin path for chromium:', binPath);
+                if (binPath) console.log('Detected bin path for chromium:', binPath);
             }
 
+            // Determine if we are using the default export or named export
+            // Handle varying import structures (ESM vs CJS)
+            let chromiumLib = chromium;
+            if (chromium.default) {
+                chromiumLib = chromium.default;
+            }
+
+            // Try to set graphics mode if available (optional)
+            try {
+                if (typeof chromiumLib.setGraphicsMode === 'function') {
+                    chromiumLib.setGraphicsMode = false;
+                }
+            } catch (e) { /* Ignore if immutable or missing */ }
+
+
             // @sparticuz/chromium v123+ exports executablePath as a function
-            if (typeof chromium.executablePath === 'function') {
-                executablePath = await chromium.executablePath(binPath);
-            } else if (chromium.default && typeof chromium.default.executablePath === 'function') {
-                executablePath = await chromium.default.executablePath(binPath);
+            if (typeof chromiumLib.executablePath === 'function') {
+                executablePath = await chromiumLib.executablePath(binPath);
             } else {
                 // Fallback for older versions or if it's a property
-                executablePath = await chromium.executablePath || chromium.executablePath || await chromium.default?.executablePath || chromium.default?.executablePath;
+                executablePath = await chromiumLib.executablePath || chromiumLib.executablePath;
             }
+
         } catch (e: any) {
             console.error('Error getting chromium executable path:', e);
             chromiumError = e;
