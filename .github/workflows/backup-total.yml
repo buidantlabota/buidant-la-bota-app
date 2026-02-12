@@ -1,0 +1,54 @@
+name: Backup Total Supabase
+
+on:
+  schedule:
+    # S'executa el dia 1 de cada mes a les 05:00 AM UTC
+    - cron: '0 5 1 * *'
+  workflow_dispatch: # Permet l'execució manual per fer proves
+
+jobs:
+  run-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install resend
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Generate SQL Dump and ZIP
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          HOST="db.nkkekyhtybfheqjtxlgx.supabase.co"
+          USER="postgres"
+          DB="postgres"
+          DATE=$(date +%Y-%m-%d)
+          SQL_FILE="backup_total_${DATE}.sql"
+          ZIP_FILE="backup_buidantlabota_${DATE}.zip"
+          
+          echo "Generant dump SQL..."
+          pg_dump -h $HOST -U $USER -d $DB -p 5432 > $SQL_FILE
+          
+          echo "Comprimint en ZIP..."
+          zip $ZIP_FILE $SQL_FILE
+          
+          # Guardem el nom del fitxer per al següent pas
+          echo "BACKUP_FILENAME=$ZIP_FILE" >> $GITHUB_ENV
+
+      - name: Send Email with Backup
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          node scripts/send-backup-email.js ${{ env.BACKUP_FILENAME }}
