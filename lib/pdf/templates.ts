@@ -134,6 +134,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         }
         .beneficiary-box {
             width: 35%;
+            padding-top: 35pt; /* Move down as requested */
         }
         .beneficiary-box h3 {
             font-size: 10pt;
@@ -153,9 +154,9 @@ export const getHTMLTemplate = (data: TemplateData) => {
             background-color: ${primaryColor};
             color: #fff;
             text-align: center;
-            padding: 5pt;
+            padding: 2pt; /* Thinner bar */
             font-weight: bold;
-            text-transform: capitalize; /* Or uppercase based on preference */
+            text-transform: capitalize; 
             font-size: 11pt;
             border: 1px solid #000;
             border-bottom: none;
