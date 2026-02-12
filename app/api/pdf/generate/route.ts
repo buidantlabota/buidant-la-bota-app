@@ -31,16 +31,38 @@ export async function POST(request: Request) {
         const chromium = await import('@sparticuz/chromium') as any;
 
         // Configuració de chromium
-        // Configuració de chromium
         let executablePath: string | undefined;
         let chromiumError: any = null;
 
         try {
+            // Optimització per a Vercel
+            chromium.setGraphicsMode = false;
+
+            // Intentar trobar el path correcte dels binaris
+            // En Vercel, a vegades els node_modules estan en llocs diferents
+            let binPath = undefined;
+            if (process.env.VERCEL) {
+                // Intentar localitzar la carpeta bin
+                const possiblePaths = [
+                    path.join(process.cwd(), 'node_modules', '@sparticuz', 'chromium', 'bin'),
+                    path.join(process.cwd(), '..', 'node_modules', '@sparticuz', 'chromium', 'bin'), // En cas de monorepo
+                    path.join(__dirname, '..', '..', '..', '..', 'node_modules', '@sparticuz', 'chromium', 'bin')
+                ];
+
+                for (const p of possiblePaths) {
+                    if (fs.existsSync(p)) {
+                        binPath = p;
+                        break;
+                    }
+                }
+                console.log('Detected bin path for chromium:', binPath);
+            }
+
             // @sparticuz/chromium v123+ exports executablePath as a function
             if (typeof chromium.executablePath === 'function') {
-                executablePath = await chromium.executablePath();
+                executablePath = await chromium.executablePath(binPath);
             } else if (chromium.default && typeof chromium.default.executablePath === 'function') {
-                executablePath = await chromium.default.executablePath();
+                executablePath = await chromium.default.executablePath(binPath);
             } else {
                 // Fallback for older versions or if it's a property
                 executablePath = await chromium.executablePath || chromium.executablePath || await chromium.default?.executablePath || chromium.default?.executablePath;
