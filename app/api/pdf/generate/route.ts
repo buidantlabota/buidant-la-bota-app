@@ -31,13 +31,27 @@ export async function POST(request: Request) {
         const chromium = await import('@sparticuz/chromium') as any;
 
         // Configuració de chromium
-        const executablePath = await chromium.executablePath || await chromium.default.executablePath();
+        // Configuració de chromium
+        let executablePath: string | undefined;
+        try {
+            // @sparticuz/chromium v123+ exports executablePath as a function
+            if (typeof chromium.executablePath === 'function') {
+                executablePath = await chromium.executablePath();
+            } else if (chromium.default && typeof chromium.default.executablePath === 'function') {
+                executablePath = await chromium.default.executablePath();
+            } else {
+                // Fallback for older versions or if it's a property
+                executablePath = await chromium.executablePath || await chromium.default?.executablePath;
+            }
+        } catch (e) {
+            console.warn('Error getting chromium executable path:', e);
+        }
 
         const browser = await puppeteer.default.launch({
-            args: chromium.args || chromium.default.args,
-            defaultViewport: chromium.defaultViewport || chromium.default.defaultViewport,
-            executablePath: executablePath || '/usr/bin/google-chrome', // Fallback local
-            headless: chromium.headless || chromium.default.headless,
+            args: chromium.args || chromium.default?.args,
+            defaultViewport: chromium.defaultViewport || chromium.default?.defaultViewport,
+            executablePath: executablePath || process.env.CHROME_BIN || undefined,
+            headless: chromium.headless || chromium.default?.headless,
         });
 
         const page = await browser.newPage();
