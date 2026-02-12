@@ -126,7 +126,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .bolo-details h2 {
             color: ${primaryColor};
             font-size: 20pt;
-            margin: 0 0 10pt 0; /* Reduced margin */
+            margin: 0 0 8pt 0; /* Reduced margin */
             font-weight: bold;
             text-transform: uppercase;
         }
@@ -137,32 +137,33 @@ export const getHTMLTemplate = (data: TemplateData) => {
             border-collapse: collapse;
         }
         .details-table td {
-            padding: 3pt 0; /* Slightly tighter padding */
+            padding: 2pt 0; /* Tighter padding */
             vertical-align: top;
+            font-size: 9pt; /* Smaller font as requested */
         }
         .details-table .label {
             font-weight: bold;
-            width: 130pt;
+            width: 110pt; /* Slightly narrower label col */
             color: #000;
         }
         
         .beneficiary-box {
             width: 35%;
-            padding-top: 35pt; /* Adjusted */
+            padding-top: 35pt; 
         }
         .beneficiary-box h3 {
-            font-size: 10pt;
-            margin: 0 0 5pt 0; /* Reduced margin */
+            font-size: 9pt; /* Smaller header */
+            margin: 0 0 5pt 0; 
             font-weight: bold;
             color: #000;
             text-transform: uppercase;
         }
         .beneficiary-info {
-            font-size: 10pt;
-            line-height: 1.35;
+            font-size: 9pt; /* Smaller body text */
+            line-height: 1.3;
         }
         .description-section {
-            margin-bottom: 20pt; /* Reduced margin */
+            margin-bottom: 20pt;
         }
         .description-header {
             background-color: ${primaryColor};
@@ -178,26 +179,26 @@ export const getHTMLTemplate = (data: TemplateData) => {
             border: 0.5pt solid #000;
             padding: 20pt; 
             font-size: 9pt;
-            min-height: 50pt; /* Reduced min-height slightly */
+            min-height: 50pt; 
             white-space: pre-wrap;
             text-align: justify;
         }
         .table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10pt; /* Reduced margin */
+            margin-bottom: 10pt; 
         }
         .table th {
             color: #ba4a4a;
             text-align: left;
-            font-size: 11pt;
+            font-size: 10pt; /* Slightly smaller headers too */
             font-weight: bold;
             border-bottom: 2px solid ${primaryColor};
             padding: 5pt 0;
         }
         .table th.right { text-align: right; }
         .table td {
-            padding: 6pt 0; /* Reduced padding */
+            padding: 6pt 0; 
             font-size: 10pt;
         }
         .table td.right { text-align: right; }
@@ -205,21 +206,21 @@ export const getHTMLTemplate = (data: TemplateData) => {
             border-top: 2px solid ${primaryColor};
             text-align: right;
             padding-top: 5pt;
-            margin-bottom: 20pt; /* Reduced margin */
+            margin-bottom: 20pt; 
         }
         .total-amount {
             color: ${primaryColor};
-            font-size: 20pt;
+            font-size: 18pt; /* Slightly smaller total */
             font-weight: bold;
         }
         .footer-section {
-            margin-top: 5pt; /* Reduced margin */
+            margin-top: 5pt; 
             page-break-inside: avoid;
         }
         .footer-title {
             font-weight: bold;
             margin-bottom: 5pt;
-            font-size: 10pt;
+            font-size: 9pt; /* Smaller footer title */
             text-transform: uppercase;
         }
         
@@ -228,12 +229,12 @@ export const getHTMLTemplate = (data: TemplateData) => {
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #000;
-            margin-bottom: 10pt; /* Reduced margin */
-            font-size: 10pt;
+            margin-bottom: 10pt; 
+            font-size: 9pt; /* Smaller payment info */
         }
         .payment-table td {
             border-bottom: 1px solid #000;
-            padding: 4pt 8pt;
+            padding: 3pt 6pt;
         }
         .payment-table tr:last-child td {
             border-bottom: none;
@@ -245,7 +246,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .exempt-box {
             border-top: 2px solid #000;
             padding-top: 5pt;
-            font-size: 9pt;
+            font-size: 8pt; /* Smaller exempt text */
             font-weight: bold;
             width: 100%;
         }
@@ -301,7 +302,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
         <div class="beneficiary-box">
             <h3>DADES DEL BENEFICIARI</h3>
             <div class="beneficiary-info">
-                <strong>${data.client.rao_social || data.client.nom}</strong><br>
+                <strong>${formatText(data.client.rao_social || data.client.nom)}</strong><br>
                 ${data.client.nif || ''}<br>
                 ${data.client.adreca || ''}<br>
                 ${data.client.poblacio ? `${data.client.poblacio} - ${data.client.codi_postal || ''}` : ''}
