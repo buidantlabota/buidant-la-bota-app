@@ -34,30 +34,21 @@ jobs:
           DATE=$(date +%Y-%m-%d)
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
-          DOMAIN="db.${PROJECT_REF}.supabase.co"
           
-          echo "Forçant resolució IPv4 per a $DOMAIN..."
-          # Busquem la IP vàlida (IPv4)
-          IP_V4=$(getent ahostsv4 "$DOMAIN" | head -n 1 | awk '{print $1}')
-          echo "IP trobada: $IP_V4"
-          
-          # La injectem al fitxer d'hosts per saltar-nos el DNS de GitHub que dona IPv6
-          sudo sh -c "echo '$IP_V4 $DOMAIN' >> /etc/hosts"
-          
-          # URL de connexió al port 6543 (Pooler)
-          DB_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@${DOMAIN}:6543/postgres"
-          
-          echo "Generant dump SQL via npx supabase CLI..."
-          npx supabase db dump --db-url "$DB_URL" > $SQL_FILE
+          echo "Generant dump SQL via Supabase CLI (Project Ref)..."
+          # El mètode --project-ref és el més estable per a automatitzacions
+          # La CLI intenta trobar la millor ruta de connexió (IPv4/IPv6)
+          npx supabase db dump --project-ref "$PROJECT_REF" --db-password "$DB_PASSWORD" > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
           
-          # Guardem el nom del fitxer per al següent pas
+          # Guardem el nom per al següent pas
           echo "BACKUP_FILENAME=$ZIP_FILE" >> $GITHUB_ENV
 
       - name: Send Email with Backup
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
-          node scripts/send-backup-email.js ${{ env.BACKUP_FILENAME }}
+          # Fem servir la variable de terminal per evitar l'avís de VS Code
+          node scripts/send-backup-email.js $BACKUP_FILENAME
