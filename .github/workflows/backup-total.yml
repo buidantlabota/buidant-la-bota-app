@@ -20,44 +20,18 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install resend
+        run: npm install @supabase/supabase-js archiver resend
 
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Generate SQL Dump and ZIP
+      - name: Run HTTP Backup
         env:
-          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          PROJECT_REF="nkkekyhtybfheqjtxlgx"
           DATE=$(date +%Y-%m-%d)
-          SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          # EL TRUC FINAL: Obtenir la IP numèrica IPv4 de Frankfurt de forma infal·lible
-          # Fem servir Python que resol el CNAME fins arribar a la IP real (A record)
-          echo "Resolent IP IPv4 de Frankfurt..."
-          IPV4=$(python3 -c "import socket; print(socket.gethostbyname('aws-0-eu-central-1.pooler.supabase.com'))")
-          echo "IP Resolta: $IPV4"
-          
-          # Codifiquem la contrasenya
-          ENCODED_PW=$(node -e "console.log(encodeURIComponent(process.env.DB_PASSWORD))")
-          
-          # Paràmetres de connexió:
-          # - Host: el nom oficial (per SSL)
-          # - Port: 5432 (Pooler en mode Session, ideal per dumps)
-          # - user: postgres.[PROJECT_REF]
-          # - hostaddr: l'IP numèrica (per saltar-nos el bloqueig IPv6 de GitHub)
-          HOSTNAME="aws-0-eu-central-1.pooler.supabase.com"
-          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PW}@${HOSTNAME}:5432/postgres?hostaddr=${IPV4}"
-          
-          echo "Generant dump SQL (via Session Pooler + IPv4 Direct)..."
-          pg_dump "$DB_URL" --no-owner --no-acl > $SQL_FILE
-          
-          echo "Comprimint en ZIP..."
-          zip $ZIP_FILE $SQL_FILE
+          echo "Iniciant backup via API (HTTP)..."
+          node scripts/http-backup.js
           
           # Guardem el nom del fitxer per al següent pas
           echo "BACKUP_FILENAME=$ZIP_FILE" >> $GITHUB_ENV
