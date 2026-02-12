@@ -31,16 +31,17 @@ jobs:
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          # Host del Projecte (Dades de Settings > Database)
-          HOST="db.nkkekyhtybfheqjtxlgx.supabase.co"
-          PORT="6543" # El port 6543 activa el pooling i sol permetre IPv4 a GitHub
+          # Per Frankfurt (eu-central-1), l'adreça IPv4 corregida
+          HOST="aws-0-eu-central-1.pooler.supabase.com"
+          PORT="5432"
           USER="postgres.nkkekyhtybfheqjtxlgx"
           DB="postgres"
           DATE=$(date +%Y-%m-%d)
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          echo "Generant dump SQL via Port 6543..."
+          echo "Generant dump SQL via IPv4 Pooler Host..."
+          # Forcem IPv4 des del terminal per evitar que resolgui a l'adreça IPv6 fallida
           pg_dump -h $HOST -p $PORT -U $USER -d $DB --no-owner --no-acl > $SQL_FILE
           
           echo "Comprimint en ZIP..."
