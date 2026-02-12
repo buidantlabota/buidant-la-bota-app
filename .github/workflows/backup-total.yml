@@ -22,9 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm install resend
 
-      - name: Install Supabase CLI
+      - name: Install Supabase CLI locally
         run: |
-          npm install -f -g supabase
+          npm install supabase --save-dev
 
       - name: Generate SQL Dump and ZIP
         env:
@@ -38,8 +38,8 @@ jobs:
           # La CLI de Supabase soluciona els problemes d'IPv6 usant el port del pooler (6543)
           DB_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@db.${PROJECT_REF}.supabase.co:6543/postgres"
           
-          echo "Generant dump SQL via Supabase CLI..."
-          supabase db dump --db-url "$DB_URL" > $SQL_FILE
+          echo "Generant dump SQL via npx supabase CLI..."
+          npx supabase db dump --db-url "$DB_URL" > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
