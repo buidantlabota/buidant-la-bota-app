@@ -31,7 +31,10 @@ export async function POST(request: Request) {
         const chromium = await import('@sparticuz/chromium') as any;
 
         // Configuració de chromium
+        // Configuració de chromium
         let executablePath: string | undefined;
+        let chromiumError: any = null;
+
         try {
             // @sparticuz/chromium v123+ exports executablePath as a function
             if (typeof chromium.executablePath === 'function') {
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
             }
         } catch (e: any) {
             console.error('Error getting chromium executable path:', e);
-            // Don't swallow the error, but check if we can fallback
+            chromiumError = e;
         }
 
         // If specific chromium path failed, check environment or common paths
@@ -53,23 +56,38 @@ export async function POST(request: Request) {
                 executablePath = process.env.CHROME_BIN;
             } else {
                 // Try standard local paths for dev if not in Vercel/Production optimized
-                // Note: fs might need to be imported if used
                 try {
                     const fs = await import('fs');
                     if (fs.existsSync('/usr/bin/google-chrome')) executablePath = '/usr/bin/google-chrome';
                     else if (fs.existsSync('/usr/bin/chromium')) executablePath = '/usr/bin/chromium';
                     else if (fs.existsSync('/usr/bin/chromium-browser')) executablePath = '/usr/bin/chromium-browser';
+                    else if (process.platform === 'win32') {
+                        // Check common Windows paths
+                        const winPaths = [
+                            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+                            process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
+                        ];
+                        for (const p of winPaths) {
+                            if (fs.existsSync(p)) {
+                                executablePath = p;
+                                break;
+                            }
+                        }
+                    }
                 } catch (err) { }
             }
         }
 
         // Final check
         if (!executablePath) {
-            throw new Error('Chromium executablePath could not be resolved. Please check your configuration.');
+            throw new Error(`Chromium executablePath could not be resolved. Original Error: ${chromiumError?.message || 'Unknown'}`);
         }
 
+        console.log('Using executablePath:', executablePath);
+
         const browser = await puppeteer.default.launch({
-            args: chromium.args || chromium.default?.args || ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: chromium.args || chromium.default?.args || ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
             defaultViewport: chromium.defaultViewport || chromium.default?.defaultViewport || { width: 1920, height: 1080 },
             executablePath: executablePath,
             headless: chromium.headless === 'new' ? 'new' : (chromium.headless || chromium.default?.headless || true),
