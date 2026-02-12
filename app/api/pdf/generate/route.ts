@@ -31,7 +31,6 @@ export async function POST(request: Request) {
         const chromium = await import('@sparticuz/chromium') as any;
 
         // Configuració de chromium
-        // Configuració de chromium
         let executablePath: string | undefined;
         try {
             // @sparticuz/chromium v123+ exports executablePath as a function
@@ -41,17 +40,39 @@ export async function POST(request: Request) {
                 executablePath = await chromium.default.executablePath();
             } else {
                 // Fallback for older versions or if it's a property
-                executablePath = await chromium.executablePath || await chromium.default?.executablePath;
+                executablePath = await chromium.executablePath || chromium.executablePath || await chromium.default?.executablePath || chromium.default?.executablePath;
             }
-        } catch (e) {
-            console.warn('Error getting chromium executable path:', e);
+        } catch (e: any) {
+            console.error('Error getting chromium executable path:', e);
+            // Don't swallow the error, but check if we can fallback
+        }
+
+        // If specific chromium path failed, check environment or common paths
+        if (!executablePath) {
+            if (process.env.CHROME_BIN) {
+                executablePath = process.env.CHROME_BIN;
+            } else {
+                // Try standard local paths for dev if not in Vercel/Production optimized
+                // Note: fs might need to be imported if used
+                try {
+                    const fs = await import('fs');
+                    if (fs.existsSync('/usr/bin/google-chrome')) executablePath = '/usr/bin/google-chrome';
+                    else if (fs.existsSync('/usr/bin/chromium')) executablePath = '/usr/bin/chromium';
+                    else if (fs.existsSync('/usr/bin/chromium-browser')) executablePath = '/usr/bin/chromium-browser';
+                } catch (err) { }
+            }
+        }
+
+        // Final check
+        if (!executablePath) {
+            throw new Error('Chromium executablePath could not be resolved. Please check your configuration.');
         }
 
         const browser = await puppeteer.default.launch({
-            args: chromium.args || chromium.default?.args,
-            defaultViewport: chromium.defaultViewport || chromium.default?.defaultViewport,
-            executablePath: executablePath || process.env.CHROME_BIN || undefined,
-            headless: chromium.headless || chromium.default?.headless,
+            args: chromium.args || chromium.default?.args || ['--no-sandbox', '--disable-setuid-sandbox'],
+            defaultViewport: chromium.defaultViewport || chromium.default?.defaultViewport || { width: 1920, height: 1080 },
+            executablePath: executablePath,
+            headless: chromium.headless === 'new' ? 'new' : (chromium.headless || chromium.default?.headless || true),
         });
 
         const page = await browser.newPage();
