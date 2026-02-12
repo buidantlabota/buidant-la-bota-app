@@ -27,6 +27,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client dnsutils
 
+      - name: Disable IPv6 (Force IPv4)
+        run: |
+          # Aquesta és la solució radical: desactivem IPv6 a tot el servidor de GitHub
+          # Això obliga a pg_dump a trobar el camí IPv4 sí o sí.
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+          sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+
       - name: Generate SQL Dump and ZIP
         env:
           DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -37,18 +45,22 @@ jobs:
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           HOSTNAME="db.${PROJECT_REF}.supabase.co"
           
-          # 1. Trobem la IP (IPv4) del teu projecte
-          IPV4=$(dig +short $HOSTNAME A | head -n1)
+          echo "Resolent IP (forçant IPv4)..."
+          # Busquem la IP numèrica per assegurar que no intenti anar per la ruta fallida
+          IPV4=$(getent ahosts $HOSTNAME | grep RAW | grep -v : | awk '{print $1}' | head -n1)
           echo "IPv4 resolta: $IPV4"
+
+          # Si per algun motiu no troba IP, usarem el host normal (pero amb IPv6 desactivat)
+          TARGET_HOST=${IPV4:-$HOSTNAME}
           
-          # 2. Codifiquem la contrasenya
+          # Codifiquem la contrasenya
           ENCODED_PW=$(node -e "console.log(encodeURIComponent(process.env.DB_PASSWORD))")
           
-          # 3. La URL màgica: HOSTNAME pel nom (SSL) i HOSTADDR per la connexió (IPv4)
-          # Això soluciona tant l'error de xarxa com el de 'Tenant not found'
-          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PW}@${HOSTNAME}:6543/postgres?hostaddr=${IPV4}"
+          # URL de connexió al port 6543 (Pooler) que suporta IPv4 perfectament
+          # Si usem la IP al hostaddr, mantenim l'SNI (SSL) pel hostname
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED_PW}@${HOSTNAME}:6543/postgres?hostaddr=${TARGET_HOST}"
           
-          echo "Generant dump SQL via hostaddr (SNI + IPv4 Connection)..."
+          echo "Generant dump SQL directament..."
           pg_dump "$DB_URL" --no-owner --no-acl > $SQL_FILE
           
           echo "Comprimint en ZIP..."
