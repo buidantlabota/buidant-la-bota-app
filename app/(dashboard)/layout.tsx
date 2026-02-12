@@ -1,8 +1,9 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 // Define access to nav items structure
 type NavItem = {
@@ -18,8 +19,29 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const supabase = createClient();
+
+    // Automatic logout logic (check if session exists)
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                router.push('/login');
+            }
+        };
+
+        // Check every 30 minutes
+        const interval = setInterval(checkSession, 30 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [router, supabase]);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push('/login');
+    };
 
     // State for open dropdowns. Defaulting 'Tresoreria' and 'Actuacions' to open or closed? 
     // Let's keep them closed by default, or open if interaction is needed. 
@@ -169,10 +191,22 @@ export default function DashboardLayout({
                 </div>
 
                 {/* Navigation */}
-                <nav className={`px-2 pb-4 md:block ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
+                <nav className={`px-2 pb-4 md:block flex-1 ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
                     <ul className="space-y-1">
                         {navItems.map(renderNavItem)}
                     </ul>
+
+                    {/* Logout Button */}
+                    <div className="mt-8 pt-4 border-t border-white/10">
+                        <button
+                            onClick={handleLogout}
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-white/70 hover:bg-red-500/20 hover:text-red-200`}
+                            title={isCollapsed ? 'Sortir' : undefined}
+                        >
+                            <span className="material-icons-outlined">logout</span>
+                            {!isCollapsed && <span className="font-medium">Sortir</span>}
+                        </button>
+                    </div>
                 </nav>
                 {/* Desktop Collapse Toggle */}
                 <div className={`hidden md:flex justify-center w-full mt-auto p-4 border-t border-white/10`}>

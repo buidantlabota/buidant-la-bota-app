@@ -1,0 +1,16 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # S'executa cada dia a les 04:00 AM (hora d'Espanya aprox) per no molestar
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Permet executar-lo manualment des de la pestanya "Actions" de GitHub
+
+jobs:
+  ping_supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send keep-alive request
+        run: |
+          # RECORDA: Substitueix l'URL per la teva URL real de Vercel si és diferent
+          curl -I "https://buidant-la-bota-app.vercel.app/api/cron/keep-alive"
