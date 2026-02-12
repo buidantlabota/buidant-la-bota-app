@@ -83,7 +83,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
             color: #000;
         }
         .logo-box {
-            background-color: ${primaryColor};
+            /* background-color: ${primaryColor}; Removed to avoid weird background */
             width: 100pt;
             height: 100pt;
             display: flex;
@@ -91,20 +91,22 @@ export const getHTMLTemplate = (data: TemplateData) => {
             justify-content: center;
         }
         .logo-box img {
-            width: 80pt;
-            height: 80pt;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
         }
         .doc-meta {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20pt;
+            margin-bottom: 25pt;
+            font-weight: bold; /* Requested to be bold */
             font-size: 9pt;
         }
         .main-section {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20pt;
+            align-items: flex-start;
+            margin-bottom: 25pt;
         }
         .bolo-details {
             width: 60%;
@@ -116,23 +118,25 @@ export const getHTMLTemplate = (data: TemplateData) => {
             font-weight: bold;
             text-transform: uppercase;
         }
-        .detail-row {
-            display: flex;
-            margin-bottom: 6pt;
-            align-items: baseline;
+        
+        /* New Table for Details alignment */
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .detail-label {
+        .details-table td {
+            padding: 4pt 0;
+            vertical-align: top;
+        }
+        .details-table .label {
             font-weight: bold;
-            width: 110pt;
-            min-width: 110pt;
+            width: 130pt;
             color: #000;
         }
-        .detail-value {
-             /* flex: 1; */
-        }
+        
         .beneficiary-box {
             width: 35%;
-            padding-top: 35pt; /* Move down as requested */
+            padding-top: 40pt; 
         }
         .beneficiary-box h3 {
             font-size: 10pt;
@@ -146,22 +150,21 @@ export const getHTMLTemplate = (data: TemplateData) => {
             line-height: 1.4;
         }
         .description-section {
-            margin-bottom: 20pt;
+            margin-bottom: 25pt;
         }
         .description-header {
             background-color: ${primaryColor};
             color: #fff;
             text-align: center;
-            padding: 2pt; /* Thinner bar */
+            padding: 3pt;
             font-weight: bold;
-            text-transform: capitalize; 
-            font-size: 11pt;
+            font-size: 10pt;
             border: 1px solid #000;
             border-bottom: none;
         }
         .description-content {
             border: 2px solid #000;
-            padding: 10pt;
+            padding: 20pt; /* More internal padding/margin as requested */
             font-size: 9pt;
             min-height: 60pt;
             white-space: pre-wrap;
@@ -170,10 +173,10 @@ export const getHTMLTemplate = (data: TemplateData) => {
         .table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10pt;
+            margin-bottom: 15pt;
         }
         .table th {
-            color: #ba4a4a; /* Lighter red for headers */
+            color: #ba4a4a;
             text-align: left;
             font-size: 11pt;
             font-weight: bold;
@@ -207,18 +210,32 @@ export const getHTMLTemplate = (data: TemplateData) => {
             font-size: 10pt;
             text-transform: uppercase;
         }
-        .payment-box {
-            border: 2px solid #000;
-            padding: 5pt 10pt;
-            font-size: 10pt;
+        
+        /* Styled Payment Table */
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
             margin-bottom: 15pt;
+            font-size: 10pt;
+        }
+        .payment-table td {
+            border-bottom: 1px solid #000;
+            padding: 4pt 8pt;
+        }
+        .payment-table tr:last-child td {
+            border-bottom: none;
+        }
+        .payment-table strong {
             font-weight: bold;
         }
+
         .exempt-box {
             border-top: 2px solid #000;
             padding-top: 5pt;
             font-size: 9pt;
             font-weight: bold;
+            width: 100%;
         }
     </style>
 </head>
@@ -234,7 +251,8 @@ export const getHTMLTemplate = (data: TemplateData) => {
             <p>CIF. G13919436</p>
         </div>
         <div class="logo-box">
-            <img src="data:image/jpeg;base64,${/* Logo will be injected here as base64 */ 'LOGO_PLACEHOLDER'}" alt="Logo">
+            <!-- Using PNG for better transparency support if needed -->
+            <img src="data:image/png;base64,${/* Logo will be injected here */ 'LOGO_PLACEHOLDER'}" alt="Logo">
         </div>
     </div>
 
@@ -247,22 +265,26 @@ export const getHTMLTemplate = (data: TemplateData) => {
     <div class="main-section">
         <div class="bolo-details">
             <h2>${isInvoice ? 'FACTURA' : 'PRESSUPOST'}</h2>
-            <div class="detail-row">
-                <span class="detail-label">Actuació a:</span>
-                <span class="detail-value">${data.bolo.nom_poble}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">Concepte:</span>
-                <span class="detail-value">${data.bolo.concepte || ''}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">Durada de l'actuació:</span>
-                <span class="detail-value">${data.bolo.durada ? data.bolo.durada + 'h' : ''}</span> 
-            </div>
-             <div class="detail-row">
-                <span class="detail-label">Nombre de músics:</span>
-                <span class="detail-value">${numMusics}</span>
-            </div>
+            
+            <table class="details-table">
+                <tr>
+                    <td class="label">Actuació a:</td>
+                    <td>${data.bolo.nom_poble}</td>
+                </tr>
+                <tr>
+                    <td class="label">Concepte:</td>
+                    <td>${data.bolo.concepte || ''}</td>
+                </tr>
+                <tr>
+                    <td class="label">Durada de l'actuació:</td>
+                    <td>${data.bolo.durada ? data.bolo.durada + 'h' : ''}</td>
+                </tr>
+                <tr>
+                    <td class="label">Nombre de músics:</td>
+                    <td>${numMusics}</td>
+                </tr>
+            </table>
+
         </div>
         <div class="beneficiary-box">
             <h3>DADES DEL BENEFICIARI</h3>
@@ -309,11 +331,17 @@ export const getHTMLTemplate = (data: TemplateData) => {
         <div class="footer-title">${isInvoice ? 'CONDICIONS I FORMA DE PAGAMENT' : 'NOTES'}</div>
         
         ${isInvoice ? `
-        <div class="payment-box">
-            CAIXABANC<br>
-            IBAN: ES44 2100 0017 5901 1078 9921<br>
-            BIC: CAIXAESXXXX
-        </div>
+        <table class="payment-table">
+            <tr>
+                <td><strong>CAIXABANC</strong></td>
+            </tr>
+            <tr>
+                <td><strong>IBAN:</strong> ES44 2100 0017 5901 1078 9921</td>
+            </tr>
+            <tr>
+                <td><strong>BIC:</strong> CAIXAESXXXX</td>
+            </tr>
+        </table>
         ` : ''}
 
         <div class="exempt-box">
