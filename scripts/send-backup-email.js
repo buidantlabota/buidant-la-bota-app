@@ -19,7 +19,7 @@ async function sendBackup() {
         console.log(`Enviant backup: ${fileName}...`);
 
         const { data, error } = await resend.emails.send({
-            from: 'BUIDANT LA BOTA <no-reply@app.buidantlabota.cat>',
+            from: 'Buidant la Bota <onboarding@resend.dev>',
             to: 'buidantlabota@gmail.com',
             subject: `📦 Backup Total Supabase – ${date}`,
             html: `

@@ -31,15 +31,16 @@ jobs:
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          HOST="db.nkkekyhtybfheqjtxlgx.supabase.co"
-          USER="postgres"
+          # Host del Pooler (Sempre suporta IPv4 a GitHub Actions)
+          HOST="aws-0-eu-central-1.pooler.supabase.com"
+          USER="postgres.nkkekyhtybfheqjtxlgx"
           DB="postgres"
           DATE=$(date +%Y-%m-%d)
           SQL_FILE="backup_total_${DATE}.sql"
           ZIP_FILE="backup_buidantlabota_${DATE}.zip"
           
-          echo "Generant dump SQL..."
-          pg_dump -h $HOST -U $USER -d $DB -p 5432 > $SQL_FILE
+          echo "Generant dump SQL via IPv4 Pooler..."
+          pg_dump -h $HOST -p 5432 -U $USER -d $DB --no-owner --no-acl > $SQL_FILE
           
           echo "Comprimint en ZIP..."
           zip $ZIP_FILE $SQL_FILE
