@@ -157,6 +157,14 @@ export async function POST(request: Request) {
             boloId = (data as any).bolo_id;
         }
 
+        // Prepare storage info
+        const bucket = data.type === 'factura' ? 'factures' : 'pressupostos';
+        const dateFolder = format(new Date(), 'yyyy-MM');
+        const fileName = `${data.number.replace('/', '-')}_${Date.now()}.pdf`;
+        const storagePath = `${dateFolder}/${fileName}`;
+
+        let recordId: string | undefined;
+
         if (data.type === 'factura') {
             await registerInvoice({
                 invoice_number: data.number,
@@ -167,7 +175,8 @@ export async function POST(request: Request) {
                 articles: data.articles,
                 paid: false,
                 notes: data.descriptionText,
-                status: 'sent'
+                status: 'sent',
+                pdf_storage_path: storagePath
             });
         } else {
             await registerQuote({
@@ -178,7 +187,8 @@ export async function POST(request: Request) {
                 total_amount: data.total,
                 articles: data.articles,
                 notes: data.descriptionText,
-                status: 'sent'
+                status: 'sent',
+                pdf_storage_path: storagePath
             });
         }
 
@@ -187,12 +197,9 @@ export async function POST(request: Request) {
             throw new Error('CONFIG_ERROR: La clau SUPABASE_SERVICE_ROLE_KEY no està configurada a Vercel.');
         }
 
-        const bucket = data.type === 'factura' ? 'factures' : 'pressupostos';
-        const fileName = `${data.number.replace('/', '-')}_${Date.now()}.pdf`;
-
         const { data: uploadData, error: uploadError } = await supabase.storage
             .from(bucket)
-            .upload(fileName, pdfBuffer, {
+            .upload(storagePath, pdfBuffer, {
                 contentType: 'application/pdf',
                 upsert: true
             });

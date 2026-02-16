@@ -1,0 +1,59 @@
+name: Monthly Billing Export
+
+on:
+  schedule:
+    # S'executa el dia 1 de cada mes a les 03:00 AM UTC
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Any a exportar (YYYY)'
+        required: false
+      month:
+        description: 'Mes a exportar (MM)'
+        required: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js archiver resend
+
+      - name: Run Export Script
+        id: run_export
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO || 'buidantlabota@gmail.com' }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM || 'Buidant la Bota <onboarding@resend.dev>' }}
+        run: |
+          # Determinar arguments si s'han passat manualment
+          ARGS=""
+          if [ "${{ github.event.inputs.year }}" != "" ]; then
+            ARGS="$ARGS --year=${{ github.event.inputs.year }}"
+          fi
+          if [ "${{ github.event.inputs.month }}" != "" ]; then
+            ARGS="$ARGS --month=${{ github.event.inputs.month }}"
+          fi
+          
+          echo "Executant script amb args: $ARGS"
+          node scripts/monthly-billing-export.js $ARGS
+
+      - name: Upload Export Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: billing-export-${{ github.event.inputs.year || 'monthly' }}-${{ github.event.inputs.month || 'auto' }}
+          path: export_buidantlabota_*.zip
+          retention-days: 30
+          if-no-files-found: ignore

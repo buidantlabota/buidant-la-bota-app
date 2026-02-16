@@ -56,6 +56,7 @@ export async function registerInvoice(data: {
     paid?: boolean;
     notes?: string;
     status?: string;
+    pdf_storage_path?: string;
 }) {
     const supabase = createAdminClient();
     const creationDate = new Date();
@@ -74,7 +75,8 @@ export async function registerInvoice(data: {
             paid: data.paid || false,
             articles: data.articles,
             notes: data.notes,
-            status: data.status || 'sent'
+            status: data.status || 'sent',
+            pdf_storage_path: data.pdf_storage_path
         })
         .select()
         .single();
@@ -96,6 +98,7 @@ export async function registerQuote(data: {
     articles: any[];
     notes?: string;
     status?: string;
+    pdf_storage_path?: string;
 }) {
     const supabase = createAdminClient();
 
@@ -110,7 +113,8 @@ export async function registerQuote(data: {
             total_amount: data.total_amount,
             articles: data.articles,
             notes: data.notes,
-            status: data.status || 'sent'
+            status: data.status || 'sent',
+            pdf_storage_path: data.pdf_storage_path
         })
         .select()
         .single();
