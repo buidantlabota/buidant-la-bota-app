@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getHTMLTemplate, TemplateData } from '@/lib/pdf/templates';
 import { registerInvoice, registerQuote } from '@/lib/billing-utils';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { format } from 'date-fns';
 import path from 'path';
 import fs from 'fs';
 
