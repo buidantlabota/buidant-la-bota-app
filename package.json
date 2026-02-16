@@ -18,7 +18,7 @@
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.561.0",
-    "next": "^16.0.10",
+    "next": "^16.1.6",
     "puppeteer-core": "^24.37.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -31,7 +31,7 @@
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
