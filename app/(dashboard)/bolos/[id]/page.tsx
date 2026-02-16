@@ -2238,11 +2238,11 @@ export default function BoloDetailPage() {
                                     Enrere
                                 </button>
                                 <button
-                                    onClick={() => handleGenerateDocument(previewType!)}
-                                    disabled={loadingPDF}
+                                    onClick={() => handleGeneratePDF()}
+                                    disabled={pdfGenerating}
                                     className="flex-1 sm:flex-none px-8 py-3 rounded-xl bg-primary text-white font-black hover:bg-red-900 transition-all uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-2"
                                 >
-                                    {loadingPDF ? (
+                                    {pdfGenerating ? (
                                         <>
                                             <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full"></div>
                                             Generant...
