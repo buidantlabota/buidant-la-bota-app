@@ -163,35 +163,34 @@ export default function DashboardLayout({
     return (
         <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
             {/* Sidebar */}
-            <aside className={`${isCollapsed ? 'md:w-20' : 'md:w-64'} w-full bg-primary text-white flex-shrink-0 shadow-lg z-20 transition-all duration-300 sticky top-0 md:h-screen overflow-y-auto`}>
+            <aside className={`${isCollapsed ? 'md:w-20' : 'md:w-64'} w-full md:h-screen bg-primary text-white flex-shrink-0 shadow-lg z-20 transition-all duration-300 md:sticky md:top-0 overflow-y-auto`}>
                 <div className="p-4 flex items-center justify-between md:flex-col md:items-start">
                     {/* Logo / Title */}
-                    <div className={`flex items-center space-x-3 mb-0 md:mb-8 transition-all duration-300 ${isCollapsed ? 'justify-center w-full' : ''}`}>
-                        {/* Logo de la xaranga Buidant la Bota al costat del nom de l'aplicació */}
+                    <div className={`flex items-center space-x-3 transition-all duration-300 ${isCollapsed ? 'md:justify-center md:w-full' : ''}`}>
                         <img
                             alt="Logo de Buidant la Bota"
-                            className="w-12 h-12 rounded-full object-cover border-2 border-white/20"
+                            className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white/20"
                             src="/blb-logo.jpg"
                         />
-                        {!isCollapsed && (
-                            <div className="transition-opacity duration-300">
-                                <span className="text-xl font-bold block leading-none">GestioBLB</span>
-                                <span className="text-xs text-white/70">Buidant la Bota</span>
-                            </div>
-                        )}
+                        <div className={`${isCollapsed ? 'md:hidden' : 'block'}`}>
+                            <span className="text-lg md:text-xl font-bold block leading-none">GestioBLB</span>
+                            <span className="text-[10px] md:text-xs text-white/70">Buidant la Bota</span>
+                        </div>
                     </div>
 
                     {/* Mobile Menu Toggle */}
-                    <button
-                        className="md:hidden text-white hover:bg-white/10 p-2 rounded"
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    >
-                        <span className="material-icons-outlined">{isMobileMenuOpen ? 'close' : 'menu'}</span>
-                    </button>
+                    <div className="flex items-center gap-2 md:hidden">
+                        <button
+                            className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        >
+                            <span className="material-icons-outlined text-3xl">{isMobileMenuOpen ? 'close' : 'menu'}</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Navigation */}
-                <nav className={`px-2 pb-4 md:block flex-1 ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
+                <nav className={`px-2 pb-4 ${isMobileMenuOpen ? 'block' : 'hidden'} md:block flex-1`}>
                     <ul className="space-y-1">
                         {navItems.map(renderNavItem)}
                     </ul>
@@ -220,10 +219,11 @@ export default function DashboardLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto">
-                {children}
+            <main className="flex-1 min-w-0 overflow-x-hidden md:overflow-y-auto">
+                <div className="h-full">
+                    {children}
+                </div>
             </main>
         </div>
     );
 }
-

@@ -1114,17 +1114,17 @@ export default function BoloDetailPage() {
     const isRebutjat = bolo.estat_rebuig === 'rebutjat' || (bolo.estat as string) === 'Cancel·lats' || (bolo.estat as string) === 'Cancel·lat';
 
     return (
-        <div className="p-6 max-w-3xl mx-auto space-y-6 relative">
+        <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6 relative">
             {/* Toast */}
             {toast.show && (
-                <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white z-50 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white z-[110] ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
                     {toast.message}
                 </div>
             )}
 
             {/* Rejection Modal */}
             {showRejectionModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-card-dark p-6 rounded-xl max-w-md w-full shadow-xl border border-gray-200 dark:border-border-dark">
                         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-text-primary-dark">Rebutjar / Cancel·lar Bolo</h3>
                         <p className="mb-4 text-sm text-gray-500 dark:text-text-secondary-dark">
@@ -1154,7 +1154,7 @@ export default function BoloDetailPage() {
                             </div>
                         </div>
 
-                        <div className="flex justify-end space-x-3 mt-6">
+                        <div className="flex justify-end gap-3 mt-6">
                             <button
                                 onClick={() => setShowRejectionModal(false)}
                                 className="px-4 py-2 rounded text-gray-500 dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -1163,7 +1163,7 @@ export default function BoloDetailPage() {
                             </button>
                             <button
                                 onClick={handleRejection}
-                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-bold"
                             >
                                 Continuar amb el rebuig
                             </button>
@@ -1173,8 +1173,8 @@ export default function BoloDetailPage() {
             )}
 
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
                     <Link href="/bolos" className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">arrow_back</span>
                     </Link>
@@ -1201,7 +1201,7 @@ export default function BoloDetailPage() {
                     <div className="flex-1 min-w-0">
                         {isEditingTitle ? (
                             <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                                <div className="flex-1">
+                                <div className="flex-1 w-full">
                                     <MunicipiSelector
                                         value={tempMunicipi}
                                         onChange={setTempMunicipi}
@@ -1212,20 +1212,20 @@ export default function BoloDetailPage() {
                                     type="date"
                                     value={tempDate}
                                     onChange={(e) => setTempDate(e.target.value)}
-                                    className="p-1.5 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none"
+                                    className="w-full sm:w-auto p-1.5 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none"
                                 />
-                                <div className="flex gap-1 shrink-0">
-                                    <button onClick={handleUpdateTitle} className="p-1 rounded bg-green-100 text-green-700 hover:bg-green-200">
+                                <div className="flex gap-1 shrink-0 w-full sm:w-auto justify-end">
+                                    <button onClick={handleUpdateTitle} className="p-2 rounded bg-green-100 text-green-700 hover:bg-green-200">
                                         <span className="material-icons-outlined text-xl">check</span>
                                     </button>
-                                    <button onClick={() => setIsEditingTitle(false)} className="p-1 rounded bg-red-100 text-red-700 hover:bg-red-200">
+                                    <button onClick={() => setIsEditingTitle(false)} className="p-2 rounded bg-red-100 text-red-700 hover:bg-red-200">
                                         <span className="material-icons-outlined text-xl">close</span>
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary-dark flex items-center gap-2 group">
-                                {bolo.nom_poble}
+                            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-text-primary-dark flex items-center gap-2 group truncate">
+                                <span className="truncate">{bolo.nom_poble}</span>
                                 {!isRebutjat && (bolo.estat as string) !== 'Tancat' && (
                                     <button
                                         onClick={() => {
@@ -1238,7 +1238,7 @@ export default function BoloDetailPage() {
                                             });
                                             setIsEditingTitle(true);
                                         }}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-text-secondary-dark"
+                                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-text-secondary-dark"
                                         title="Editar nom i data"
                                     >
                                         <span className="material-icons-outlined text-lg">edit</span>
@@ -1247,79 +1247,82 @@ export default function BoloDetailPage() {
                             </h1>
                         )}
                     </div>
-                    {/* State Control Pipeline */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handleStatusTransition('prev')}
-                            disabled={updating || BOLO_STATES.indexOf(bolo.estat as BoloStatus) <= 0 || isRebutjat}
-                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                            title="Estat anterior"
-                        >
-                            <span className="material-icons-outlined text-sm">west</span>
-                        </button>
-
-                        <div className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all duration-300 ${isRebutjat ? 'bg-red-600 text-white' :
-                            bolo.estat === 'Nova' ? 'bg-red-600 text-white' :
-                                bolo.estat === 'Pendent de confirmació' ? 'bg-orange-500 text-white' :
-                                    bolo.estat === 'Confirmada' ? 'bg-emerald-600 text-white' :
-                                        bolo.estat === 'Pendents de cobrar' ? 'bg-yellow-400 text-gray-900' :
-                                            bolo.estat === 'Per pagar' ? 'bg-lime-500 text-gray-900' :
-                                                bolo.estat === 'Tancades' ? 'bg-red-900 text-white' :
-                                                    'bg-gray-400 text-white'
-                            }`}>
-                            {isRebutjat ? 'Cancel·lats' : bolo.estat}
-                            {updating && <div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div>}
-                        </div>
-
-                        <button
-                            onClick={() => handleStatusTransition('next')}
-                            disabled={updating || BOLO_STATES.indexOf(bolo.estat as BoloStatus) >= BOLO_STATES.length - 1 || isRebutjat}
-                            className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                            title="Següent estat"
-                        >
-                            <span className="material-icons-outlined text-sm">east</span>
-                        </button>
-                    </div>
                 </div>
 
-                {!isRebutjat && (bolo.estat as string) !== 'Tancat' && (
+                {/* State Control Pipeline */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                        onClick={() => handleStatusTransition('prev')}
+                        disabled={updating || BOLO_STATES.indexOf(bolo.estat as BoloStatus) <= 0 || isRebutjat}
+                        className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        title="Estat anterior"
+                    >
+                        <span className="material-icons-outlined text-lg">west</span>
+                    </button>
+
+                    <div className={`px-4 py-2 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all duration-300 ${isRebutjat ? 'bg-red-600 text-white' :
+                        bolo.estat === 'Nova' ? 'bg-red-600 text-white' :
+                            bolo.estat === 'Pendent de confirmació' ? 'bg-orange-500 text-white' :
+                                bolo.estat === 'Confirmada' ? 'bg-emerald-600 text-white' :
+                                    bolo.estat === 'Pendents de cobrar' ? 'bg-yellow-400 text-gray-900' :
+                                        bolo.estat === 'Per pagar' ? 'bg-lime-500 text-gray-900' :
+                                            bolo.estat === 'Tancades' ? 'bg-red-900 text-white' :
+                                                'bg-gray-400 text-white'
+                        }`}>
+                        {isRebutjat ? 'Cancel·lada' : (bolo.estat === 'Confirmada' ? 'En curs' : bolo.estat)}
+                        {updating && <div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div>}
+                    </div>
+
+                    <button
+                        onClick={() => handleStatusTransition('next')}
+                        disabled={updating || BOLO_STATES.indexOf(bolo.estat as BoloStatus) >= BOLO_STATES.length - 1 || isRebutjat}
+                        className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        title="Següent estat"
+                    >
+                        <span className="material-icons-outlined text-lg">east</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Actions for Status Rejection */}
+            {!isRebutjat && (bolo.estat as string) !== 'Tancat' && (
+                <div className="flex justify-end">
                     <button
                         onClick={() => setShowRejectionModal(true)}
-                        className="text-red-500 hover:text-red-700 text-sm font-medium flex items-center"
+                        className="text-red-500 hover:text-red-700 text-xs font-bold flex items-center bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
                     >
                         <span className="material-icons-outlined text-sm mr-1">block</span>
-                        Rebutjar / Cancel·lar
+                        CANCEL·LAR BOLO
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Rejection Info Panel */}
             {isRebutjat && (
-                <div className="bg-red-600 border-2 border-red-800 rounded-xl p-5 shadow-lg animate-pulse-subtle">
-                    <h3 className="text-white font-black flex items-center mb-3 text-lg">
+                <div className="bg-red-600 border-2 border-red-800 rounded-xl p-4 sm:p-5 shadow-lg">
+                    <h3 className="text-white font-black flex items-center mb-3 text-base sm:text-lg">
                         <span className="material-icons-outlined mr-2 text-2xl">error_outline</span>
                         BOLO REBUTJAT / CANCEL·LAT
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-white/10 p-4 rounded-lg border border-white/20">
-                        <div>
-                            <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">Motiu:</span>
-                            <p className="text-white font-medium text-base">{bolo.motiu_rebuig || 'No s\'ha especificat cap motiu'}</p>
+                        <div className="sm:col-span-2">
+                            <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">Motiu / Qui:</span>
+                            <p className="text-white font-medium text-base">
+                                <span className="capitalize opacity-80 mr-2">[{bolo.origen_rebuig || '-'}]</span>
+                                {bolo.motiu_rebuig || 'No s\'ha especificat cap motiu'}
+                            </p>
                         </div>
-                        <div>
-                            <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">Decisió de:</span>
-                            <p className="text-white font-medium text-base capitalize">{bolo.origen_rebuig || '-'}</p>
-                        </div>
-                        <div className="flex justify-between items-end">
-                            <div>
+                        <div className="flex flex-row sm:flex-col justify-between items-end sm:items-end gap-2">
+                            <div className="text-right">
                                 <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">Data:</span>
-                                <p className="text-white font-medium text-base">
-                                    {bolo.data_rebuig ? new Date(bolo.data_rebuig).toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                                <p className="text-white font-medium text-sm">
+                                    {bolo.data_rebuig ? format(new Date(bolo.data_rebuig), 'dd/MM/yyyy') : '-'}
                                 </p>
                             </div>
                             <button
                                 onClick={handleRecover}
                                 disabled={updating}
-                                className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                className="bg-white text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-black text-xs shadow-md transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
                             >
                                 <span className="material-icons-outlined text-sm">restore</span>
                                 RECUPERAR
@@ -1329,68 +1332,56 @@ export default function BoloDetailPage() {
                 </div>
             )}
 
-            {/* Main Details Compact */}
-            <div className="bg-gradient-to-br from-white to-gray-50 dark:from-[#8B1538] dark:to-[#5D0E26] rounded-xl border border-gray-200 dark:border-[#A01D47] p-5 shadow-md relative overflow-hidden text-gray-900 dark:text-white">
-                {/* Decorative Background Element */}
+            {/* Main Details Card */}
+            <div className="bg-gradient-to-br from-white to-gray-50 dark:from-[#8B1538] dark:to-[#5D0E26] rounded-xl border border-gray-200 dark:border-[#A01D47] p-4 sm:p-6 shadow-md relative overflow-hidden text-gray-900 dark:text-white">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                     <span className="material-icons-outlined text-8xl text-current">event</span>
                 </div>
 
                 <div className="relative z-10 flex flex-col gap-6">
-                    {/* TOP ROW: Header (Date/Time + Status) */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        {/* Date & Time */}
-                        <div className="flex flex-wrap items-baseline gap-4">
-                            <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
-                                {new Date(bolo.data_bolo).toLocaleDateString('ca-ES', { day: 'numeric', month: 'long' }).replace(/^(\d+)\s+De\s+/, '$1 de ')} <span className="text-lg md:text-xl font-normal opacity-60 ml-1">{new Date(bolo.data_bolo).getFullYear()}</span>
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                        <div className="flex flex-col sm:flex-row items-baseline gap-2 sm:gap-4 w-full lg:w-auto">
+                            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none uppercase">
+                                {format(new Date(bolo.data_bolo), 'dd MMMM', { locale: ca })} <span className="text-lg sm:text-2xl font-normal opacity-60 ml-1">{new Date(bolo.data_bolo).getFullYear()}</span>
                             </h2>
 
-                            <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
+                            <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors w-full sm:w-auto">
                                 <span className="material-icons-outlined text-gray-500 dark:text-white text-lg mr-2">schedule</span>
                                 <input
                                     type="time"
                                     value={localHora}
                                     onChange={(e) => setLocalHora(e.target.value)}
                                     onBlur={(e) => handleUpdateHora(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.currentTarget.blur();
-                                        }
-                                    }}
-                                    className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[90px] leading-none"
+                                    className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[90px]"
                                 />
                             </div>
                         </div>
 
-                        {/* Status Badge */}
-                        <div className={`px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm font-bold border-none ${(bolo.estat as string) === 'Sol·licitat' ? 'bg-yellow-500 text-white shadow-md' :
-                            (bolo.estat as string) === 'Confirmat' ? 'bg-green-600 text-white shadow-md' :
-                                (bolo.estat as string) === 'Tancat' ? 'bg-gray-600 text-white shadow-md' :
-                                    'bg-red-600 text-white shadow-md'
+                        <div className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm font-bold border-none ${(bolo.estat as string) === 'Sol·licitat' || (bolo.estat as string) === 'Nova' ? 'bg-red-600 text-white shadow-md' :
+                            (bolo.estat as string) === 'Pendent de confirmació' ? 'bg-orange-500 text-white shadow-md' :
+                                (bolo.estat as string) === 'Confirmada' ? 'bg-green-600 text-white shadow-md' :
+                                    (bolo.estat as string) === 'Pendents de cobrar' ? 'bg-yellow-400 text-gray-900' :
+                                        (bolo.estat as string) === 'Per pagar' ? 'bg-lime-500 text-gray-900' :
+                                            'bg-gray-600 text-white shadow-md'
                             }`}>
-                            <span className="material-icons-outlined text-lg text-white">
-                                {(bolo.estat as string) === 'Sol·licitat' ? 'pending' :
-                                    (bolo.estat as string) === 'Confirmat' ? 'check_circle' :
-                                        (bolo.estat as string) === 'Tancat' ? 'archive' : 'cancel'}
+                            <span className="material-icons-outlined text-lg">
+                                {(bolo.estat as string) === 'Confirmada' ? 'check_circle' : 'pending'}
                             </span>
                             <span className="font-bold uppercase tracking-wider text-xs whitespace-nowrap">
-                                {(bolo.estat as string) === 'Confirmat' ? 'En curs' : bolo.estat}
+                                {(bolo.estat as string) === 'Confirmada' ? 'En curs' : (isRebutjat ? 'Cancel·lada' : bolo.estat)}
                             </span>
                         </div>
                     </div>
 
-                    {/* BOTTOM ROW: Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-gray-100">
-                        {/* 1. Type Selector */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 dark:border-white/10">
+                        {/* 1. Type */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                Tipus actuació
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Tipus</label>
                             <select
                                 value={bolo.tipus_actuacio || ''}
                                 onChange={(e) => handleTipusActuacioChange(e.target.value)}
                                 disabled={isRebutjat}
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             >
                                 <option value="">Selecciona...</option>
                                 <option value="Carnestoltes">Carnestoltes</option>
@@ -1406,91 +1397,79 @@ export default function BoloDetailPage() {
 
                         {/* 2. Concepte */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                Concepte
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Concepte</label>
                             <input
                                 type="text"
                                 value={bolo.concepte || ''}
                                 onChange={(e) => handleConcepteChange(e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Cercavila..."
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 3. Durada */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                Durada (min)
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Durada (min)</label>
                             <input
                                 type="number"
                                 value={bolo.durada || ''}
                                 onChange={(e) => handleDuradaChange(Number(e.target.value))}
                                 disabled={isRebutjat}
                                 placeholder="Ex: 120"
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 4. Ubicació Inici */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                Inici convocatòria
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Inici convocatòria</label>
                             <input
                                 type="text"
                                 value={bolo.ubicacio_inici || ''}
                                 onChange={(e) => handleAutomationFieldChange('ubicacio_inici', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Artés"
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 5. Vestimenta */}
-                        <div className="space-y-1 md:col-span-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                Vestimenta
-                            </label>
+                        <div className="space-y-1 sm:col-span-2">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Vestimenta</label>
                             <input
                                 type="text"
                                 value={bolo.vestimenta || ''}
                                 onChange={(e) => handleAutomationFieldChange('vestimenta', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Samarreta BLB + Pantalons Beige"
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 6. Partitures */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                Partitures
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Partitures</label>
                             <input
                                 type="text"
                                 value={bolo.partitures || ''}
                                 onChange={(e) => handleAutomationFieldChange('partitures', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Les de sempre"
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 7. Fundes */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">
-                                On deixem les fundes?
-                            </label>
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">On deixem les fundes?</label>
                             <input
                                 type="text"
                                 value={bolo.notes_fundes || ''}
                                 onChange={(e) => handleAutomationFieldChange('notes_fundes', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Al cotxe"
-                                className="w-full bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 py-1.5 px-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
                     </div>
@@ -1717,30 +1696,28 @@ export default function BoloDetailPage() {
                         )}
                     </div>
                 </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Automatic Summary */}
-                    <div className="md:col-span-2 bg-white p-4 rounded-lg border border-gray-200">
-                        <h3 className="text-xs uppercase font-bold text-gray-500 dark:text-text-secondary-dark mb-3 tracking-wider">Resultat Econòmic (Automàtic)</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-white dark:bg-card-dark p-3 rounded border border-gray-200 dark:border-border-dark shadow-sm">
-                                <p className="text-xs text-gray-500 dark:text-text-secondary-dark">Músics</p>
-                                <p className="text-xl font-mono font-bold text-gray-900 dark:text-text-primary-dark">{bolo.num_musics || 0}</p>
+                    <div className="md:col-span-2 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
+                        <h3 className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/60 mb-4 tracking-[0.2em]">Resultat Econòmic (Automàtic)</h3>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Músics</p>
+                                <p className="text-xl font-black text-gray-900 dark:text-text-primary-dark leading-none">{bolo.num_musics || 0}</p>
                             </div>
-                            <div className="bg-white dark:bg-card-dark p-3 rounded border border-gray-200 dark:border-border-dark shadow-sm">
-                                <p className="text-xs text-gray-500 dark:text-text-secondary-dark">Cost Músics</p>
-                                <p className="text-xl font-mono font-bold text-red-600 dark:text-red-400">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
+                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Cost Músics</p>
+                                <p className="text-xl font-black text-red-600 dark:text-red-400 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
                             </div>
-                            <div className="bg-white dark:bg-card-dark p-3 rounded border border-gray-200 dark:border-border-dark shadow-sm">
-                                <p className="text-xs text-gray-500 dark:text-text-secondary-dark">Marge (Pot)</p>
-                                <p className={`text-xl font-mono font-bold flex items-center gap-1 ${(bolo.pot_delta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                                    {(bolo.pot_delta || 0) >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Marge (Pot)</p>
+                                <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                                     {(bolo.pot_delta || 0).toFixed(2)}€
                                 </p>
                             </div>
-                            <div className="bg-white dark:bg-card-dark p-3 rounded border border-gray-200 dark:border-border-dark shadow-sm ring-1 ring-primary/20">
-                                <p className="text-xs text-gray-500 dark:text-text-secondary-dark font-bold text-primary">Pot Final (+Ajust)</p>
-                                <p className={`text-xl font-mono font-bold flex items-center gap-1 ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                                    {(bolo.pot_delta_final || 0) >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
+                                <p className="text-[10px] font-bold text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
+                                <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                                     {(bolo.pot_delta_final || 0).toFixed(2)}€
                                 </p>
                             </div>
@@ -1750,35 +1727,35 @@ export default function BoloDetailPage() {
                     {isEconomicsExpanded && (
                         <>
                             {/* Edit Fields */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-500">Import total / Pressupost (€)</label>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
                                 <input
                                     type="number"
                                     step="0.01"
                                     value={economicData.import_total}
                                     onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
                                     disabled={isRebutjat}
-                                    className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-500">Preu per músic (€)</label>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Preu per músic (€)</label>
                                 <input
                                     type="number"
                                     step="0.01"
                                     value={economicData.preu_per_musica}
                                     onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
                                     disabled={isRebutjat}
-                                    className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-500">Tipus d’ingrés</label>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
                                 <select
                                     value={economicData.tipus_ingres}
                                     onChange={(e) => setEconomicData({ ...economicData, tipus_ingres: e.target.value })}
                                     disabled={isRebutjat}
-                                    className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary appearance-none disabled:opacity-50"
+                                    className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none appearance-none disabled:opacity-50"
                                 >
                                     <option value="Efectiu">Efectiu</option>
                                     <option value="Factura">Factura</option>
@@ -1786,8 +1763,8 @@ export default function BoloDetailPage() {
                                 </select>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-500">Ajust Manual Pot (€)</label>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
                                 <input
                                     type="text"
                                     inputMode="decimal"
@@ -1804,42 +1781,40 @@ export default function BoloDetailPage() {
                                         setEconomicData({ ...economicData, ajust_pot_manual: final });
                                     }}
                                     disabled={isRebutjat}
-                                    className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 font-mono"
+                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50 font-mono"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-500">Motiu Ajust</label>
+                            <div className="space-y-1 sm:col-span-2">
+                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Motiu Ajust</label>
                                 <input
                                     type="text"
                                     value={economicData.comentari_ajust_pot || ''}
                                     onChange={(e) => setEconomicData({ ...economicData, comentari_ajust_pot: e.target.value })}
                                     disabled={isRebutjat}
                                     placeholder="Ex: Propina, Taxi, Despesa extra..."
-                                    className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
                                 />
                             </div>
 
-                            <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
-                                <div className="flex items-center space-x-3 bg-white dark:bg-card-dark p-3 rounded border border-gray-200 dark:border-border-dark">
+                            <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
+                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
                                     <input
                                         type="checkbox"
                                         id="cobrat_eco"
                                         checked={economicData.cobrat || false}
                                         onChange={(e) => {
                                             setEconomicData({ ...economicData, cobrat: e.target.checked });
-                                            // Optional: Also update checklist if it's linked, but logic separates them slightly visually
-                                            // For now, let's keep them synced via the save
                                             setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
                                         }}
                                         disabled={isRebutjat}
                                         className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
                                     />
-                                    <label htmlFor="cobrat_eco" className="text-gray-900 dark:text-text-primary-dark font-medium cursor-pointer select-none">
+                                    <label htmlFor="cobrat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
                                         Cobrat (Ingrés al Pot)
                                     </label>
                                 </div>
 
-                                <div className="flex items-center space-x-3 bg-white dark:bg-card-dark p-3 rounded border border-gray-200 dark:border-border-dark">
+                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
                                     <input
                                         type="checkbox"
                                         id="pagat_eco"
@@ -1851,16 +1826,16 @@ export default function BoloDetailPage() {
                                         disabled={isRebutjat}
                                         className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
                                     />
-                                    <label htmlFor="pagat_eco" className="text-gray-900 dark:text-text-primary-dark font-medium cursor-pointer select-none">
-                                        Pagaments Músics Fets (Despesa del Pot)
+                                    <label htmlFor="pagat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
+                                        Pagaments Músics Fets
                                     </label>
                                 </div>
                             </div>
-                            <div className="md:col-span-2">
+                            <div className="md:col-span-2 pt-2">
                                 <button
                                     onClick={handleSaveEconomicData}
                                     disabled={updating || isRebutjat}
-                                    className="bg-primary hover:bg-red-900 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 flex items-center shadow-lg transform hover:scale-105"
+                                    className="w-full sm:w-auto bg-primary hover:bg-red-900 text-white font-black py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-lg hover:shadow-primary/20 uppercase text-xs tracking-widest"
                                 >
                                     <span className="material-icons-outlined mr-2">save</span>
                                     Desar Dades Econòmiques
@@ -2030,83 +2005,83 @@ export default function BoloDetailPage() {
             )}
 
             {showPreview && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-white rounded-2xl max-w-4xl w-full p-8 shadow-2xl space-y-6 text-gray-900 my-8">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 text-gray-900 my-auto">
                         <div className="flex justify-between items-center border-b pb-4">
-                            <h3 className="text-2xl font-black text-primary">
+                            <h2 className="text-xl sm:text-2xl font-black text-primary uppercase tracking-tight">
                                 PREVISUALITZACIÓ {previewType === 'pressupost' ? 'PRESSUPOST' : 'FACTURA'}
-                            </h3>
-                            <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <span className="material-icons-outlined text-3xl">close</span>
+                            </h2>
+                            <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                                <span className="material-icons-outlined text-2xl sm:text-3xl">close</span>
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                             {/* Left Side: Document & Bolo Info */}
-                            <div className="space-y-6">
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
-                                    <h4 className="text-sm font-black uppercase text-gray-400 tracking-widest">Detalls del Document</h4>
+                            <div className="space-y-4 sm:space-y-6">
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+                                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Detalls del Document</h4>
                                     <div>
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Núm. Document</label>
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Núm. Document</label>
                                         <input
                                             type="text"
                                             value={manualNumber}
                                             onChange={(e) => setManualNumber(e.target.value)}
-                                            className="w-full p-2 border border-gray-200 rounded font-mono font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                                            className="w-full p-2.5 border border-gray-200 rounded-lg font-mono font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
-                                    <h4 className="text-sm font-black uppercase text-gray-400 tracking-widest">Informació de l'Actuació</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="col-span-2">
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Actuació a (Poble)</label>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+                                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Informació de l'Actuació</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Població</label>
                                             <input
                                                 type="text"
                                                 value={bolo.nom_poble}
                                                 onChange={(e) => setBolo({ ...bolo, nom_poble: e.target.value })}
                                                 onBlur={(e) => handlePobleChange(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Concepte</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Concepte</label>
                                             <input
                                                 type="text"
                                                 value={bolo.concepte || ''}
                                                 onChange={(e) => setBolo({ ...bolo, concepte: e.target.value })}
                                                 onBlur={(e) => handleConcepteChange(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Durada (min)</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Durada (min)</label>
                                             <input
                                                 type="number"
                                                 value={bolo.durada || ''}
                                                 onChange={(e) => setBolo({ ...bolo, durada: Number(e.target.value) })}
                                                 onBlur={(e) => handleDuradaChange(Number(e.target.value))}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Data</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Data</label>
                                             <input
                                                 type="date"
                                                 value={bolo.data_bolo}
                                                 onChange={(e) => handleDataBoloChange(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Hora</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Hora</label>
                                             <input
                                                 type="time"
                                                 value={bolo.hora_inici || ''}
                                                 onChange={(e) => setBolo({ ...bolo, hora_inici: e.target.value })}
                                                 onBlur={(e) => handleUpdateHora(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                     </div>
@@ -2114,54 +2089,54 @@ export default function BoloDetailPage() {
                             </div>
 
                             {/* Right Side: Client Info */}
-                            <div className="space-y-6">
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
-                                    <h4 className="text-sm font-black uppercase text-gray-400 tracking-widest">Dades del Beneficiari (Client)</h4>
+                            <div className="space-y-4 sm:space-y-6">
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm h-full">
+                                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Dades del Client</h4>
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nom / Entitat</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nom / Entitat</label>
                                             <input
                                                 type="text"
                                                 value={selectedClient?.nom || ''}
                                                 onChange={(e) => setSelectedClient(prev => prev ? { ...prev, nom: e.target.value } : null)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">NIF / CIF</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">NIF / CIF</label>
                                             <input
                                                 type="text"
                                                 value={selectedClient?.nif || ''}
                                                 onChange={(e) => setSelectedClient(prev => prev ? { ...prev, nif: e.target.value } : null)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Adreça</label>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Adreça</label>
                                             <input
                                                 type="text"
                                                 value={selectedClient?.adreca || ''}
                                                 onChange={(e) => setSelectedClient(prev => prev ? { ...prev, adreca: e.target.value } : null)}
-                                                className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Població</label>
+                                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Població</label>
                                                 <input
                                                     type="text"
                                                     value={selectedClient?.poblacio || ''}
                                                     onChange={(e) => setSelectedClient(prev => prev ? { ...prev, poblacio: e.target.value } : null)}
-                                                    className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Codi Postal</label>
+                                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Codi Postal</label>
                                                 <input
                                                     type="text"
                                                     value={selectedClient?.codi_postal || ''}
                                                     onChange={(e) => setSelectedClient(prev => prev ? { ...prev, codi_postal: e.target.value } : null)}
-                                                    className="w-full p-2 border border-gray-200 rounded text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                                 />
                                             </div>
                                         </div>
@@ -2170,21 +2145,22 @@ export default function BoloDetailPage() {
                             </div>
                         </div>
 
-                        {/* Full Width: Articles */}
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
-                            <div className="flex justify-between items-center">
-                                <h4 className="text-sm font-black uppercase text-gray-400 tracking-widest">Articles / Conceptes de Facturació</h4>
+                        {/* Articles Section */}
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">Articles de Facturació</h4>
                                 <button
                                     onClick={() => setArticles([...articles, { descripcio: '', preu: 0, quantitat: 1 }])}
-                                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-full font-bold flex items-center gap-1 transition-colors"
+                                    className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
                                 >
                                     <span className="material-icons-outlined text-sm">add</span> Afegir Article
                                 </button>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {articles.map((art, idx) => (
-                                    <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-lg border border-gray-200">
-                                        <div className="col-span-6">
+                                    <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group">
+                                        <div className="flex-1">
+                                            <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">Descripció</label>
                                             <input
                                                 type="text"
                                                 placeholder="Descripció de l'article"
@@ -2194,91 +2170,90 @@ export default function BoloDetailPage() {
                                                     newArts[idx].descripcio = e.target.value;
                                                     setArticles(newArts);
                                                 }}
-                                                className="w-full p-2 border border-gray-100 rounded text-sm focus:ring-1 focus:ring-primary/20 outline-none"
+                                                className="w-full p-2 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
                                             />
                                         </div>
-                                        <div className="col-span-2">
-                                            <input
-                                                type="number"
-                                                placeholder="Preu"
-                                                value={art.preu}
-                                                onChange={(e) => {
-                                                    const newArts = [...articles];
-                                                    newArts[idx].preu = parseFloat(e.target.value) || 0;
-                                                    setArticles(newArts);
-                                                }}
-                                                className="w-full p-2 border border-gray-100 rounded text-sm focus:ring-1 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <input
-                                                type="number"
-                                                placeholder="Quantitat"
-                                                value={art.quantitat}
-                                                onChange={(e) => {
-                                                    const newArts = [...articles];
-                                                    newArts[idx].quantitat = parseInt(e.target.value) || 0;
-                                                    setArticles(newArts);
-                                                }}
-                                                className="w-full p-2 border border-gray-100 rounded text-sm focus:ring-1 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div className="col-span-1 text-center font-bold text-xs text-gray-400">
-                                            {(art.preu * art.quantitat).toFixed(2)}€
-                                        </div>
-                                        <div className="col-span-1 text-right">
+                                        <div className="flex gap-2">
+                                            <div className="w-24">
+                                                <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">Preu</label>
+                                                <input
+                                                    type="number"
+                                                    value={art.preu}
+                                                    onChange={(e) => {
+                                                        const newArts = [...articles];
+                                                        newArts[idx].preu = parseFloat(e.target.value) || 0;
+                                                        setArticles(newArts);
+                                                    }}
+                                                    className="w-full p-2 border border-gray-100 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-primary/20 outline-none"
+                                                />
+                                            </div>
+                                            <div className="w-16">
+                                                <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">Cant</label>
+                                                <input
+                                                    type="number"
+                                                    value={art.quantitat}
+                                                    onChange={(e) => {
+                                                        const newArts = [...articles];
+                                                        newArts[idx].quantitat = parseInt(e.target.value) || 0;
+                                                        setArticles(newArts);
+                                                    }}
+                                                    className="w-full p-2 border border-gray-100 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary/20 outline-none"
+                                                />
+                                            </div>
+                                            <div className="w-20 hidden sm:flex items-center justify-end font-black text-sm text-primary">
+                                                {(art.preu * art.quantitat).toFixed(2)}€
+                                            </div>
                                             <button
-                                                onClick={() => setArticles(articles.filter((_, i) => i !== idx))}
-                                                className="text-red-400 hover:text-red-600 p-1"
+                                                onClick={() => {
+                                                    const newArts = articles.filter((_, i) => i !== idx);
+                                                    setArticles(newArts);
+                                                }}
+                                                className="absolute -top-2 -right-2 sm:static sm:flex bg-red-50 text-red-500 p-1.5 rounded-full hover:bg-red-500 hover:text-white transition-all shadow-sm"
                                             >
                                                 <span className="material-icons-outlined text-sm">delete</span>
                                             </button>
                                         </div>
+                                        <div className="sm:hidden flex justify-between items-center pt-2 mt-2 border-t border-gray-50">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase">Subtotal</span>
+                                            <span className="font-black text-primary">{(art.preu * art.quantitat).toFixed(2)}€</span>
+                                        </div>
                                     </div>
                                 ))}
-                                <div className="flex justify-end pr-10 pt-2">
-                                    <div className="text-lg font-black text-primary">
-                                        TOTAL: {articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0).toFixed(2)}€
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
-                        {/* Full Width: Description */}
-                        <div>
-                            <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest pl-1">Descripció General (Apareix al requadre del PDF)</label>
-                            <textarea
-                                value={descriptionText}
-                                onChange={(e) => setDescriptionText(e.target.value)}
-                                className="w-full h-32 p-4 border border-gray-200 rounded-xl font-sans text-gray-800 leading-relaxed focus:ring-2 focus:ring-primary/20 outline-none"
-                                placeholder="Escriu la descripció que apareixerà al PDF..."
-                            />
-                        </div>
-
-                        <div className="flex gap-4 pt-4 border-t">
-                            <button
-                                onClick={() => setShowPreview(false)}
-                                className="flex-1 py-4 border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition-colors"
-                            >
-                                Torna enrere
-                            </button>
-                            <button
-                                onClick={handleGeneratePDF}
-                                disabled={pdfGenerating}
-                                className="flex-1 py-4 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-900 shadow-lg shadow-primary/20 transition-all disabled:opacity-50"
-                            >
-                                {pdfGenerating ? (
-                                    <>
-                                        <span className="animate-spin h-5 w-5 border-2 border-white/20 border-t-white rounded-full"></span>
-                                        Generant PDF...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="material-icons-outlined">download</span>
-                                        Confirmar i Baixar PDF
-                                    </>
-                                )}
-                            </button>
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
+                            <div className="text-center sm:text-left">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Document</p>
+                                <p className="text-3xl font-black text-primary leading-none">
+                                    {articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0).toFixed(2)}<span className="text-xl ml-1">€</span>
+                                </p>
+                            </div>
+                            <div className="flex gap-3 w-full sm:w-auto">
+                                <button
+                                    onClick={() => setShowPreview(false)}
+                                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase text-xs tracking-widest"
+                                >
+                                    Enrere
+                                </button>
+                                <button
+                                    onClick={() => handleGenerateDocument(previewType!)}
+                                    disabled={loadingPDF}
+                                    className="flex-1 sm:flex-none px-8 py-3 rounded-xl bg-primary text-white font-black hover:bg-red-900 transition-all uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-2"
+                                >
+                                    {loadingPDF ? (
+                                        <>
+                                            <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full"></div>
+                                            Generant...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-icons-outlined text-lg">picture_as_pdf</span>
+                                            Generar i Pujar
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

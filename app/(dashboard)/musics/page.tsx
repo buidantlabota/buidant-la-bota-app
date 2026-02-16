@@ -190,16 +190,16 @@ export default function MusicsPage() {
                 </div>
             )}
 
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
-                    <h1 className="text-4xl font-black text-gray-950 uppercase tracking-tighter">Músics</h1>
-                    <p className="text-gray-800 font-bold mt-2 bg-yellow-400/20 px-3 py-1 mr-auto rounded-md border border-yellow-500/30">
-                        Registre dels músics: instruments i talles de roba independents.
+                    <h1 className="text-3xl sm:text-4xl font-black text-gray-950 uppercase tracking-tighter">Músics</h1>
+                    <p className="text-gray-800 font-bold mt-2 bg-yellow-400/20 px-3 py-1 mr-auto rounded-md border border-yellow-500/30 text-sm">
+                        Registre dels músics: instruments i talles de roba.
                     </p>
                 </div>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="bg-primary hover:bg-red-900 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center"
+                    className="w-full sm:w-auto bg-primary hover:bg-red-900 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center shadow-md active:scale-95"
                 >
                     <span className="material-icons-outlined mr-2">add</span>
                     Afegir músic
@@ -207,24 +207,24 @@ export default function MusicsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex space-x-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-4">
                 <button
                     onClick={() => setFilterTipus('tots')}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${filterTipus === 'tots' ? 'bg-primary text-white' : 'bg-white text-text-secondary border border-gray-200 hover:bg-gray-50'}`}
+                    className={`flex-1 sm:flex-none px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors border ${filterTipus === 'tots' ? 'bg-primary text-white border-primary' : 'bg-white text-text-secondary border-gray-200 hover:bg-gray-50'}`}
                 >
                     Tots
                 </button>
                 <button
                     onClick={() => setFilterTipus('titular')}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${filterTipus === 'titular' ? 'bg-primary text-white' : 'bg-white text-text-secondary border border-gray-200 hover:bg-gray-50'}`}
+                    className={`flex-1 sm:flex-none px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors border ${filterTipus === 'titular' ? 'bg-primary text-white border-primary' : 'bg-white text-text-secondary border-gray-200 hover:bg-gray-50'}`}
                 >
-                    Només Titulars
+                    Titulars
                 </button>
                 <button
                     onClick={() => setFilterTipus('substitut')}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${filterTipus === 'substitut' ? 'bg-primary text-white' : 'bg-white text-text-secondary border border-gray-200 hover:bg-gray-50'}`}
+                    className={`flex-1 sm:flex-none px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors border ${filterTipus === 'substitut' ? 'bg-primary text-white border-primary' : 'bg-white text-text-secondary border-gray-200 hover:bg-gray-50'}`}
                 >
-                    Només Substituts
+                    Substituts
                 </button>
             </div>
 
@@ -233,7 +233,7 @@ export default function MusicsPage() {
                 <select
                     value={filterInstrument}
                     onChange={(e) => setFilterInstrument(e.target.value)}
-                    className="w-full md:w-64 p-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none"
+                    className="w-full sm:w-64 p-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none text-sm"
                 >
                     <option value="">Tots els instruments</option>
                     {uniqueInstruments.map(inst => (
@@ -246,7 +246,7 @@ export default function MusicsPage() {
             {loading && musics.length === 0 ? (
                 <div className="text-center text-text-secondary p-8">Carregant músics...</div>
             ) : (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>

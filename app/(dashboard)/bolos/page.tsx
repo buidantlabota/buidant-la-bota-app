@@ -108,7 +108,7 @@ export default function BolosPage() {
             </div>
 
             {/* Filters Area */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* Search */}
                     <div className="md:col-span-2">
@@ -126,39 +126,41 @@ export default function BolosPage() {
                     </div>
 
                     {/* Any Filter */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Any</label>
-                        <select
-                            value={filterAny}
-                            onChange={(e) => setFilterAny(e.target.value)}
-                        >
-                            <option value="tots">Tots els anys</option>
-                            {availableYears.map(year => (
-                                <option key={year} value={year}>{year}</option>
-                            ))}
-                        </select>
-                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-1 gap-2 md:contents">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Any</label>
+                            <select
+                                value={filterAny}
+                                onChange={(e) => setFilterAny(e.target.value)}
+                            >
+                                <option value="tots">Tots</option>
+                                {availableYears.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                    {/* Estat Filter */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Estat</label>
-                        <select
-                            value={filterEstat}
-                            onChange={(e) => setFilterEstat(e.target.value)}
-                        >
-                            <option value="tots">Tots els estats</option>
-                            <option value="Nova">Nova</option>
-                            <option value="Pendent de confirmació">Pendent de confirmació</option>
-                            <option value="Confirmada">Confirmada</option>
-                            <option value="Pendents de cobrar">Pendents de cobrar</option>
-                            <option value="Per pagar">Per pagar</option>
-                            <option value="Tancades">Tancades</option>
-                            <option value="Cancel·lats">Cancel·lats</option>
-                        </select>
+                        {/* Estat Filter */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Estat</label>
+                            <select
+                                value={filterEstat}
+                                onChange={(e) => setFilterEstat(e.target.value)}
+                            >
+                                <option value="tots">Tots</option>
+                                <option value="Nova">Nova</option>
+                                <option value="Pendent de confirmació">Pendent</option>
+                                <option value="Confirmada">Confirmada</option>
+                                <option value="Pendents de cobrar">De cobrar</option>
+                                <option value="Per pagar">Per pagar</option>
+                                <option value="Tancades">Tancades</option>
+                                <option value="Cancel·lats">Cancel·lats</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                     {/* Tipus Ingrés Filter */}
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Tipus d'ingrés</label>

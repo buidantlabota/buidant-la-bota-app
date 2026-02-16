@@ -84,48 +84,48 @@ export default function GestioRobaPage() {
     const refreshData = () => loadData(true);
 
     return (
-        <div className="p-8 space-y-10 min-h-screen bg-white">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b-8 border-primary pb-8">
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-10 min-h-screen bg-white">
+            <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b-4 sm:border-b-8 border-primary pb-6 sm:pb-8">
                 <div>
-                    <h1 className="text-6xl font-black text-primary flex items-center gap-4 uppercase tracking-tighter">
-                        <span className="material-icons-outlined text-indigo-700 text-6xl">checkroom</span>
+                    <h1 className="text-4xl sm:text-6xl font-black text-primary flex items-center gap-4 uppercase tracking-tighter">
+                        <span className="material-icons-outlined text-indigo-700 text-4xl sm:text-6xl">checkroom</span>
                         Material
                     </h1>
-                    <p className="text-gray-500 text-lg font-black mt-2 uppercase tracking-[0.3em]">Gestió d'estoc i préstecs</p>
+                    <p className="text-gray-500 text-sm sm:text-lg font-black mt-2 uppercase tracking-[0.2em] sm:tracking-[0.3em]">Gestió d'estoc i préstecs</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-6">
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full lg:w-auto">
                     {/* Season Toggle */}
-                    <div className="bg-white p-2 rounded-2xl border-4 border-primary flex gap-2 shadow-[4px_4px_0px_0px_rgba(124,28,28,1)]">
+                    <div className="bg-white p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-primary flex gap-1 sm:gap-2 shadow-[2px_2px_0px_0px_rgba(124,28,28,1)] sm:shadow-[4px_4px_0px_0px_rgba(124,28,28,1)] flex-1 sm:flex-none justify-center">
                         <button
                             onClick={() => setTemporada('Hivern')}
-                            className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest transition-all uppercase flex items-center gap-2 ${temporada === 'Hivern'
+                            className={`px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black tracking-widest transition-all uppercase flex items-center gap-2 ${temporada === 'Hivern'
                                 ? 'bg-indigo-600 text-white'
                                 : 'text-gray-400 hover:bg-gray-50'
                                 }`}
                         >
-                            <span className="material-icons-outlined text-sm">ac_unit</span>
-                            Hivern
+                            <span className="material-icons-outlined text-xs sm:text-sm">ac_unit</span>
+                            <span className="hidden sm:inline">Hivern</span>
                         </button>
                         <button
                             onClick={() => setTemporada('Estiu')}
-                            className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest transition-all uppercase flex items-center gap-2 ${temporada === 'Estiu'
+                            className={`px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black tracking-widest transition-all uppercase flex items-center gap-2 ${temporada === 'Estiu'
                                 ? 'bg-orange-500 text-white'
                                 : 'text-gray-400 hover:bg-gray-50'
                                 }`}
                         >
-                            <span className="material-icons-outlined text-sm">wb_sunny</span>
-                            Estiu
+                            <span className="material-icons-outlined text-xs sm:text-sm">wb_sunny</span>
+                            <span className="hidden sm:inline">Estiu</span>
                         </button>
                     </div>
 
                     <button
                         onClick={refreshData}
-                        className="p-4 bg-white hover:bg-gray-50 border-4 border-primary rounded-2xl shadow-[4px_4px_0px_0px_rgba(124,28,28,1)] active:translate-y-1 active:shadow-none transition-all relative"
+                        className="p-3 sm:p-4 bg-white hover:bg-gray-50 border-2 sm:border-4 border-primary rounded-xl sm:rounded-2xl shadow-[2px_2px_0px_0px_rgba(124,28,28,1)] sm:shadow-[4px_4px_0px_0px_rgba(124,28,28,1)] active:translate-y-0.5 active:shadow-none transition-all relative"
                     >
-                        <span className={`material-icons-outlined text-primary ${refreshing ? 'animate-spin' : ''}`}>refresh</span>
+                        <span className={`material-icons-outlined text-primary text-xl sm:text-2xl ${refreshing ? 'animate-spin' : ''}`}>refresh</span>
                         {refreshing && (
-                            <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-bounce shadow-sm">
+                            <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1 py-0.5 rounded-full animate-bounce shadow-sm">
                                 ...
                             </span>
                         )}
@@ -134,25 +134,25 @@ export default function GestioRobaPage() {
             </header>
 
             {/* Main Tabs */}
-            <nav className="flex flex-wrap gap-4">
+            <nav className="flex flex-wrap gap-2 sm:gap-4 overflow-x-auto no-scrollbar pb-2">
                 {[
                     { id: 'forecast', label: 'Propera Previsió', icon: 'visibility' },
-                    { id: 'bolos', label: 'Assignació per Bolo', icon: 'assignment' },
-                    { id: 'global', label: 'Resum de Préstecs', icon: 'inventory' },
-                    { id: 'inventory', label: 'Catàleg i Estoc', icon: 'analytics' },
+                    { id: 'bolos', label: 'Assignació', icon: 'assignment' },
+                    { id: 'global', label: 'Préstecs', icon: 'inventory' },
+                    { id: 'inventory', label: 'Catàleg', icon: 'analytics' },
                 ].map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`
-                            px-8 py-5 rounded-2xl border-4 border-primary font-black text-sm uppercase tracking-widest flex items-center gap-3 transition-all
+                            px-4 sm:px-8 py-3 sm:py-5 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-primary font-black text-[10px] sm:text-sm uppercase tracking-widest flex items-center gap-2 sm:gap-3 transition-all whitespace-nowrap
                             ${activeTab === tab.id
-                                ? 'bg-primary text-white translate-y-1 shadow-none'
-                                : 'bg-white text-primary shadow-[6px_6px_0px_0px_rgba(124,28,28,1)] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_rgba(124,28,28,1)]'
+                                ? 'bg-primary text-white translate-y-0.5 shadow-none'
+                                : 'bg-white text-primary shadow-[3px_3px_0px_0px_rgba(124,28,28,1)] sm:shadow-[6px_6px_0px_0px_rgba(124,28,28,1)] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(124,28,28,1)]'
                             }
                         `}
                     >
-                        <span className="material-icons-outlined">{tab.icon}</span>
+                        <span className="material-icons-outlined text-lg sm:text-xl">{tab.icon}</span>
                         {tab.label}
                     </button>
                 ))}

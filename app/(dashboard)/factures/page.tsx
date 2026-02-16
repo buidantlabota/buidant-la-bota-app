@@ -198,24 +198,24 @@ export default function BillingPage() {
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-3xl font-black text-gray-900">Factures i Pressupostos</h1>
                         <p className="text-gray-500">Gestió unificada de documents</p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                         {/* Year Selector */}
-                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
+                        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm sm:w-auto w-full justify-between sm:justify-start">
                             <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-1 text-gray-400 hover:text-black transition-colors"><span className="material-icons-outlined text-lg">chevron_left</span></button>
                             <span className="font-mono font-bold mx-3 text-lg">{selectedYear}</span>
                             <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 text-gray-400 hover:text-black transition-colors"><span className="material-icons-outlined text-lg">chevron_right</span></button>
                         </div>
 
-                        <div className="flex gap-2">
-                            <button onClick={fetchRecords} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-500 hover:text-black transition-colors">
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={fetchRecords} className="flex-1 sm:flex-none p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-500 hover:text-black transition-colors flex items-center justify-center">
                                 <span className="material-icons-outlined">refresh</span>
                             </button>
-                            <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors shadow-sm">
+                            <button onClick={() => setShowModal(true)} className="flex-[3] sm:flex-none px-4 py-2 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm">
                                 + Nou Manual
                             </button>
                         </div>
@@ -224,23 +224,23 @@ export default function BillingPage() {
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <div className="text-sm text-gray-500 font-bold uppercase">Total Facturat</div>
-                        <div className="text-2xl font-black text-gray-900">{totalInvoices.toFixed(2)}€</div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                        <div className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase">Total Facturat</div>
+                        <div className="text-lg sm:text-2xl font-black text-gray-900">{totalInvoices.toFixed(2)}€</div>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <div className="text-sm text-gray-500 font-bold uppercase">Total Pressupostat</div>
-                        <div className="text-2xl font-black text-gray-400">{totalQuotes.toFixed(2)}€</div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                        <div className="text-[10px] sm:text-sm text-gray-500 font-bold uppercase">Total Pressupostat</div>
+                        <div className="text-lg sm:text-2xl font-black text-gray-400">{totalQuotes.toFixed(2)}€</div>
                     </div>
                 </div>
 
                 {/* Tabs / Filters */}
-                <div className="flex gap-4 mb-4 border-b border-gray-200 pb-1">
+                <div className="flex gap-2 sm:gap-4 mb-4 border-b border-gray-200 pb-1 overflow-x-auto no-scrollbar">
                     {['all', 'factura', 'pressupost'].map((t) => (
                         <button
                             key={t}
                             onClick={() => setTypeFilter(t as any)}
-                            className={`pb-2 px-2 font-bold capitalize transition-colors ${typeFilter === t ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`pb-2 px-2 font-bold capitalize transition-colors whitespace-nowrap text-sm ${typeFilter === t ? 'text-black border-b-2 border-black' : 'text-gray-400 hover:text-gray-600'}`}
                         >
                             {t === 'all' ? 'Tots' : t === 'pressupost' ? 'Pressupostos' : 'Factures'}
                         </button>
@@ -252,67 +252,69 @@ export default function BillingPage() {
                     {loading ? (
                         <div className="p-8 text-center text-gray-500">Carregant dades...</div>
                     ) : (
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50 border-b border-gray-200">
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase">Tipus</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase">Número</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase">Client</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase">Emissió</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase">Bolo</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase text-right">Import</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase text-center">Cobrada</th>
-                                    <th className="p-4 text-xs font-black text-gray-500 uppercase text-center">Accions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredRecords.length === 0 && (
-                                    <tr><td colSpan={8} className="p-8 text-center text-gray-400">No hi ha registres.</td></tr>
-                                )}
-                                {filteredRecords.map(r => (
-                                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wide ${r.type === 'factura' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                {r.type === 'factura' ? 'FRA' : 'PRE'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 font-bold text-gray-900">{r.invoice_number}</td>
-                                        <td className="p-4 text-gray-700">{r.client_name}</td>
-                                        <td className="p-4 text-gray-500 text-sm">{format(new Date(r.creation_date), 'dd/MM/yyyy')}</td>
-                                        <td className="p-4 text-gray-600 text-sm">
-                                            {r.bolos ? (
-                                                <div>
-                                                    <div className="font-bold text-gray-800">{r.bolos.nom_poble}</div>
-                                                    <div className="text-xs text-gray-400">{format(new Date(r.bolos.data_bolo), 'dd/MM/yyyy')}</div>
-                                                </div>
-                                            ) : '-'}
-                                        </td>
-                                        <td className="p-4 text-right font-mono font-bold">{r.total_amount.toFixed(2)}€</td>
-                                        <td className="p-4 text-center">
-                                            {r.type === 'factura' ? (
-                                                <button
-                                                    onClick={() => togglePaid(r.id, r.paid)}
-                                                    className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${r.paid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}
-                                                >
-                                                    {r.paid ? 'SÍ' : 'NO'}
-                                                </button>
-                                            ) : (
-                                                <span className="text-gray-300">-</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <button
-                                                onClick={() => handleDelete(r.id, r.invoice_number)}
-                                                className="text-gray-400 hover:text-red-600 transition-colors"
-                                                title="Eliminar"
-                                            >
-                                                <span className="material-icons-outlined">delete</span>
-                                            </button>
-                                        </td>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[800px]">
+                                <thead>
+                                    <tr className="bg-gray-50 border-b border-gray-200">
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase">Tipus</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase">Número</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase">Client</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase">Emissió</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase">Bolo</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase text-right">Import</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase text-center">Cobrada</th>
+                                        <th className="p-4 text-xs font-black text-gray-500 uppercase text-center">Accions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 text-sm">
+                                    {filteredRecords.length === 0 && (
+                                        <tr><td colSpan={8} className="p-8 text-center text-gray-400">No hi ha registres.</td></tr>
+                                    )}
+                                    {filteredRecords.map(r => (
+                                        <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 tracking-tight">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${r.type === 'factura' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                    {r.type === 'factura' ? 'FRA' : 'PRE'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 font-bold text-gray-900 md:whitespace-nowrap">{r.invoice_number}</td>
+                                            <td className="p-4 text-gray-700 truncate max-w-[150px]">{r.client_name}</td>
+                                            <td className="p-4 text-gray-500 text-xs">{format(new Date(r.creation_date), 'dd/MM/yyyy')}</td>
+                                            <td className="p-4 text-gray-600 text-xs">
+                                                {r.bolos ? (
+                                                    <div>
+                                                        <div className="font-bold text-gray-800">{r.bolos.nom_poble}</div>
+                                                        <div className="text-[10px] text-gray-400">{format(new Date(r.bolos.data_bolo), 'dd/MM/yyyy')}</div>
+                                                    </div>
+                                                ) : '-'}
+                                            </td>
+                                            <td className="p-4 text-right font-mono font-bold">{r.total_amount.toFixed(2)}€</td>
+                                            <td className="p-4 text-center">
+                                                {r.type === 'factura' ? (
+                                                    <button
+                                                        onClick={() => togglePaid(r.id, r.paid)}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${r.paid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}
+                                                    >
+                                                        {r.paid ? 'SÍ' : 'NO'}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-gray-300">-</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <button
+                                                    onClick={() => handleDelete(r.id, r.invoice_number)}
+                                                    className="text-gray-400 hover:text-red-600 transition-colors"
+                                                    title="Eliminar"
+                                                >
+                                                    <span className="material-icons-outlined text-lg">delete</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </div>
             </div>

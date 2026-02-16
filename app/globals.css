@@ -101,3 +101,30 @@
 .animate-pulse-subtle {
   animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Responsive Table Utilities */
+.table-container {
+  @apply w-full overflow-hidden rounded-xl border border-gray-200 bg-white;
+}
+
+.table-responsive-wrapper {
+  @apply w-full overflow-x-auto;
+}
+
+.table-responsive-wrapper table {
+  @apply min-w-[700px] w-full;
+}
+
+/* Form Layout Utilities */
+.form-grid-responsive {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+
+@media (max-width: 640px) {
+  .p-8 {
+    @apply p-4;
+  }
+  .p-6 {
+    @apply p-4;
+  }
+}

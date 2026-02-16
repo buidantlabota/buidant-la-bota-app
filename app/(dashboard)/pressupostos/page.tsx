@@ -356,7 +356,7 @@ export default function PressupostosPage() {
 
                         {/* Articles Logic */}
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                                 <h4 className="font-black text-xs uppercase tracking-widest text-primary">3. Detalls econòmics (Articles)</h4>
                                 <button
                                     onClick={() => setArticles([...articles, { descripcio: '', preu: 0, quantitat: 1 }])}
@@ -365,10 +365,11 @@ export default function PressupostosPage() {
                                     <span className="material-icons-outlined text-sm">add</span> Afegir Article
                                 </button>
                             </div>
-                            <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100 space-y-3">
+                            <div className="bg-gray-50 p-4 rounded-2xl sm:rounded-3xl border border-gray-100 space-y-3">
                                 {articles.length === 0 && <p className="text-center text-gray-400 text-xs py-4">No hi ha cap article. Afegeix-ne un per començar.</p>}
+
                                 {articles.length > 0 && (
-                                    <div className="grid grid-cols-12 gap-3 px-3 mb-1">
+                                    <div className="hidden md:grid grid-cols-12 gap-3 px-3 mb-1">
                                         <div className="col-span-6 text-[10px] font-black uppercase text-gray-400">Descripció</div>
                                         <div className="col-span-2 text-[10px] font-black uppercase text-gray-400 text-right">Preu</div>
                                         <div className="col-span-1"></div>
@@ -377,12 +378,14 @@ export default function PressupostosPage() {
                                         <div className="col-span-1"></div>
                                     </div>
                                 )}
+
                                 {articles.map((art, idx) => (
-                                    <div key={idx} className="grid grid-cols-12 gap-3 items-center bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
-                                        <div className="col-span-6">
+                                    <div key={idx} className="flex flex-col md:grid md:grid-cols-12 gap-3 items-start md:items-center bg-white p-4 md:p-3 rounded-2xl border border-gray-100 shadow-sm">
+                                        <div className="w-full md:col-span-6">
+                                            <div className="md:hidden text-[10px] font-black uppercase text-gray-400 mb-1">Descripció</div>
                                             <input
                                                 type="text"
-                                                className="w-full bg-transparent border-none focus:ring-0 font-bold text-sm"
+                                                className="w-full bg-transparent border md:border-none focus:ring-0 font-bold text-sm"
                                                 placeholder="Descripció de l'article o servei..."
                                                 value={art.descripcio}
                                                 onChange={(e) => {
@@ -392,45 +395,55 @@ export default function PressupostosPage() {
                                                 }}
                                             />
                                         </div>
-                                        <div className="col-span-2">
-                                            <input
-                                                type="number"
-                                                className="w-full bg-transparent border-none focus:ring-0 font-bold text-right text-sm"
-                                                placeholder="Preu"
-                                                value={art.preu}
-                                                onChange={(e) => {
-                                                    const newArts = [...articles];
-                                                    newArts[idx].preu = parseFloat(e.target.value) || 0;
-                                                    setArticles(newArts);
-                                                }}
-                                            />
+
+                                        <div className="w-full grid grid-cols-3 md:contents gap-2">
+                                            <div className="md:col-span-2">
+                                                <div className="md:hidden text-[10px] font-black uppercase text-gray-400 mb-1 text-right">Preu</div>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-transparent border md:border-none focus:ring-0 font-bold text-right text-sm"
+                                                    placeholder="Preu"
+                                                    value={art.preu}
+                                                    onChange={(e) => {
+                                                        const newArts = [...articles];
+                                                        newArts[idx].preu = parseFloat(e.target.value) || 0;
+                                                        setArticles(newArts);
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="hidden md:flex md:col-span-1 text-center font-bold text-gray-300 items-center justify-center">×</div>
+                                            <div className="md:col-span-1">
+                                                <div className="md:hidden text-[10px] font-black uppercase text-gray-400 mb-1 text-center">Quant.</div>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-transparent border md:border-none focus:ring-0 font-bold text-center text-sm"
+                                                    value={art.quantitat}
+                                                    onChange={(e) => {
+                                                        const newArts = [...articles];
+                                                        newArts[idx].quantitat = parseInt(e.target.value) || 0;
+                                                        setArticles(newArts);
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-1 text-right flex flex-col justify-end h-full">
+                                                <div className="md:hidden text-[10px] font-black uppercase text-gray-400 mb-1">Total</div>
+                                                <div className="font-black text-primary text-sm whitespace-nowrap">
+                                                    {(art.preu * art.quantitat).toFixed(2)}€
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="col-span-1 text-center font-bold text-gray-300">×</div>
-                                        <div className="col-span-1">
-                                            <input
-                                                type="number"
-                                                className="w-full bg-transparent border-none focus:ring-0 font-bold text-center text-sm"
-                                                value={art.quantitat}
-                                                onChange={(e) => {
-                                                    const newArts = [...articles];
-                                                    newArts[idx].quantitat = parseInt(e.target.value) || 0;
-                                                    setArticles(newArts);
-                                                }}
-                                            />
-                                        </div>
-                                        <div className="col-span-1 text-right font-black text-primary text-sm">
-                                            {(art.preu * art.quantitat).toFixed(2)}€
-                                        </div>
-                                        <div className="col-span-1 text-right">
-                                            <button onClick={() => setArticles(articles.filter((_, i) => i !== idx))} className="text-red-300 hover:text-red-500 transition-colors">
-                                                <span className="material-icons-outlined text-sm">delete</span>
+
+                                        <div className="w-full md:col-span-1 text-right mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-none border-gray-100">
+                                            <button onClick={() => setArticles(articles.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 transition-colors flex items-center justify-center w-full md:w-auto p-2 bg-red-50 md:bg-transparent rounded-lg">
+                                                <span className="material-icons-outlined text-sm mr-1 md:mr-0">delete</span>
+                                                <span className="md:hidden font-bold text-xs uppercase">Eliminar</span>
                                             </button>
                                         </div>
                                     </div>
                                 ))}
                                 {articles.length > 0 && (
-                                    <div className="flex justify-end pr-12 pt-2 border-t mt-2">
-                                        <div className="text-xl font-black text-gray-900">
+                                    <div className="flex justify-end md:pr-12 pt-4 border-t mt-2">
+                                        <div className="text-xl font-black text-gray-900 bg-primary/5 px-6 py-2 rounded-xl">
                                             TOTAL: {articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0).toFixed(2)} €
                                         </div>
                                     </div>
