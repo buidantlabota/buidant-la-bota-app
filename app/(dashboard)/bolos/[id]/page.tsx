@@ -11,6 +11,7 @@ import { useMaterialRequest } from '@/app/hooks/useMaterialRequest';
 import { TasquesPerFase } from '@/components/TasquesPerFase';
 import { generateDescriptionText } from '@/lib/pdf-utils';
 import { format, addMonths } from 'date-fns';
+import { ca } from 'date-fns/locale';
 import { MunicipiSelector } from '@/components/MunicipiSelector';
 
 const BOLO_STATES: BoloStatus[] = [
