@@ -85,7 +85,7 @@ export default function Dashboard() {
           supabase.from('view_bolos_resum_any').select('*').eq('any', selectedYear).single(),
           supabase.from('bolos').select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets'),
           supabase.from('despeses_ingressos').select('import, tipus'),
-          supabase.from('bolos').select('id, titol, nom_poble, lloc, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
+          supabase.from('bolos').select('id, titol, nom_poble, ubicacio_detallada, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
           supabase.from('bolos').select('id, titol, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Sol·licitat', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
           supabase.from('pagaments_anticipats').select('*, bolos(estat, pot_delta_final)'),
           supabase.from('bolo_musics').select('music_id, musics(nom), bolos!inner(data_bolo)').eq('estat', 'confirmat').gte('bolos.data_bolo', `${selectedYear}-01-01`).lte('bolos.data_bolo', `${selectedYear}-12-31`),
@@ -168,7 +168,7 @@ export default function Dashboard() {
             id: nextBolo.id,
             titol: nextBolo.titol,
             poblacio: nextBolo.nom_poble,
-            lloc: nextBolo.lloc,
+            lloc: nextBolo.ubicacio_detallada,
             data: nextBolo.data_bolo,
             tipus: nextBolo.tipus_actuacio || 'Actuació',
             hora: nextBolo.hora_inici
