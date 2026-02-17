@@ -369,25 +369,66 @@ export default function ForecastPage() {
                 </div>
 
                 {showBreakdown && (
-                    <div className="mt-6 pt-6 border-t border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="bg-white p-3 rounded-lg border border-blue-50">
-                            <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Bolos Tancats</span>
-                            <div className="font-mono font-bold text-gray-700"><PrivacyMask value={potBreakdown.closedBolos} /></div>
-                            <p className="text-[10px] text-gray-400 mt-1">Suma de "Pot Final" de tots els bolos tancats.</p>
+                    <div className="mt-6 pt-6 border-t border-blue-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <h4 className="text-[10px] font-black uppercase text-gray-400 mb-4 tracking-tighter">Desglosament de la Projecció a {horizonDays} dies</h4>
+                        <div className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm font-mono text-sm">
+                            <table className="w-full">
+                                <tbody className="divide-y divide-blue-50">
+                                    <tr className="bg-gray-50/50">
+                                        <td className="p-3 text-gray-500">Saldo inicial (Estat actual de Tresoreria+Bolos Tancats)</td>
+                                        <td className="p-3 text-right font-bold text-gray-900">
+                                            <PrivacyMask value={currentPot} />
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-white">
+                                        <td className="p-3 text-gray-500 font-bold ml-4">+ Marge Net de Bolos confirmats ({horizonDays}d)</td>
+                                        <td className="p-3 text-right font-bold text-emerald-600">
+                                            +<PrivacyMask value={activeBolosTotal} showEuro={false} />€
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-gray-50/50">
+                                        <td className="p-3 text-gray-500 font-bold ml-4">- Despeses fixes i variables previstes ({horizonDays}d)</td>
+                                        <td className="p-3 text-right font-bold text-red-600">
+                                            -<PrivacyMask value={activeExpensesTotal} showEuro={false} />€
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-white">
+                                        <td className="p-3 text-gray-500 font-bold ml-4">- Inversions i projectes seleccionats</td>
+                                        <td className="p-3 text-right font-bold text-purple-600">
+                                            -<PrivacyMask value={activeInvestmentsTotal} showEuro={false} />€
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-blue-600 text-white">
+                                        <td className="p-3 font-black uppercase">Resultat Final Projectat</td>
+                                        <td className="p-3 text-right font-black text-lg">
+                                            <PrivacyMask value={finalProjectedPot} />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                        <div className="bg-white p-3 rounded-lg border border-blue-50">
-                            <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tresoreria Manual</span>
-                            <div className="font-mono font-bold text-gray-700"><PrivacyMask value={potBreakdown.movements} /></div>
-                            <p className="text-[10px] text-gray-400 mt-1">Entrades/sortides de la pàgina d'Economia.</p>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-blue-50">
-                            <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Avançaments Bolos Actius</span>
-                            <div className="font-mono font-bold text-gray-700"><PrivacyMask value={potBreakdown.advances} /></div>
-                            <p className="text-[10px] text-gray-400 mt-1">Cobraments ja rebuts de bolos no tancats.</p>
+
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white p-3 rounded-lg border border-blue-50">
+                                <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Bolos Tancats</span>
+                                <div className="font-mono font-bold text-gray-700"><PrivacyMask value={potBreakdown.closedBolos} /></div>
+                                <p className="text-[10px] text-gray-400 mt-1">Suma de "Pot Final" de tots els bolos tancats.</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg border border-blue-50">
+                                <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tresoreria Manual</span>
+                                <div className="font-mono font-bold text-gray-700"><PrivacyMask value={potBreakdown.movements} /></div>
+                                <p className="text-[10px] text-gray-400 mt-1">Entrades/sortides de la pàgina d'Economia.</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg border border-blue-50">
+                                <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Avançaments Bolos Actius</span>
+                                <div className="font-mono font-bold text-gray-700"><PrivacyMask value={potBreakdown.advances} /></div>
+                                <p className="text-[10px] text-gray-400 mt-1">Cobraments ja rebuts de bolos no tancats.</p>
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
+
 
             {/* Actuacions Previstes Detail Table */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">

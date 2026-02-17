@@ -5,9 +5,11 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import type { ViewBolosResumAny } from '@/types';
 import { PrivacyMask } from '@/components/PrivacyMask';
+import { usePrivacy } from '@/context/PrivacyContext';
 
 export default function Dashboard() {
   const supabase = createClient();
+  const { isPrivate, togglePrivacy } = usePrivacy();
   const currentYear = new Date().getFullYear();
 
   // State for years
@@ -76,15 +78,19 @@ export default function Dashboard() {
           { data: nextBolo },
           { data: requestBolos },
           { data: allAdvances },
-          { data: attendanceData }
+          { data: attendanceData },
+          { data: forecastItems },
+          { data: economySettings }
         ] = await Promise.all([
           supabase.from('view_bolos_resum_any').select('*').eq('any', selectedYear).single(),
           supabase.from('bolos').select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets'),
           supabase.from('despeses_ingressos').select('import, tipus'),
-          supabase.from('bolos').select('id, titol, nom_poble, lloc, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
-          supabase.from('bolos').select('id, titol, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
-          supabase.from('pagaments_anticipats').select('*, bolos(estat)'),
-          supabase.from('bolo_musics').select('music_id, musics(nom), bolos!inner(data_bolo)').eq('estat', 'confirmat').gte('bolos.data_bolo', `${selectedYear}-01-01`).lte('bolos.data_bolo', `${selectedYear}-12-31`)
+          supabase.from('bolos').select('id, titol, nom_poble, lloc, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
+          supabase.from('bolos').select('id, titol, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Sol·licitat', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
+          supabase.from('pagaments_anticipats').select('*, bolos(estat, pot_delta_final)'),
+          supabase.from('bolo_musics').select('music_id, musics(nom), bolos!inner(data_bolo)').eq('estat', 'confirmat').gte('bolos.data_bolo', `${selectedYear}-01-01`).lte('bolos.data_bolo', `${selectedYear}-12-31`),
+          supabase.from('forecast_items').select('*'),
+          supabase.from('economy_settings').select('*').single()
         ]);
 
         // A. Stats (Annual)
@@ -97,38 +103,63 @@ export default function Dashboard() {
           setTotalIngres(0);
         }
 
-        // B. Detailed Finances (Global)
         const totalManualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const closedBolosPot = (allBolos || [])
-          .filter((b: any) => b.estat === 'Tancades')
+          .filter((b: any) => b.estat === 'Tancades' || b.estat === 'Tancat')
           .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        const pendingAdvances = (allAdvances || [])
-          .filter((p: any) => (p.bolos as any)?.estat !== 'Tancades')
-          .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+        const currentAdvances = (allAdvances || [])
+          .filter((a: any) => a.bolos?.pot_delta_final === null)
+          .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-        const potReal = totalManualBalance + closedBolosPot - pendingAdvances;
+        const potReal = totalManualBalance + closedBolosPot + currentAdvances;
 
         const aCobrar = (allBolos || [])
-          .filter((b: any) => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.cobrat)
-          .reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
-
-        const aPagar = (allBolos || [])
-          .filter((b: any) => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.pagaments_musics_fets)
+          .filter((b: any) => {
+            const skip = ['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat);
+            return !skip && !b.cobrat;
+          })
           .reduce((sum: number, b: any) => {
-            const totalCost = b.cost_total_musics || 0;
+            const income = b.import_total || 0;
+            // Subtraction of advances already received is handled via potReal + aCobrar if we assume advances are part of aCobrar, 
+            // but usually aCobrar means "what remains to be collected".
+            // Let's keep it simple and consistent with Previsio: aCobrar is total remaining of open bolos.
             const advancesForThisBolo = (allAdvances || [])
               .filter((p: any) => p.bolo_id === b.id)
               .reduce((acc: number, p: any) => acc + (p.import || 0), 0);
-            return sum + (totalCost - advancesForThisBolo);
+            return sum + (income - advancesForThisBolo);
           }, 0);
+
+        const aPagar = (allBolos || [])
+          .filter((b: any) => {
+            const skip = ['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat);
+            return !skip && !b.pagaments_musics_fets;
+          })
+          .reduce((sum: number, b: any) => {
+            const totalCost = b.cost_total_musics || 0;
+            return sum + totalCost;
+          }, 0);
+
+        const horizonDays = (economySettings as any)?.default_horizon_days || 90;
+        const horizonDate = new Date();
+        horizonDate.setDate(horizonDate.getDate() + horizonDays);
+
+        const activeExpensesTotal = (forecastItems || [])
+          .filter((item: any) => item.type === 'expense' && item.is_active)
+          .filter((item: any) => !item.date || new Date(item.date) <= horizonDate)
+          .reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+
+        const activeInvestmentsTotal = (forecastItems || [])
+          .filter((item: any) => item.type === 'investment' && item.is_active)
+          .filter((item: any) => !item.date || new Date(item.date) <= horizonDate)
+          .reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
 
         setFinances({
           potReal,
           aCobrar,
           aPagar,
-          projectat: potReal + aCobrar - aPagar
+          projectat: potReal + aCobrar - aPagar - activeExpensesTotal - activeInvestmentsTotal
         });
 
         // C. Next Bolo
@@ -285,9 +316,20 @@ export default function Dashboard() {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-text-primary tracking-tight">
-            BUIDANT LA BOTA
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-black text-text-primary tracking-tight">
+              BUIDANT LA BOTA
+            </h1>
+            <button
+              onClick={togglePrivacy}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-primary shadow-sm border border-gray-100 bg-white"
+              title={isPrivate ? "Mostrar dades econòmiques" : "Ocultar dades econòmiques"}
+            >
+              <span className="material-icons-outlined text-xl">
+                {isPrivate ? 'visibility_off' : 'visibility'}
+              </span>
+            </button>
+          </div>
           <p className="text-text-secondary font-medium">
             Panell de Control {selectedYear}
           </p>
