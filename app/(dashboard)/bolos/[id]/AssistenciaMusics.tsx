@@ -353,14 +353,14 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, on
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-                <thead className="bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark uppercase text-xs font-semibold">
+                <thead className="bg-gray-50 dark:bg-card-dark text-black dark:text-text-primary-dark uppercase text-[10px] font-black tracking-widest border-b border-gray-200">
                     <tr>
-                        <th className="px-4 py-2 font-medium">Músic</th>
-                        <th className="px-4 py-2 font-medium w-32">Instruments</th>
-                        <th className="px-4 py-2 font-medium w-24 text-right">Import</th>
-                        <th className="px-4 py-2 font-medium w-40">Estat</th>
-                        <th className="px-4 py-2 font-medium">Comentari</th>
-                        {isEditable && <th className="px-4 py-2 w-10"></th>}
+                        <th className="px-4 py-3">Músic</th>
+                        <th className="px-4 py-3 w-32">Instruments</th>
+                        <th className="px-4 py-3 w-28 text-right">Import</th>
+                        <th className="px-4 py-3 w-40">Estat</th>
+                        <th className="px-4 py-3">Comentari</th>
+                        {isEditable && <th className="px-4 py-3 w-10"></th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -410,23 +410,23 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
     };
 
     return (
-        <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/30 group">
-            <td className="px-4 py-3 font-medium text-gray-900">
+        <tr className="hover:bg-primary/5 dark:hover:bg-gray-800/30 group transition-colors border-b border-gray-100 last:border-0">
+            <td className="px-4 py-3 font-black text-gray-900 text-sm">
                 {item.music?.nom}
             </td>
-            <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+            <td className="px-4 py-3">
                 <div className="flex items-center space-x-1">
-                    <span className="material-icons-outlined text-xs text-primary/60">music_note</span>
-                    <span className="font-medium">{item.music?.instruments}</span>
+                    <span className="material-icons-outlined text-xs text-primary">music_note</span>
+                    <span className="font-bold text-gray-900 dark:text-white">{item.music?.instruments}</span>
                 </div>
             </td>
-            <td className="px-4 py-3 text-right font-mono text-gray-900 dark:text-text-primary-dark font-bold">
+            <td className="px-4 py-3 text-right font-mono text-gray-900 dark:text-text-primary-dark font-black">
                 {isEditingPrice ? (
                     <input
                         autoFocus
                         type="number"
                         step="0.01"
-                        className="w-16 text-xs p-1 rounded border border-primary bg-white text-right"
+                        className="w-16 text-xs p-1 rounded border border-primary bg-white text-right text-gray-900"
                         value={localPrice}
                         onChange={(e) => setLocalPrice(e.target.value)}
                         onBlur={handleBlurPrice}
@@ -435,7 +435,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                 ) : (
                     <div
                         onClick={() => isEditable && setIsEditingPrice(true)}
-                        className={`cursor-pointer group-hover:bg-primary/5 rounded px-1 ${item.preu_personalitzat !== null ? 'text-primary font-bold underline decoration-dotted' : ''}`}
+                        className={`cursor-pointer group-hover:bg-primary/5 rounded px-1 ${item.preu_personalitzat !== null ? 'text-primary font-bold underline decoration-dotted' : 'text-gray-900'}`}
                         title={item.preu_personalitzat !== null ? 'Preu personalitzat' : 'Preu estàndard'}
                     >
                         {item.preu_personalitzat !== null ? item.preu_personalitzat : (item.import_assignat ?? 0)}€
@@ -447,7 +447,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                     <select
                         value={item.estat}
                         onChange={(e) => onUpdateStatus(item.music_id, e.target.value)}
-                        className={`text-xs font-medium px-2 py-1 rounded-full border-none focus:ring-1 focus:ring-offset-0 focus:ring-black/20 cursor-pointer ${statusColors[item.estat] || 'bg-gray-100'}`}
+                        className={`text-xs font-bold px-2 py-1 rounded-full border-none focus:ring-1 focus:ring-offset-0 focus:ring-black/20 cursor-pointer ${statusColors[item.estat] || 'bg-gray-100'}`}
                     >
                         <option value="pendent">Pendent</option>
                         <option value="confirmat">Confirmat</option>
@@ -455,7 +455,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                         <option value="baixa">Baixa</option>
                     </select>
                 ) : (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[item.estat] || 'bg-gray-100'}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[item.estat] || 'bg-gray-100'}`}>
                         {item.estat}
                     </span>
                 )}
@@ -475,7 +475,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                 ) : (
                     <div
                         onClick={() => isEditable && setIsEditingComment(true)}
-                        className={`text-sm cursor-pointer min-h-[1.5em] flex items-center ${!localComment ? 'text-gray-600 italic hover:text-primary' : 'text-gray-700 dark:text-gray-300'
+                        className={`text-sm cursor-pointer min-h-[1.5em] flex items-center ${!localComment ? 'text-gray-500 italic hover:text-primary font-medium' : 'text-gray-800 dark:text-gray-300 font-medium'
                             }`}
                     >
                         {localComment || (isEditable ? 'Afegir comentari...' : '')}

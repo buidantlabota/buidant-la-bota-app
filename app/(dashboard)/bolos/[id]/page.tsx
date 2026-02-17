@@ -1470,7 +1470,7 @@ export default function BoloDetailPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 dark:border-white/10">
                         {/* 1. Type */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Tipus</label>
+                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Tipus</label>
                             <select
                                 value={bolo.tipus_actuacio || ''}
                                 onChange={(e) => handleTipusActuacioChange(e.target.value)}
@@ -1491,7 +1491,7 @@ export default function BoloDetailPage() {
 
                         {/* 2. Concepte */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Concepte</label>
+                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Concepte</label>
                             <input
                                 type="text"
                                 value={bolo.concepte || ''}
@@ -1504,7 +1504,7 @@ export default function BoloDetailPage() {
 
                         {/* 3. Durada */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Durada (min)</label>
+                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Durada (h)</label>
                             <input
                                 type="number"
                                 value={bolo.durada || ''}
@@ -1517,7 +1517,7 @@ export default function BoloDetailPage() {
 
                         {/* 4. Ubicació Inici */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Inici convocatòria</label>
+                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Inici convocatòria</label>
                             <input
                                 type="text"
                                 value={bolo.ubicacio_inici || ''}
@@ -1528,9 +1528,8 @@ export default function BoloDetailPage() {
                             />
                         </div>
 
-                        {/* 5. Vestimenta */}
                         <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Vestimenta</label>
+                            <label className="text-[10px] font-black text-gray-800 dark:text-white/80 uppercase tracking-widest pl-1">Vestimenta</label>
                             <input
                                 type="text"
                                 value={bolo.vestimenta || ''}
@@ -1541,9 +1540,8 @@ export default function BoloDetailPage() {
                             />
                         </div>
 
-                        {/* 6. Partitures */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Partitures</label>
+                            <label className="text-[10px] font-black text-gray-800 dark:text-white/80 uppercase tracking-widest pl-1">Partitures</label>
                             <input
                                 type="text"
                                 value={bolo.partitures || ''}
@@ -1556,7 +1554,7 @@ export default function BoloDetailPage() {
 
                         {/* 7. Fundes */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">On deixem les fundes?</label>
+                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">On deixem les fundes?</label>
                             <input
                                 type="text"
                                 value={bolo.notes_fundes || ''}
@@ -1583,7 +1581,7 @@ export default function BoloDetailPage() {
                                     disabled={isRebutjat}
                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${bolo[item.id as keyof Bolo]
                                         ? 'bg-primary text-white border-primary shadow-sm'
-                                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                                         }`}
                                 >
                                     <span className="material-icons-outlined text-sm">{item.icon}</span>
@@ -1795,25 +1793,25 @@ export default function BoloDetailPage() {
                     <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Automatic Summary */}
                         <div className="md:col-span-2 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
-                            <h3 className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/60 mb-4 tracking-[0.2em]">Resultat Econòmic (Automàtic)</h3>
+                            <h3 className="text-[10px] uppercase font-bold text-gray-700 dark:text-white/60 mb-4 tracking-[0.2em]">Resultat Econòmic (Automàtic)</h3>
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                    <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Músics</p>
-                                    <p className="text-xl font-black text-gray-900 dark:text-text-primary-dark leading-none">{bolo.num_musics || 0}</p>
+                                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Músics</p>
+                                    <p className="text-xl font-black text-gray-900 dark:text-white leading-none">{bolo.num_musics || 0}</p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                    <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Cost Músics</p>
-                                    <p className="text-xl font-black text-red-600 dark:text-red-400 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
+                                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Cost Músics</p>
+                                    <p className="text-xl font-black text-red-700 dark:text-red-400 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                    <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Marge (Pot)</p>
-                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Marge (Pot)</p>
+                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600'}`}>
                                         {(bolo.pot_delta || 0).toFixed(2)}€
                                     </p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
-                                    <p className="text-[10px] font-bold text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
-                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                                    <p className="text-[10px] font-black text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
+                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600'}`}>
                                         {(bolo.pot_delta_final || 0).toFixed(2)}€
                                     </p>
                                 </div>
@@ -1836,9 +1834,9 @@ export default function BoloDetailPage() {
                             </div>
 
                             {loadingAdvancePayments ? (
-                                <p className="text-sm text-amber-800/50 dark:text-amber-400/50 animate-pulse">Carregant pagaments...</p>
+                                <p className="text-sm text-amber-900 font-medium animate-pulse">Carregant pagaments...</p>
                             ) : advancePayments.length === 0 ? (
-                                <p className="text-sm text-amber-800/50 dark:text-amber-400/50 italic">No s'han registrat pagaments anticipats per aquest bolo.</p>
+                                <p className="text-sm text-amber-900/70 dark:text-amber-400/50 italic font-medium">No s'han registrat pagaments anticipats per aquest bolo.</p>
                             ) : (
                                 <div className="space-y-2">
                                     {advancePayments.map(p => {
@@ -1849,7 +1847,7 @@ export default function BoloDetailPage() {
                                                     <span className="material-icons-outlined text-amber-500 text-sm">payments</span>
                                                     <div>
                                                         <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{music?.nom || 'Músic desconegut'}</p>
-                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
+                                                        <p className="text-[10px] text-gray-700 dark:text-gray-400 font-bold">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-4">
@@ -1873,7 +1871,7 @@ export default function BoloDetailPage() {
 
                         {/* Edit Fields */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
+                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
                             <input
                                 type="number"
                                 step="0.01"
@@ -1884,7 +1882,7 @@ export default function BoloDetailPage() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Preu per músic (€)</label>
+                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Preu per músic (€)</label>
                             <input
                                 type="number"
                                 step="0.01"
@@ -1895,7 +1893,7 @@ export default function BoloDetailPage() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
+                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
                             <select
                                 value={economicData.tipus_ingres}
                                 onChange={(e) => setEconomicData({ ...economicData, tipus_ingres: e.target.value })}
@@ -1909,7 +1907,7 @@ export default function BoloDetailPage() {
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
+                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
                             <input
                                 type="text"
                                 inputMode="decimal"
@@ -1930,7 +1928,7 @@ export default function BoloDetailPage() {
                             />
                         </div>
                         <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Motiu Ajust</label>
+                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Motiu Ajust</label>
                             <input
                                 type="text"
                                 value={economicData.comentari_ajust_pot || ''}
