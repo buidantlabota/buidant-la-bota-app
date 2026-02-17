@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS pagaments_anticipats (
 ALTER TABLE pagaments_anticipats ENABLE ROW LEVEL SECURITY;
 
 -- 4. Polítiques RLS
+DROP POLICY IF EXISTS "Usuaris autenticats poden fer-ho tot a pagaments_anticipats" ON pagaments_anticipats;
 CREATE POLICY "Usuaris autenticats poden fer-ho tot a pagaments_anticipats" 
 ON pagaments_anticipats FOR ALL TO authenticated USING (true);
 
