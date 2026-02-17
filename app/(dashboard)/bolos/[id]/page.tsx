@@ -1435,18 +1435,18 @@ export default function BoloDetailPage() {
                 <div className="relative z-10 flex flex-col gap-6">
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                         <div className="flex flex-col sm:flex-row items-baseline gap-2 sm:gap-4 w-full lg:w-auto">
-                            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none uppercase">
+                            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight leading-none uppercase">
                                 {format(new Date(bolo.data_bolo), 'dd MMMM', { locale: ca })} <span className="text-lg sm:text-2xl font-normal opacity-60 ml-1">{new Date(bolo.data_bolo).getFullYear()}</span>
                             </h2>
 
                             <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors w-full sm:w-auto">
-                                <span className="material-icons-outlined text-gray-500 dark:text-white text-lg mr-2">schedule</span>
+                                <span className="material-icons-outlined text-gray-500 text-lg mr-2">schedule</span>
                                 <input
                                     type="time"
                                     value={localHora}
                                     onChange={(e) => setLocalHora(e.target.value)}
                                     onBlur={(e) => handleUpdateHora(e.target.value)}
-                                    className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[90px]"
+                                    className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 cursor-pointer p-0 min-w-[90px]"
                                 />
                             </div>
                         </div>
@@ -1470,12 +1470,12 @@ export default function BoloDetailPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 dark:border-white/10">
                         {/* 1. Type */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Tipus</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Tipus</label>
                             <select
                                 value={bolo.tipus_actuacio || ''}
                                 onChange={(e) => handleTipusActuacioChange(e.target.value)}
                                 disabled={isRebutjat}
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             >
                                 <option value="">Selecciona...</option>
                                 <option value="Carnestoltes">Carnestoltes</option>
@@ -1491,77 +1491,77 @@ export default function BoloDetailPage() {
 
                         {/* 2. Concepte */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Concepte</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Concepte</label>
                             <input
                                 type="text"
                                 value={bolo.concepte || ''}
                                 onChange={(e) => handleConcepteChange(e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Cercavila..."
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 3. Durada */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Durada (h)</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Durada (h)</label>
                             <input
                                 type="number"
                                 value={bolo.durada || ''}
                                 onChange={(e) => handleDuradaChange(Number(e.target.value))}
                                 disabled={isRebutjat}
                                 placeholder="Ex: 120"
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 4. Ubicació Inici */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">Inici convocatòria</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Inici convocatòria</label>
                             <input
                                 type="text"
                                 value={bolo.ubicacio_inici || ''}
                                 onChange={(e) => handleAutomationFieldChange('ubicacio_inici', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Artés"
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-black text-gray-800 dark:text-white/80 uppercase tracking-widest pl-1">Vestimenta</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Vestimenta</label>
                             <input
                                 type="text"
                                 value={bolo.vestimenta || ''}
                                 onChange={(e) => handleAutomationFieldChange('vestimenta', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Samarreta BLB + Pantalons Beige"
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-800 dark:text-white/80 uppercase tracking-widest pl-1">Partitures</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Partitures</label>
                             <input
                                 type="text"
                                 value={bolo.partitures || ''}
                                 onChange={(e) => handleAutomationFieldChange('partitures', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Les de sempre"
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
                         {/* 7. Fundes */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-700 dark:text-white/80 uppercase tracking-widest pl-1">On deixem les fundes?</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">On deixem les fundes?</label>
                             <input
                                 type="text"
                                 value={bolo.notes_fundes || ''}
                                 onChange={(e) => handleAutomationFieldChange('notes_fundes', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Al cotxe"
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
                     </div>
@@ -1797,21 +1797,21 @@ export default function BoloDetailPage() {
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
                                     <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Músics</p>
-                                    <p className="text-xl font-black text-gray-900 dark:text-white leading-none">{bolo.num_musics || 0}</p>
+                                    <p className="text-xl font-black text-gray-900 leading-none">{bolo.num_musics || 0}</p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
                                     <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Cost Músics</p>
-                                    <p className="text-xl font-black text-red-700 dark:text-red-400 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
+                                    <p className="text-xl font-black text-red-700 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
                                     <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Marge (Pot)</p>
-                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600'}`}>
+                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                         {(bolo.pot_delta || 0).toFixed(2)}€
                                     </p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
                                     <p className="text-[10px] font-black text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
-                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600'}`}>
+                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                         {(bolo.pot_delta_final || 0).toFixed(2)}€
                                     </p>
                                 </div>
@@ -1821,7 +1821,7 @@ export default function BoloDetailPage() {
                         {/* Advance Payments List (New Section) */}
                         <div className="md:col-span-2 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20 shadow-sm mt-2">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-[0.2em]">Pagaments Anticipats</h3>
+                                <h3 className="text-[10px] uppercase font-black text-amber-700 tracking-[0.2em]">Pagaments Anticipats</h3>
                                 <button
                                     onClick={() => {
                                         setNewAdvancePayment({ ...newAdvancePayment, music_id: boloMusics[0]?.music_id || '' });
@@ -1863,7 +1863,7 @@ export default function BoloDetailPage() {
                                         );
                                     })}
                                     <div className="pt-2 border-t border-amber-200 dark:border-amber-900/30 flex justify-end">
-                                        <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-widest">Total Anticipat: {advancePayments.reduce((sum, p) => sum + p.import, 0).toFixed(2)}€</p>
+                                        <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Total Anticipat: {advancePayments.reduce((sum, p) => sum + p.import, 0).toFixed(2)}€</p>
                                     </div>
                                 </div>
                             )}
@@ -1871,34 +1871,34 @@ export default function BoloDetailPage() {
 
                         {/* Edit Fields */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
                             <input
                                 type="number"
                                 step="0.01"
                                 value={economicData.import_total}
                                 onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
                                 disabled={isRebutjat}
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Preu per músic (€)</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Preu per músic (€)</label>
                             <input
                                 type="number"
                                 step="0.01"
                                 value={economicData.preu_per_musica}
                                 onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
                                 disabled={isRebutjat}
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
                             <select
                                 value={economicData.tipus_ingres}
                                 onChange={(e) => setEconomicData({ ...economicData, tipus_ingres: e.target.value })}
                                 disabled={isRebutjat}
-                                className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none appearance-none disabled:opacity-50"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             >
                                 <option value="Efectiu">Efectiu</option>
                                 <option value="Factura">Factura</option>
@@ -1907,7 +1907,7 @@ export default function BoloDetailPage() {
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
                             <input
                                 type="text"
                                 inputMode="decimal"
@@ -1924,18 +1924,18 @@ export default function BoloDetailPage() {
                                     setEconomicData({ ...economicData, ajust_pot_manual: final });
                                 }}
                                 disabled={isRebutjat}
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50 font-mono"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none font-mono"
                             />
                         </div>
                         <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-black text-gray-600 dark:text-white/80 uppercase tracking-widest pl-1">Motiu Ajust</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Motiu Ajust</label>
                             <input
                                 type="text"
                                 value={economicData.comentari_ajust_pot || ''}
                                 onChange={(e) => setEconomicData({ ...economicData, comentari_ajust_pot: e.target.value })}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Propina, Taxi, Despesa extra..."
-                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
@@ -1952,7 +1952,7 @@ export default function BoloDetailPage() {
                                     disabled={isRebutjat}
                                     className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
                                 />
-                                <label htmlFor="cobrat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
+                                <label htmlFor="cobrat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
                                     Cobrat (Ingrés al Pot)
                                 </label>
                             </div>
@@ -1969,7 +1969,7 @@ export default function BoloDetailPage() {
                                     disabled={isRebutjat}
                                     className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
                                 />
-                                <label htmlFor="pagat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
+                                <label htmlFor="pagat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
                                     Pagaments Músics Fets
                                 </label>
                             </div>

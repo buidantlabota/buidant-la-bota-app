@@ -353,7 +353,7 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, on
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 dark:bg-card-dark text-black dark:text-text-primary-dark uppercase text-[10px] font-black tracking-widest border-b border-gray-200">
+                <thead className="bg-gray-100 text-black uppercase text-[10px] font-black tracking-widest border-b-2 border-gray-300">
                     <tr>
                         <th className="px-4 py-3">Músic</th>
                         <th className="px-4 py-3 w-32">Instruments</th>
@@ -417,10 +417,10 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
             <td className="px-4 py-3">
                 <div className="flex items-center space-x-1">
                     <span className="material-icons-outlined text-xs text-primary">music_note</span>
-                    <span className="font-bold text-gray-900 dark:text-white">{item.music?.instruments}</span>
+                    <span className="font-bold text-gray-900">{item.music?.instruments}</span>
                 </div>
             </td>
-            <td className="px-4 py-3 text-right font-mono text-gray-900 dark:text-text-primary-dark font-black">
+            <td className="px-4 py-3 text-right font-mono text-gray-900 font-black">
                 {isEditingPrice ? (
                     <input
                         autoFocus
@@ -475,7 +475,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                 ) : (
                     <div
                         onClick={() => isEditable && setIsEditingComment(true)}
-                        className={`text-sm cursor-pointer min-h-[1.5em] flex items-center ${!localComment ? 'text-gray-500 italic hover:text-primary font-medium' : 'text-gray-800 dark:text-gray-300 font-medium'
+                        className={`text-sm cursor-pointer min-h-[1.5em] flex items-center ${!localComment ? 'text-gray-500 italic hover:text-primary font-bold' : 'text-gray-900 font-bold'
                             }`}
                     >
                         {localComment || (isEditable ? 'Afegir comentari...' : '')}
