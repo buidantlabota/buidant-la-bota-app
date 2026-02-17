@@ -30,10 +30,30 @@ function ClientsContent() {
     }, [sortBy]);
 
     useEffect(() => {
-        if (searchParams.get('new') === 'true' && clients.length > 0 && !editingClient) {
+        const newParam = searchParams.get('new');
+        const editParam = searchParams.get('edit');
+
+        if (newParam === 'true' && clients.length > 0 && !editingClient) {
             handleAddNew();
+        } else if (editParam && clients.length > 0 && expandedClient !== editParam) {
+            const client = clients.find(c => c.id === editParam);
+            if (client) {
+                setEditingClient({ ...client });
+                setMunicipiSelection({
+                    municipi_id: client.municipi_id || null,
+                    municipi_custom_id: client.municipi_custom_id || null,
+                    municipi_text: client.municipi_text || client.poblacio || ''
+                });
+                setExpandedClient(editParam);
+
+                // Scroll to element
+                setTimeout(() => {
+                    const el = document.getElementById(`client-${editParam}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 500);
+            }
         }
-    }, [searchParams, clients.length]);
+    }, [searchParams, clients]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ show: true, message, type });
@@ -339,7 +359,7 @@ function ClientsContent() {
                             <tbody className="divide-y divide-border-light">
                                 {filteredClients.map((client: any) => (
                                     <React.Fragment key={client.id}>
-                                        <tr className="hover:bg-gray-50 transition-colors">
+                                        <tr id={`client-${client.id}`} className="hover:bg-gray-50 transition-colors">
                                             <td className="p-3 text-center text-2xl">
                                                 {getClientIcon(client.tipus_client)}
                                             </td>

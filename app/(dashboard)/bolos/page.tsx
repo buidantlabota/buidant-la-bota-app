@@ -1,9 +1,116 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { Bolo } from '@/types';
+import { ChevronDown, Check, X } from 'lucide-react';
+
+const STATUS_OPTIONS = [
+    { value: 'Nova', label: 'Nova' },
+    { value: 'Pendent de confirmació', label: 'Pendent' },
+    { value: 'Confirmada', label: 'Confirmada' },
+    { value: 'Pendents de cobrar', label: 'De cobrar' },
+    { value: 'Per pagar', label: 'Per pagar' },
+    { value: 'Tancades', label: 'Tancades' },
+    { value: 'Cancel·lats', label: 'Cancel·lats' },
+];
+
+const MultiSelectFilter = ({
+    label,
+    options,
+    selected,
+    onChange
+}: {
+    label: string,
+    options: { value: string, label: string }[],
+    selected: string[],
+    onChange: (values: string[]) => void
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (value: string) => {
+        const newSelected = selected.includes(value)
+            ? selected.filter(v => v !== value)
+            : [...selected, value];
+        onChange(newSelected);
+    };
+
+    const clearSelection = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onChange([]);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative w-full" ref={containerRef}>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{label}</label>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-left flex justify-between items-center hover:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[38px]"
+            >
+                <div className="flex flex-wrap gap-1 max-w-[calc(100%-24px)]">
+                    {selected.length === 0 ? (
+                        <span className="text-gray-500">Tots</span>
+                    ) : (
+                        <span className="truncate block font-medium">
+                            {selected.length === 1
+                                ? options.find(o => o.value === selected[0])?.label
+                                : `${selected.length} seleccionats`}
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center shrink-0 ml-1">
+                    {selected.length > 0 && (
+                        <span
+                            onClick={clearSelection}
+                            className="mr-1 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <X size={14} />
+                        </span>
+                    )}
+                    <ChevronDown size={16} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full min-w-[200px] mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-1 max-h-60 overflow-y-auto">
+                    <div
+                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between border-b border-gray-100"
+                        onClick={() => { onChange([]); setIsOpen(false); }}
+                    >
+                        <span className={`text-sm ${selected.length === 0 ? 'font-bold text-blue-600' : 'text-gray-700'}`}>Tots</span>
+                        {selected.length === 0 && <Check size={16} className="text-blue-600" />}
+                    </div>
+                    {options.map((option) => (
+                        <div
+                            key={option.value}
+                            className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between group"
+                            onClick={() => toggleOption(option.value)}
+                        >
+                            <span className={`text-sm ${selected.includes(option.value) ? 'font-medium text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                                {option.label}
+                            </span>
+                            {selected.includes(option.value) && <Check size={16} className="text-blue-600" />}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function BolosPage() {
     const supabase = createClient();
@@ -12,7 +119,7 @@ export default function BolosPage() {
 
     // Filters State
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterEstat, setFilterEstat] = useState('tots');
+    const [filterEstat, setFilterEstat] = useState<string[]>([]);
     const [filterTipusIngres, setFilterTipusIngres] = useState('tots');
     const [filterAny, setFilterAny] = useState('tots');
     const [filterTipusActuacio, setFilterTipusActuacio] = useState('tots');
@@ -53,8 +160,8 @@ export default function BolosPage() {
 
         if (!matchesSearch) return false;
 
-        if (filterEstat !== 'tots') {
-            if (bolo.estat !== filterEstat) return false;
+        if (filterEstat.length > 0 && !filterEstat.includes('tots')) {
+            if (!filterEstat.includes(bolo.estat)) return false;
         }
 
         if (filterTipusIngres !== 'tots') {
@@ -142,22 +249,13 @@ export default function BolosPage() {
                             </select>
                         </div>
 
-                        {/* Estat Filter */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Estat</label>
-                            <select
-                                value={filterEstat}
-                                onChange={(e) => setFilterEstat(e.target.value)}
-                            >
-                                <option value="tots">Tots</option>
-                                <option value="Nova">Nova</option>
-                                <option value="Pendent de confirmació">Pendent</option>
-                                <option value="Confirmada">Confirmada</option>
-                                <option value="Pendents de cobrar">De cobrar</option>
-                                <option value="Per pagar">Per pagar</option>
-                                <option value="Tancades">Tancades</option>
-                                <option value="Cancel·lats">Cancel·lats</option>
-                            </select>
+                            <MultiSelectFilter
+                                label="Estat"
+                                options={STATUS_OPTIONS}
+                                selected={filterEstat}
+                                onChange={setFilterEstat}
+                            />
                         </div>
                     </div>
                 </div>

@@ -1652,15 +1652,15 @@ export default function BoloDetailPage() {
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 dark:text-text-primary-dark">{selectedClient.nom}</h3>
                                     <div className="mt-2 text-sm space-y-1 text-gray-500 dark:text-text-secondary-dark">
-                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">phone</span> {selectedClient.telefon || 'Sense telèfon'}</p>
-                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">email</span> {selectedClient.correu || 'Sense correu'}</p>
+                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">phone</span> {selectedClient.telefon || selectedClient.telefon_contacte || 'Sense telèfon'}</p>
+                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">email</span> {selectedClient.correu || selectedClient.correu_contacte || 'Sense correu'}</p>
                                         <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">badge</span> {selectedClient.nif || 'Sense NIF'}</p>
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end space-y-2">
                                     <Link
-                                        href="/clients"
-                                        className="text-sm border border-gray-200 dark:border-border-dark hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-1 rounded transition-colors text-gray-900 dark:text-text-primary-dark"
+                                        href={`/clients?edit=${selectedClient.id}`}
+                                        className="text-sm border border-border hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-1 rounded transition-colors text-text-primary"
                                     >
                                         Editar fitxa client
                                     </Link>

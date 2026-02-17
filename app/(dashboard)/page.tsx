@@ -436,7 +436,7 @@ export default function Dashboard() {
           Accions Ràpides
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href="/bolos" className="group bg-card-bg p-4 rounded-xl border-2 border-border hover:border-primary hover:shadow-lg transition-all duration-300 flex flex-col items-center gap-3">
+          <Link href="/bolos/new" className="group bg-card-bg p-4 rounded-xl border-2 border-border hover:border-primary hover:shadow-lg transition-all duration-300 flex flex-col items-center gap-3">
             <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary group-hover:scale-110 transition-all duration-300">
               <span className="material-icons-outlined text-primary group-hover:text-white text-2xl">add_circle</span>
             </div>
