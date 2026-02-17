@@ -88,7 +88,7 @@ export default function NewBoloPage() {
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 max-w-4xl mx-auto">
             {/* Header */}
             <div className="flex items-center space-x-4 mb-8">
                 <Link

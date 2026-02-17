@@ -158,7 +158,7 @@ export default function GestioPotPage() {
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
+        <div className="p-2 sm:p-8 space-y-4 sm:space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold text-text-primary">
                     Gestió del Pot
@@ -293,8 +293,8 @@ export default function GestioPotPage() {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200">
+                <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 my-auto max-h-[95vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4">Nou Moviment</h3>
                         <div className="space-y-4">
                             <div>

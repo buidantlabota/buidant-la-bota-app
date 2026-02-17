@@ -187,7 +187,7 @@ export default function PressupostosPage() {
     };
 
     return (
-        <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-8">
+        <div className="p-2 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-8">
             <h1 className="text-4xl font-black text-gray-900 tracking-tight">Pressupost i facturació</h1>
             <p className="text-gray-500 font-medium tracking-tight">Generació instantània de documents i registre automàtic des del catàleg global.</p>
 
@@ -229,8 +229,8 @@ export default function PressupostosPage() {
 
             {/* Modal de Formulari */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white rounded-3xl max-w-5xl w-full p-8 shadow-2xl space-y-8 my-8">
+                <div className="fixed inset-0 bg-black/60 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white rounded-2xl sm:rounded-3xl max-w-5xl w-full p-4 sm:p-8 shadow-2xl space-y-6 sm:space-y-8 my-auto max-h-[96vh] sm:max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center border-b border-gray-100 pb-6">
                             <h3 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">
                                 {modalOpen === 'pressupost' ? 'Nou Pressupost' : 'Nova Factura'}
@@ -470,8 +470,8 @@ export default function PressupostosPage() {
 
             {/* Modal de Previsualització Editable */}
             {showPreview && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
-                    <div className="bg-white rounded-[40px] max-w-4xl w-full p-10 shadow-2xl space-y-8 animate-in slide-in-from-bottom-12 duration-500">
+                <div className="fixed inset-0 bg-black/80 flex items-start sm:items-center justify-center z-[60] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-white rounded-3xl sm:rounded-[40px] max-w-4xl w-full p-5 sm:p-10 shadow-2xl space-y-6 sm:space-y-8 animate-in slide-in-from-bottom-12 duration-500 my-auto max-h-[96vh] sm:max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center border-b border-gray-100 pb-6">
                             <div className="space-y-1">
                                 <h3 className="text-2xl font-black uppercase tracking-tighter text-gray-900">Últims retocs del PDF</h3>

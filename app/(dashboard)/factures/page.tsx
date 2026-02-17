@@ -196,9 +196,9 @@ export default function BillingPage() {
     const totalQuotes = records.filter((r: any) => r.type === 'pressupost').reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8 font-sans">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans">
             <div className="max-w-7xl mx-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-3xl font-black text-gray-900">Factures i Pressupostos</h1>
                         <p className="text-gray-500">Gestió unificada de documents</p>
@@ -321,8 +321,8 @@ export default function BillingPage() {
 
             {/* Modal Manual Create */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto translate-y-0">
                         <h2 className="text-xl font-bold mb-4">Nou Document Manual</h2>
 
                         <div className="space-y-4">

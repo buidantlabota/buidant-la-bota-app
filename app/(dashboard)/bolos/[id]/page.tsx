@@ -1115,7 +1115,7 @@ export default function BoloDetailPage() {
     const isRebutjat = bolo.estat_rebuig === 'rebutjat' || (bolo.estat as string) === 'Cancel·lats' || (bolo.estat as string) === 'Cancel·lat';
 
     return (
-        <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6 relative">
+        <div className="p-2 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 relative">
             {/* Toast */}
             {toast.show && (
                 <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white z-[110] ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -1125,8 +1125,8 @@ export default function BoloDetailPage() {
 
             {/* Rejection Modal */}
             {showRejectionModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-card-dark p-6 rounded-xl max-w-md w-full shadow-xl border border-gray-200 dark:border-border-dark">
+                <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white dark:bg-card-dark p-6 rounded-xl max-w-md w-full shadow-xl border border-gray-200 dark:border-border-dark my-auto max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-text-primary-dark">Rebutjar / Cancel·lar Bolo</h3>
                         <p className="mb-4 text-sm text-gray-500 dark:text-text-secondary-dark">
                             Aquesta acció aturarà el flux de treball del bolo.
@@ -1924,8 +1924,8 @@ export default function BoloDetailPage() {
 
             {/* New Client Modal */}
             {newClientModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-card-dark rounded-xl max-w-lg w-full p-6 shadow-xl border border-gray-200 dark:border-border-dark max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white dark:bg-card-dark rounded-xl max-w-lg w-full p-6 shadow-xl border border-gray-200 dark:border-border-dark my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-text-primary-dark">
                             Afegir nou client
                         </h3>
@@ -2006,8 +2006,8 @@ export default function BoloDetailPage() {
             )}
 
             {showPreview && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-white rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 text-gray-900 my-auto">
+                <div className="fixed inset-0 bg-black/80 flex items-start sm:items-center justify-center z-[110] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 text-gray-900 my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center border-b pb-4">
                             <h2 className="text-xl sm:text-2xl font-black text-primary uppercase tracking-tight">
                                 PREVISUALITZACIÓ {previewType === 'pressupost' ? 'PRESSUPOST' : 'FACTURA'}

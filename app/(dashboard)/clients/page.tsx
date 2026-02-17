@@ -234,7 +234,7 @@ export default function ClientsPage() {
     });
 
     return (
-        <div className="p-8 max-w-[1400px] mx-auto">
+        <div className="p-4 sm:p-8 max-w-[1400px] mx-auto">
             {/* Toast */}
             {toast.show && (
                 <div className={`fixed top-4 right-4 px-4 py-2 rounded shadow-lg z-50 text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
