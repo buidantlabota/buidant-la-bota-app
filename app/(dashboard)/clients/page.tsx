@@ -1,11 +1,11 @@
 ﻿'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { MunicipiSelector } from '@/components/MunicipiSelector';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function ClientsPage() {
+function ClientsContent() {
     const supabase = createClient();
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -565,6 +565,14 @@ export default function ClientsPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function ClientsPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center text-text-secondary">Carregant secció de clients...</div>}>
+            <ClientsContent />
+        </Suspense>
     );
 }
 
