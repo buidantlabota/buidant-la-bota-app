@@ -9,6 +9,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [rememberMe, setRememberMe] = useState(false)
     const router = useRouter()
     const supabase = createClient()
 
@@ -26,6 +27,10 @@ export default function LoginPage() {
             if (error) {
                 setError(error.message)
             } else {
+                // Desa la preferència de sessió
+                localStorage.setItem('blb_session_type', rememberMe ? 'long' : 'short');
+                localStorage.setItem('blb_last_activity', Date.now().toString());
+
                 router.push('/')
                 router.refresh()
             }
@@ -79,6 +84,20 @@ export default function LoginPage() {
                                 required
                             />
                         </div>
+                    </div>
+
+                    {/* Recorda'm Checkbox */}
+                    <div className="flex items-center">
+                        <input
+                            id="remember-me"
+                            type="checkbox"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                        />
+                        <label htmlFor="remember-me" className="ml-2 block text-sm text-text-secondary cursor-pointer">
+                            Recorda'm en aquest dispositiu
+                        </label>
                     </div>
 
                     {/* Error Message */}

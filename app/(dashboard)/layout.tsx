@@ -24,18 +24,59 @@ export default function DashboardLayout({
     const [isCollapsed, setIsCollapsed] = useState(false);
     const supabase = createClient();
 
-    // Automatic logout logic (check if session exists)
+    // Lògica de control de sessió estricta (Idle Timeout i Max Session Age)
     useEffect(() => {
-        const checkSession = async () => {
+        const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hora d'inactivitat
+        const SHORT_SESSION_AGE_MS = 12 * 60 * 60 * 1000; // 12 hores de sessió màxima (si no s'ha marcat Recorda'm)
+
+        const checkSessionConstraints = async () => {
             const { data: { session } } = await supabase.auth.getSession();
+
             if (!session) {
                 router.push('/login');
+                return;
+            }
+
+            const now = Date.now();
+            const lastActivity = parseInt(localStorage.getItem('blb_last_activity') || now.toString());
+            const sessionType = localStorage.getItem('blb_session_type') || 'short';
+            const sessionStart = session.user?.last_sign_in_at ? new Date(session.user.last_sign_in_at).getTime() : now;
+
+            // 1. Check Idle Timeout
+            if (now - lastActivity > IDLE_TIMEOUT_MS) {
+                console.log('Sessió tancada per inactivitat');
+                handleLogout();
+                return;
+            }
+
+            // 2. Check Session Max Age (només si la sessió és 'short')
+            if (sessionType === 'short' && (now - sessionStart > SHORT_SESSION_AGE_MS)) {
+                console.log('Sessió tancada per antiguitat (short session)');
+                handleLogout();
+                return;
             }
         };
 
-        // Check every 30 minutes
-        const interval = setInterval(checkSession, 30 * 60 * 1000);
-        return () => clearInterval(interval);
+        const updateActivity = () => {
+            localStorage.setItem('blb_last_activity', Date.now().toString());
+        };
+
+        // Escolta esdeveniments d'usuari per actualitzar l'activitat
+        const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+        activityEvents.forEach(event => window.addEventListener(event, updateActivity));
+
+        // Comprovació inicial i interval cada 5 minuts
+        checkSessionConstraints();
+        const interval = setInterval(checkSessionConstraints, 5 * 60 * 1000);
+
+        // També comprovem quan la pestanya recupera el focus
+        window.addEventListener('focus', checkSessionConstraints);
+
+        return () => {
+            activityEvents.forEach(event => window.removeEventListener(event, updateActivity));
+            window.removeEventListener('focus', checkSessionConstraints);
+            clearInterval(interval);
+        };
     }, [router, supabase]);
 
     const handleLogout = async () => {
