@@ -27,6 +27,10 @@ export default function Dashboard() {
     projectat: 0
   });
 
+  // Rankings state
+  const [topPopulations, setTopPopulations] = useState<{ nom: string, count: number }[]>([]);
+  const [topAssistants, setTopAssistants] = useState<{ nom: string, count: number }[]>([]);
+
   // Bolo cards state
   const [properBolo, setProperBolo] = useState<{ id: number, nom: string, data: string, tipus?: string, hora?: string | null } | null>(null);
   const [pendingRequests, setPendingRequests] = useState<{ id: number, nom: string, data: string, estat: string, hora_inici?: string | null }[]>([]);
@@ -70,14 +74,16 @@ export default function Dashboard() {
           { data: allMovements },
           { data: nextBolo },
           { data: requestBolos },
-          { data: allAdvances }
+          { data: allAdvances },
+          { data: attendanceData }
         ] = await Promise.all([
           supabase.from('view_bolos_resum_any').select('*').eq('any', selectedYear).single(),
-          supabase.from('bolos').select('id, estat, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets'),
+          supabase.from('bolos').select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets'),
           supabase.from('despeses_ingressos').select('import, tipus'),
           supabase.from('bolos').select('id, nom_poble, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
           supabase.from('bolos').select('id, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
-          supabase.from('pagaments_anticipats').select('*, bolos(estat)')
+          supabase.from('pagaments_anticipats').select('*, bolos(estat)'),
+          supabase.from('bolo_musics').select('music_id, musics(nom), bolos!inner(data_bolo)').eq('estat', 'confirmat').gte('bolos.data_bolo', `${selectedYear}-01-01`).lte('bolos.data_bolo', `${selectedYear}-12-31`)
         ]);
 
         // A. Stats (Annual)
@@ -173,6 +179,37 @@ export default function Dashboard() {
           });
         }
         setBoloCounts(counts);
+
+        // F. Rankings
+        const yearStart = `${selectedYear}-01-01`;
+        const yearEnd = `${selectedYear}-12-31`;
+
+        // 1. Top Populations
+        const popMap: Record<string, number> = {};
+        (allBolos || []).forEach((b: any) => {
+          if (b.data_bolo >= yearStart && b.data_bolo <= yearEnd) {
+            popMap[b.nom_poble] = (popMap[b.nom_poble] || 0) + 1;
+          }
+        });
+        const popRanking = Object.entries(popMap)
+          .map(([nom, count]) => ({ nom, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+        setTopPopulations(popRanking);
+
+        // 2. Top Assistants
+        const assistantMap: Record<string, number> = {};
+        (attendanceData || []).forEach((row: any) => {
+          const nom = row.musics?.nom;
+          if (nom) {
+            assistantMap[nom] = (assistantMap[nom] || 0) + 1;
+          }
+        });
+        const assistantRanking = Object.entries(assistantMap)
+          .map(([nom, count]) => ({ nom, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+        setTopAssistants(assistantRanking);
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -427,6 +464,73 @@ export default function Dashboard() {
             </div>
             <span className="text-sm font-bold text-center">Gestió Pot</span>
           </Link>
+        </div>
+      </section>
+
+      {/* Annual Stats Section */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Bolos Count Widget */}
+        <div className="bg-gradient-to-br from-primary to-red-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 opacity-10">
+            <span className="material-icons-outlined text-9xl">music_note</span>
+          </div>
+          <p className="text-white/70 text-sm font-bold uppercase tracking-wider mb-1">Bolos {selectedYear}</p>
+          <p className="text-5xl font-black tracking-tight">{loading ? '...' : animatedBolos}</p>
+          <p className="text-white/60 text-xs mt-2">Total d'actuacions confirmades</p>
+        </div>
+
+        {/* Top 5 Populations */}
+        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-icons-outlined text-primary">location_on</span>
+            <h3 className="text-lg font-bold text-text-primary">Top 5 Poblacions {selectedYear}</h3>
+          </div>
+          {loading ? (
+            <p className="text-text-secondary text-sm">Carregant...</p>
+          ) : topPopulations.length > 0 ? (
+            <div className="space-y-2">
+              {topPopulations.map((pop, idx) => (
+                <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-lg font-black ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-orange-600' : 'text-gray-500'}`}>
+                      #{idx + 1}
+                    </span>
+                    <span className="font-semibold text-text-primary">{pop.nom}</span>
+                  </div>
+                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{pop.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-text-secondary text-sm">No hi ha dades disponibles</p>
+          )}
+        </div>
+
+        {/* Top 5 Assistants */}
+        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-icons-outlined text-blue-600">emoji_events</span>
+            <h3 className="text-lg font-bold text-text-primary">Top 5 Assistents {selectedYear}</h3>
+          </div>
+          {loading ? (
+            <p className="text-text-secondary text-sm">Carregant...</p>
+          ) : topAssistants.length > 0 ? (
+            <div className="space-y-2">
+              {topAssistants.map((assistant, idx) => (
+                <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-lg font-black ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-orange-600' : 'text-gray-500'}`}>
+                      #{idx + 1}
+                    </span>
+                    <span className="font-semibold text-text-primary">{assistant.nom}</span>
+                  </div>
+                  <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{assistant.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-text-secondary text-sm">No hi ha dades disponibles</p>
+          )}
         </div>
       </section>
 
