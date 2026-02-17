@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
-import { Music, BoloMusic, Client, BoloComentari, Bolo, BoloStatus, BoloTasca } from '@/types';
+import { Music, BoloMusic, Client, BoloComentari, Bolo, BoloStatus, BoloTasca, AdvancePayment } from '@/types';
 import AssistenciaMusics from './AssistenciaMusics';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useMaterialRequest } from '@/app/hooks/useMaterialRequest';
@@ -189,8 +189,6 @@ export default function BoloDetailPage() {
             setShowAdvancePaymentModal(false);
             setNewAdvancePayment({ music_id: '', import: 0, data_pagament: new Date().toISOString().split('T')[0], notes: '' });
             await fetchAdvancePayments(String(bolo.id));
-            await fetchPot(); // Defined in pot/page.tsx? No, we need to refresh global pot logic if it's here? 
-            // In BoloDetailPage, we usually just care about this bolo's data.
             await fetchBolo(String(bolo.id), false);
         } catch (error) {
             console.error('Error adding advance payment:', error);
@@ -201,6 +199,7 @@ export default function BoloDetailPage() {
     };
 
     const handleDeleteAdvancePayment = async (id: string) => {
+        if (!bolo) return;
         if (!confirm('Segur que vols eliminar aquest pagament anticipat?')) return;
         setUpdating(true);
         try {
