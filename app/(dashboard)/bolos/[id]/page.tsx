@@ -322,7 +322,7 @@ export default function BoloDetailPage() {
         }
     };
 
-    const handleDeleteComentari = async (id: number) => {
+    const handleDeleteComentari = async (id: number | string) => {
         if (!bolo) return;
         if (!confirm('Segur que vols eliminar aquest comentari?')) return;
 
