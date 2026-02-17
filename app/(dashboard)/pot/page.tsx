@@ -179,7 +179,7 @@ export default function GestioPotPage() {
                         <span className="material-icons-outlined text-9xl">payments</span>
                     </div>
                     <div>
-                        <p className="text-white/70 text-sm font-black uppercase tracking-[0.2em] mb-1">Diners en Caixa (Reial)</p>
+                        <p className="text-white/70 text-sm font-black uppercase tracking-[0.2em] mb-1">Diners en Caixa (Real)</p>
                         <p className="text-5xl font-black font-mono tracking-tighter">{stats.totalPotReal.toFixed(2)}€</p>
                     </div>
                     <p className="text-white/60 text-[10px] font-bold mt-4 italic">Inclou bolos tancats i despeses manuals.</p>
