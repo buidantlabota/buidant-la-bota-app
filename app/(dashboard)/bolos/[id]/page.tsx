@@ -12,6 +12,7 @@ import { TasquesPerFase } from '@/components/TasquesPerFase';
 import { generateDescriptionText } from '@/lib/pdf-utils';
 import { format, addMonths } from 'date-fns';
 import { ca } from 'date-fns/locale';
+import { PrivacyMask } from '@/components/PrivacyMask';
 import { MunicipiSelector } from '@/components/MunicipiSelector';
 
 const BOLO_STATES: BoloStatus[] = [
@@ -389,8 +390,8 @@ export default function BoloDetailPage() {
         try {
             const rows = musicIds.map(mid => {
                 const music = musics.find(m => m.id === mid);
-                // Assign first instrument by default if available
-                const defaultInst = music?.instruments ? music.instruments.split(',')[0].trim() : null;
+                // Prioritize principal instrument, fallback to first in list
+                const defaultInst = music?.instrument_principal || (music?.instruments ? music.instruments.split(',')[0].trim() : null);
 
                 return {
                     bolo_id: Number(bolo.id),
@@ -533,13 +534,13 @@ export default function BoloDetailPage() {
             const { error } = await supabase
                 .from('bolos')
                 .update({
-                    import_total: economicData.import_total,
+                    import_total: economicData.tipus_ingres === 'Altres' ? 0 : economicData.import_total,
                     tipus_ingres: economicData.tipus_ingres,
-                    cobrat: economicData.cobrat,
-                    pagaments_musics_fets: (economicData as any).pagaments_musics_fets,
+                    cobrat: economicData.tipus_ingres === 'Altres' ? true : economicData.cobrat,
+                    pagaments_musics_fets: economicData.tipus_ingres === 'Altres' ? true : (economicData as any).pagaments_musics_fets,
                     ajust_pot_manual: economicData.ajust_pot_manual,
                     comentari_ajust_pot: economicData.comentari_ajust_pot,
-                    preu_per_musica: economicData.preu_per_musica
+                    preu_per_musica: economicData.tipus_ingres === 'Altres' ? 0 : economicData.preu_per_musica
                 })
                 .eq('id', bolo.id);
 
@@ -1786,7 +1787,7 @@ export default function BoloDetailPage() {
 
                     {/* Contextual Actions */}
                     <div className="flex flex-wrap gap-2">
-                        {(bolo.estat as string) === 'Sol·licitat' && !isRebutjat && (
+                        {economicData.tipus_ingres !== 'Altres' && (bolo.estat as string) === 'Sol·licitat' && !isRebutjat && (
                             <button
                                 onClick={() => handleOpenPreview('pressupost')}
                                 disabled={updating}
@@ -1797,7 +1798,7 @@ export default function BoloDetailPage() {
                                 Generar Pressupost
                             </button>
                         )}
-                        {((bolo.estat as string) === 'Confirmat' || (bolo.estat as string) === 'Tancat') && !isRebutjat && (
+                        {economicData.tipus_ingres !== 'Altres' && ((bolo.estat as string) === 'Confirmada' || (bolo.estat as string) === 'Tancat') && !isRebutjat && (
                             <button
                                 onClick={() => handleOpenPreview('factura')}
                                 disabled={updating}
@@ -1822,19 +1823,21 @@ export default function BoloDetailPage() {
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
                                     <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Cost Músics</p>
-                                    <p className="text-xl font-black text-red-700 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
+                                    <p className="text-xl font-black text-red-700 leading-none">
+                                        <PrivacyMask value={bolo.cost_total_musics || 0} />
+                                    </p>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
                                     <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Marge (Pot)</p>
-                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                        {(bolo.pot_delta || 0).toFixed(2)}€
-                                    </p>
+                                    <div className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                        <PrivacyMask value={bolo.pot_delta || 0} />
+                                    </div>
                                 </div>
                                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
                                     <p className="text-[10px] font-black text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
-                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                        {(bolo.pot_delta_final || 0).toFixed(2)}€
-                                    </p>
+                                    <div className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                        <PrivacyMask value={bolo.pot_delta_final || 0} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1891,28 +1894,7 @@ export default function BoloDetailPage() {
                         </div>
 
                         {/* Edit Fields */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={economicData.import_total}
-                                onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
-                                disabled={isRebutjat}
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Preu per músic (€)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={economicData.preu_per_musica}
-                                onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
-                                disabled={isRebutjat}
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
+                        {/* Edit Fields - Hidden if Altres */}
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
                             <select
@@ -1923,78 +1905,111 @@ export default function BoloDetailPage() {
                             >
                                 <option value="Efectiu">Efectiu</option>
                                 <option value="Factura">Factura</option>
-                                <option value="Altres">Altres</option>
+                                <option value="Altres">Altres (Gratuït/Intercanvi)</option>
                             </select>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                value={economicData.ajust_pot_manual}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === '' || val === '-' || !isNaN(Number(val))) {
-                                        setEconomicData({ ...economicData, ajust_pot_manual: val as any });
-                                    }
-                                }}
-                                onBlur={() => {
-                                    let final = parseFloat(String(economicData.ajust_pot_manual));
-                                    if (isNaN(final)) final = 0;
-                                    setEconomicData({ ...economicData, ajust_pot_manual: final });
-                                }}
-                                disabled={isRebutjat}
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none font-mono"
-                            />
-                        </div>
+                        {economicData.tipus_ingres !== 'Altres' && (
+                            <>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={economicData.import_total}
+                                        onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
+                                        disabled={isRebutjat}
+                                        className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Preu per músic (€)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={economicData.preu_per_musica}
+                                        onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
+                                        disabled={isRebutjat}
+                                        className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {economicData.tipus_ingres !== 'Altres' && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={economicData.ajust_pot_manual}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '' || val === '-' || !isNaN(Number(val))) {
+                                            setEconomicData({ ...economicData, ajust_pot_manual: val as any });
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        let final = parseFloat(String(economicData.ajust_pot_manual));
+                                        if (isNaN(final)) final = 0;
+                                        setEconomicData({ ...economicData, ajust_pot_manual: final });
+                                    }}
+                                    disabled={isRebutjat}
+                                    className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none font-mono"
+                                />
+                            </div>
+                        )}
                         <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Motiu Ajust</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                                {economicData.tipus_ingres === 'Altres' ? 'Motiu / Observacions Econòmiques' : 'Motiu Ajust'}
+                            </label>
                             <input
                                 type="text"
                                 value={economicData.comentari_ajust_pot || ''}
                                 onChange={(e) => setEconomicData({ ...economicData, comentari_ajust_pot: e.target.value })}
                                 disabled={isRebutjat}
-                                placeholder="Ex: Propina, Taxi, Despesa extra..."
+                                placeholder={economicData.tipus_ingres === 'Altres' ? "Ex: Intercanvi amb X, Solidaritat..." : "Ex: Propina, Taxi, Despesa extra..."}
                                 className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
 
-                        <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
-                            <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                                <input
-                                    type="checkbox"
-                                    id="cobrat_eco"
-                                    checked={economicData.cobrat || false}
-                                    onChange={(e) => {
-                                        setEconomicData({ ...economicData, cobrat: e.target.checked });
-                                        setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
-                                    }}
-                                    disabled={isRebutjat}
-                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                                />
-                                <label htmlFor="cobrat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
-                                    Cobrat (Ingrés al Pot)
-                                </label>
-                            </div>
+                        {economicData.tipus_ingres !== 'Altres' && (
+                            <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
+                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                                    <input
+                                        type="checkbox"
+                                        id="cobrat_eco"
+                                        checked={economicData.cobrat || false}
+                                        onChange={(e) => {
+                                            setEconomicData({ ...economicData, cobrat: e.target.checked });
+                                            setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
+                                        }}
+                                        disabled={isRebutjat}
+                                        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+                                    />
+                                    <label htmlFor="cobrat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
+                                        Cobrat (Ingrés al Pot)
+                                    </label>
+                                </div>
 
-                            <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                                <input
-                                    type="checkbox"
-                                    id="pagat_eco"
-                                    checked={economicData.pagaments_musics_fets || false}
-                                    onChange={(e) => {
-                                        setEconomicData({ ...economicData, pagaments_musics_fets: e.target.checked });
-                                        setBolo(prev => prev ? { ...prev, pagaments_musics_fets: e.target.checked } : null);
-                                    }}
-                                    disabled={isRebutjat}
-                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                                />
-                                <label htmlFor="pagat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
-                                    Pagaments Músics Fets
-                                </label>
+                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                                    <input
+                                        type="checkbox"
+                                        id="pagat_eco"
+                                        checked={economicData.pagaments_musics_fets || false}
+                                        onChange={(e) => {
+                                            setEconomicData({ ...economicData, pagaments_musics_fets: e.target.checked });
+                                            setBolo(prev => prev ? { ...prev, pagaments_musics_fets: e.target.checked } : null);
+                                        }}
+                                        disabled={isRebutjat}
+                                        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+                                    />
+                                    <label htmlFor="pagat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
+                                        Pagaments Músics Fets
+                                    </label>
+                                </div>
                             </div>
-                        </div>
+                        )}
                         <div className="md:col-span-2 pt-2">
                             <button
                                 onClick={handleSaveEconomicData}

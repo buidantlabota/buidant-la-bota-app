@@ -35,6 +35,7 @@ export default function MusicsPage() {
     const [formData, setFormData] = useState({
         nom: '',
         instruments: [] as string[],
+        instrument_principal: '',
         talla_samarreta: '',
         talla_dessuadora: '',
         tipus: 'titular' as 'titular' | 'substitut',
@@ -99,6 +100,7 @@ export default function MusicsPage() {
             setFormData({
                 nom: music.nom,
                 instruments: music.instruments ? music.instruments.split(',').map(i => i.trim()) : [],
+                instrument_principal: music.instrument_principal || '',
                 talla_samarreta: music.talla_samarreta || '',
                 talla_dessuadora: music.talla_dessuadora || '',
                 tipus: music.tipus || 'titular',
@@ -110,6 +112,7 @@ export default function MusicsPage() {
             setFormData({
                 nom: '',
                 instruments: [],
+                instrument_principal: '',
                 talla_samarreta: '',
                 talla_dessuadora: '',
                 tipus: 'titular',
@@ -140,6 +143,7 @@ export default function MusicsPage() {
                     .update({
                         nom: formData.nom,
                         instruments: instrumentsString,
+                        instrument_principal: formData.instrument_principal,
                         talla_samarreta: formData.talla_samarreta,
                         talla_dessuadora: formData.talla_dessuadora,
                         tipus: formData.tipus,
@@ -156,6 +160,7 @@ export default function MusicsPage() {
                     .insert([{
                         nom: formData.nom,
                         instruments: instrumentsString,
+                        instrument_principal: formData.instrument_principal,
                         talla_samarreta: formData.talla_samarreta,
                         talla_dessuadora: formData.talla_dessuadora,
                         tipus: formData.tipus,
@@ -447,7 +452,9 @@ export default function MusicsPage() {
                                                         if (e.target.checked) {
                                                             setFormData({ ...formData, instruments: [...formData.instruments, inst] });
                                                         } else {
-                                                            setFormData({ ...formData, instruments: formData.instruments.filter(i => i !== inst) });
+                                                            const newInstruments = formData.instruments.filter(i => i !== inst);
+                                                            const newPrincipal = formData.instrument_principal === inst ? '' : formData.instrument_principal;
+                                                            setFormData({ ...formData, instruments: newInstruments, instrument_principal: newPrincipal });
                                                         }
                                                     }}
                                                 />
@@ -456,6 +463,25 @@ export default function MusicsPage() {
                                         ))}
                                     </div>
                                 </div>
+
+                                {formData.instruments.length > 0 && (
+                                    <div className="mt-4">
+                                        <label className="block text-sm font-bold mb-1 text-text-secondary">Instrument predeterminat</label>
+                                        <select
+                                            className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all font-bold text-xs"
+                                            value={formData.instrument_principal}
+                                            onChange={(e) => setFormData({ ...formData, instrument_principal: e.target.value })}
+                                        >
+                                            <option value="">Cap seleccionat</option>
+                                            {formData.instruments.map(inst => (
+                                                <option key={inst} value={inst}>{inst}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[10px] text-gray-500 mt-1">Aquest instrument sortirà per defecte quan s'assigni el músic a un bolo.</p>
+                                    </div>
+                                )}
+
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-black uppercase text-gray-950 mb-1">Talla Samarreta</label>
@@ -533,8 +559,9 @@ export default function MusicsPage() {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
 

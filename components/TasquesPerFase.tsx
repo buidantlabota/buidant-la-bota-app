@@ -80,8 +80,14 @@ export function TasquesPerFase({
         'Cancel·lat': tasques.filter(t => t.fase_associada === 'Cancel·lat')
     };
 
-    // 2. Get System Tasks for current phase
-    const systemTasksForPhase = SYSTEM_TASKS.filter(st => st.fase === faseActual);
+    // 2. Get System Tasks for current phase (filtered by income type)
+    const systemTasksForPhase = SYSTEM_TASKS.filter(st => {
+        if (bolo.tipus_ingres === 'Altres') {
+            const forbidden = ['pressupost_enviat', 'pressupost_acceptat', 'factura_enviada', 'cobrat', 'pagaments_musics_planificats', 'pagaments_musics_fets'];
+            if (forbidden.includes(st.field)) return false;
+        }
+        return st.fase === faseActual;
+    });
 
     // 3. Get Manual Tasks for current phase
     const manualTasksForPhase = manualTasksPerFase[faseActual] || [];
@@ -103,6 +109,10 @@ export function TasquesPerFase({
 
     const currentOrder = faseOrder[faseActual] || 0;
     const pendingSystemTasks = SYSTEM_TASKS.filter(st => {
+        if (bolo.tipus_ingres === 'Altres') {
+            const forbidden = ['pressupost_enviat', 'pressupost_acceptat', 'factura_enviada', 'cobrat', 'pagaments_musics_planificats', 'pagaments_musics_fets'];
+            if (forbidden.includes(st.field)) return false;
+        }
         const taskPhaseOrder = faseOrder[st.fase] || 0;
         return taskPhaseOrder < currentOrder && !bolo[st.field];
     });

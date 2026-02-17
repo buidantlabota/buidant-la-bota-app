@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import type { ViewBolosResumAny } from '@/types';
+import { PrivacyMask } from '@/components/PrivacyMask';
 
 export default function Dashboard() {
   const supabase = createClient();
@@ -395,9 +396,11 @@ export default function Dashboard() {
             <span className="material-icons-outlined text-9xl">calculate</span>
           </div>
           <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Pot Projectat</p>
-          <p className="text-4xl font-extrabold tracking-tight">{loading ? '...' : formatCurrency(finances.projectat)}</p>
+          <div className="text-4xl font-extrabold tracking-tight">
+            {loading ? '...' : <PrivacyMask value={finances.projectat} className="" />}
+          </div>
           <p className="text-gray-500 text-xs mt-2 italic">Previsió incloent pendents de cobrar i pagar</p>
-          <Link href="/pot" className="absolute inset-0" aria-label="Veure Pot"></Link>
+          <Link href="/previsio-economica" className="absolute inset-0" aria-label="Veure Pot"></Link>
         </div>
 
         {/* Pot Real (Diners en Caixa) */}
@@ -406,7 +409,9 @@ export default function Dashboard() {
             <span className="material-icons-outlined text-9xl">payments</span>
           </div>
           <p className="text-white/70 text-sm font-bold uppercase tracking-wider mb-1">Diners en Caixa</p>
-          <p className="text-4xl font-extrabold tracking-tight">{loading ? '...' : formatCurrency(finances.potReal)}</p>
+          <div className="text-4xl font-extrabold tracking-tight">
+            {loading ? '...' : <PrivacyMask value={finances.potReal} className="" />}
+          </div>
           <Link href="/pot" className="absolute inset-0" aria-label="Veure Pot"></Link>
         </div>
 
@@ -416,7 +421,9 @@ export default function Dashboard() {
             <span className="material-icons-outlined">trending_up</span>
           </div>
           <p className="text-emerald-600 text-sm font-bold uppercase tracking-wider mb-2">Pendent d'entrada</p>
-          <p className="text-3xl font-bold text-emerald-700">{loading ? '...' : formatCurrency(finances.aCobrar)}</p>
+          <div className="text-3xl font-bold text-emerald-700">
+            {loading ? '...' : <PrivacyMask value={finances.aCobrar} className="" />}
+          </div>
         </div>
 
         {/* A pagar */}
@@ -425,7 +432,9 @@ export default function Dashboard() {
             <span className="material-icons-outlined">trending_down</span>
           </div>
           <p className="text-red-600 text-sm font-bold uppercase tracking-wider mb-2">Pendent de sortida</p>
-          <p className="text-3xl font-bold text-red-700">{loading ? '...' : formatCurrency(finances.aPagar)}</p>
+          <div className="text-3xl font-bold text-red-700">
+            {loading ? '...' : <PrivacyMask value={finances.aPagar} className="" />}
+          </div>
         </div>
       </section>
 

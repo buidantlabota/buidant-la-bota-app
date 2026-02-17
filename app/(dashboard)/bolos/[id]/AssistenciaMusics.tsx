@@ -424,7 +424,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateInstrument, onU
                 {isEditingInstrument ? (
                     <select
                         autoFocus
-                        value={item.instrument || (item.music?.instruments || '').split(',')[0]?.trim() || ''}
+                        value={item.instrument || item.music?.instrument_principal || (item.music?.instruments || '').split(',')[0]?.trim() || ''}
                         onChange={(e) => {
                             const val = e.target.value;
                             setIsEditingInstrument(false);
@@ -448,7 +448,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateInstrument, onU
                     >
                         <span className="material-icons-outlined text-xs text-primary">music_note</span>
                         <span className={`font-bold text-gray-900 ${!item.instrument ? 'italic text-gray-500' : ''}`}>
-                            {item.instrument || (item.music?.instruments || '').split(',')[0]?.trim() || 'Sense assignar'}
+                            {item.instrument || item.music?.instrument_principal || (item.music?.instruments || '').split(',')[0]?.trim() || 'Sense assignar'}
                         </span>
                         {isEditable && <span className="material-icons-outlined text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 ml-1">edit</span>}
                     </div>

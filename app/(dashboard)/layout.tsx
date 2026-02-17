@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { PrivacyProvider, usePrivacy } from '@/context/PrivacyContext';
 
 // Define access to nav items structure
 type NavItem = {
@@ -13,7 +14,7 @@ type NavItem = {
     children?: { name: string; path: string; icon: string }[];
 };
 
-export default function DashboardLayout({
+function InternalDashboardLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -23,6 +24,7 @@ export default function DashboardLayout({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const supabase = createClient();
+    const { isPrivate, togglePrivacy } = usePrivacy();
 
     // Lògica de control de sessió estricta (Idle Timeout i Max Session Age)
     useEffect(() => {
@@ -84,9 +86,7 @@ export default function DashboardLayout({
         router.push('/login');
     };
 
-    // State for open dropdowns. Defaulting 'Tresoreria' and 'Actuacions' to open or closed? 
-    // Let's keep them closed by default, or open if interaction is needed. 
-    // Usually simpler to have them track state.
+    // State for open dropdowns.
     const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
         'Tresoreria': false,
         'Actuacions': false
@@ -130,10 +130,8 @@ export default function DashboardLayout({
     ];
 
     const renderNavItem = (item: NavItem) => {
-        // If it has children, render a dropdown toggle
         if (item.children) {
             const isExpanded = expandedMenus[item.name];
-            // Check if any child is active to maybe auto-expand or highlight parent?
             const hasActiveChild = item.children.some(child => pathname === child.path);
 
             return (
@@ -154,7 +152,6 @@ export default function DashboardLayout({
                         )}
                     </button>
 
-                    {/* Submenu */}
                     <div className={`overflow-hidden transition-all duration-300 ${isExpanded && !isCollapsed ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
                         <ul className="pl-4 space-y-1">
                             {item.children.map(child => {
@@ -181,12 +178,11 @@ export default function DashboardLayout({
             );
         }
 
-        // Regular item
         const isActive = pathname === item.path;
         return (
             <li key={item.path}>
                 <Link
-                    href={item.path!} // path is defined for items without children
+                    href={item.path!}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
                         ? 'bg-white/10 text-white font-bold shadow-sm backdrop-blur-sm'
                         : 'text-white/80 hover:bg-white/5 hover:text-white'
@@ -214,8 +210,19 @@ export default function DashboardLayout({
                             src="/blb-logo.jpg"
                         />
                         <div className={`${isCollapsed ? 'md:hidden' : 'block'}`}>
-                            <span className="text-lg md:text-xl font-bold block leading-none">GestioBLB</span>
-                            <span className="text-[10px] md:text-xs text-white/70">Buidant la Bota</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg md:text-xl font-bold block leading-none">GestioBLB</span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); togglePrivacy(); }}
+                                    className="text-white/50 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+                                    title={isPrivate ? "Mostrar dades econòmiques" : "Ocultar dades econòmiques"}
+                                >
+                                    <span className="material-icons-outlined text-sm md:text-md">
+                                        {isPrivate ? 'visibility_off' : 'visibility'}
+                                    </span>
+                                </button>
+                            </div>
+                            <span className="text-[10px] md:text-xs text-white/70 block mt-0.5">Buidant la Bota</span>
                         </div>
                     </div>
 
@@ -266,5 +273,13 @@ export default function DashboardLayout({
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <PrivacyProvider>
+            <InternalDashboardLayout>{children}</InternalDashboardLayout>
+        </PrivacyProvider>
     );
 }

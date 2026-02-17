@@ -87,6 +87,7 @@ export interface Music {
     id: string
     nom: string
     instruments: string
+    instrument_principal: string | null
     talla_samarreta: string | null
     talla_dessuadora: string | null
     tipus?: 'titular' | 'substitut'
@@ -94,6 +95,7 @@ export interface Music {
     telefons_addicionals?: string | null
     created_at: string
 }
+
 
 export interface Client {
     id: string
