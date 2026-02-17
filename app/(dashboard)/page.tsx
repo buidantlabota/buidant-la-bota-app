@@ -91,29 +91,29 @@ export default function Dashboard() {
         }
 
         // B. Detailed Finances (Global)
-        const totalManualBalance = (allMovements || []).reduce((sum, m) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+        const totalManualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const closedBolosPot = (allBolos || [])
-          .filter(b => b.estat === 'Tancades')
-          .reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+          .filter((b: any) => b.estat === 'Tancades')
+          .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const pendingAdvances = (allAdvances || [])
-          .filter(p => (p.bolos as any)?.estat !== 'Tancades')
-          .reduce((sum, p) => sum + (p.import || 0), 0);
+          .filter((p: any) => (p.bolos as any)?.estat !== 'Tancades')
+          .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
         const potReal = totalManualBalance + closedBolosPot - pendingAdvances;
 
         const aCobrar = (allBolos || [])
-          .filter(b => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.cobrat)
-          .reduce((sum, b) => sum + (b.import_total || 0), 0);
+          .filter((b: any) => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.cobrat)
+          .reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
 
         const aPagar = (allBolos || [])
-          .filter(b => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.pagaments_musics_fets)
-          .reduce((sum, b) => {
+          .filter((b: any) => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.pagaments_musics_fets)
+          .reduce((sum: number, b: any) => {
             const totalCost = b.cost_total_musics || 0;
             const advancesForThisBolo = (allAdvances || [])
-              .filter(p => p.bolo_id === b.id)
-              .reduce((acc, p) => acc + (p.import || 0), 0);
+              .filter((p: any) => p.bolo_id === b.id)
+              .reduce((acc: number, p: any) => acc + (p.import || 0), 0);
             return sum + (totalCost - advancesForThisBolo);
           }, 0);
 
