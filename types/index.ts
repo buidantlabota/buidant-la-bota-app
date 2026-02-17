@@ -177,6 +177,7 @@ export interface BoloMusic {
     import_assignat: number
     preu_personalitzat: number | null
     comentari: string | null
+    instrument?: string | null // Instrument específic tocat en aquest bolo
     updated_at: string
 }
 

@@ -9,6 +9,7 @@ interface AssistenciaMusicsProps {
     attendance: BoloMusic[];
     onAdd: (musicIds: string[], type: 'titular' | 'substitut') => Promise<void>;
     onUpdateStatus: (musicId: string, status: string) => Promise<void>;
+    onUpdateInstrument: (musicId: string, instrument: string) => Promise<void>;
     onUpdateComment: (musicId: string, comment: string) => Promise<void>;
     onRemove: (attendanceId: string, musicId: string) => Promise<void>;
     onUpdatePrice: (musicId: string, price: number | null) => Promise<void>;
@@ -50,6 +51,7 @@ export default function AssistenciaMusics({
     attendance,
     onAdd,
     onUpdateStatus,
+    onUpdateInstrument,
     onUpdateComment,
     onRemove,
     onUpdatePrice,
@@ -190,6 +192,7 @@ export default function AssistenciaMusics({
                             items={titularsList}
                             isEditable={isEditable}
                             onUpdateStatus={onUpdateStatus}
+                            onUpdateInstrument={onUpdateInstrument}
                             onUpdateComment={onUpdateComment}
                             onUpdatePrice={onUpdatePrice}
                             onRemove={onRemove}
@@ -238,6 +241,7 @@ export default function AssistenciaMusics({
                             items={substitutsList}
                             isEditable={isEditable}
                             onUpdateStatus={onUpdateStatus}
+                            onUpdateInstrument={onUpdateInstrument}
                             onUpdateComment={onUpdateComment}
                             onUpdatePrice={onUpdatePrice}
                             onRemove={onRemove}
@@ -347,7 +351,7 @@ export default function AssistenciaMusics({
     );
 }
 
-function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, onUpdatePrice, onRemove }: any) {
+function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateInstrument, onUpdateComment, onUpdatePrice, onRemove }: any) {
     if (items.length === 0) return <p className="text-sm text-gray-500 italic py-2">Cap músic assignat.</p>;
 
     return (
@@ -370,6 +374,7 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, on
                             item={item}
                             isEditable={isEditable}
                             onUpdateStatus={onUpdateStatus}
+                            onUpdateInstrument={onUpdateInstrument}
                             onUpdateComment={onUpdateComment}
                             onUpdatePrice={onUpdatePrice}
                             onRemove={onRemove}
@@ -381,11 +386,12 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, on
     );
 }
 
-function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpdatePrice, onRemove }: any) {
+function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateInstrument, onUpdateComment, onUpdatePrice, onRemove }: any) {
     const [localComment, setLocalComment] = useState(item.comentari || '');
     const [localPrice, setLocalPrice] = useState(item.preu_personalitzat?.toString() || '');
     const [isEditingComment, setIsEditingComment] = useState(false);
     const [isEditingPrice, setIsEditingPrice] = useState(false);
+    const [isEditingInstrument, setIsEditingInstrument] = useState(false);
 
     const handleBlurPrice = () => {
         setIsEditingPrice(false);
@@ -415,10 +421,38 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                 {item.music?.nom}
             </td>
             <td className="px-4 py-3">
-                <div className="flex items-center space-x-1">
-                    <span className="material-icons-outlined text-xs text-primary">music_note</span>
-                    <span className="font-bold text-gray-900">{item.music?.instruments}</span>
-                </div>
+                {isEditingInstrument ? (
+                    <select
+                        autoFocus
+                        value={item.instrument || (item.music?.instruments || '').split(',')[0]?.trim() || ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setIsEditingInstrument(false);
+                            if (val !== item.instrument) {
+                                onUpdateInstrument(item.music_id, val);
+                            }
+                        }}
+                        onBlur={() => setIsEditingInstrument(false)}
+                        className="text-xs font-bold px-1 py-1 rounded border border-primary focus:ring-1 focus:ring-primary w-full max-w-[140px]"
+                    >
+                        {(item.music?.instruments || '').split(',').map((inst: string) => {
+                            const val = inst.trim();
+                            return <option key={val} value={val}>{val}</option>;
+                        })}
+                    </select>
+                ) : (
+                    <div
+                        onClick={() => isEditable && setIsEditingInstrument(true)}
+                        className={`flex items-center space-x-1 ${isEditable ? 'cursor-pointer hover:bg-gray-100 rounded px-1 -ml-1 transition-colors' : ''}`}
+                        title={isEditable ? "Clica per canviar instrument" : ""}
+                    >
+                        <span className="material-icons-outlined text-xs text-primary">music_note</span>
+                        <span className={`font-bold text-gray-900 ${!item.instrument ? 'italic text-gray-500' : ''}`}>
+                            {item.instrument || (item.music?.instruments || '').split(',')[0]?.trim() || 'Sense assignar'}
+                        </span>
+                        {isEditable && <span className="material-icons-outlined text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 ml-1">edit</span>}
+                    </div>
+                )}
             </td>
             <td className="px-4 py-3 text-right font-mono text-gray-900 font-black">
                 {isEditingPrice ? (

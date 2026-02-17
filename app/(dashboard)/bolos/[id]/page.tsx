@@ -387,13 +387,20 @@ export default function BoloDetailPage() {
         if (!bolo) return;
         setUpdating(true);
         try {
-            const rows = musicIds.map(mid => ({
-                bolo_id: Number(bolo.id),
-                music_id: mid,
-                tipus: type,
-                estat: 'confirmat',
-                import_assignat: 0
-            }));
+            const rows = musicIds.map(mid => {
+                const music = musics.find(m => m.id === mid);
+                // Assign first instrument by default if available
+                const defaultInst = music?.instruments ? music.instruments.split(',')[0].trim() : null;
+
+                return {
+                    bolo_id: Number(bolo.id),
+                    music_id: mid,
+                    tipus: type,
+                    estat: 'confirmat' as const,
+                    import_assignat: 0,
+                    instrument: defaultInst
+                };
+            });
 
             const { error } = await supabase
                 .from('bolo_musics')
@@ -451,6 +458,25 @@ export default function BoloDetailPage() {
         } catch (error) {
             console.error('Error updating comment:', error);
             showToastMessage('Error en desar el comentari', 'error');
+        }
+    };
+
+    const handleUpdateMusicianInstrument = async (musicId: string, instrument: string) => {
+        if (!bolo) return;
+
+        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, instrument } : bm));
+
+        try {
+            const { error } = await supabase
+                .from('bolo_musics')
+                .update({ instrument })
+                .eq('bolo_id', bolo.id)
+                .eq('music_id', musicId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating instrument:', error);
+            showToastMessage('Error en desar l\'instrument', 'error');
         }
     };
 
@@ -1727,6 +1753,7 @@ export default function BoloDetailPage() {
                                 onAdd={handleAddMusicians}
                                 onUpdateStatus={handleUpdateMusicianStatus}
                                 onUpdateComment={handleUpdateMusicianComment}
+                                onUpdateInstrument={handleUpdateMusicianInstrument}
                                 onUpdatePrice={handleUpdateMusicianPrice}
                                 onRemove={handleRemoveMusician}
                                 onRequestMaterial={handleRequestMaterial}
