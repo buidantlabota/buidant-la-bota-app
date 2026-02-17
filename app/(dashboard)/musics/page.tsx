@@ -406,105 +406,121 @@ export default function MusicsPage() {
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200">
-                        <h3 className="text-xl font-bold mb-4 text-text-primary">
-                            {editingMusic ? 'Editar músic' : 'Nou músic'}
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-text-secondary">Nom del músic</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                    value={formData.nom}
-                                    onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-2 text-text-secondary">Instruments (selecciona un o més)</label>
-                                <div className="grid grid-cols-2 gap-2 bg-gray-50 border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-                                    {INSTRUMENTS_LIST.map(inst => (
-                                        <label key={inst} className="flex items-center space-x-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                                                checked={formData.instruments.includes(inst)}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setFormData({ ...formData, instruments: [...formData.instruments, inst] });
-                                                    } else {
-                                                        setFormData({ ...formData, instruments: formData.instruments.filter(i => i !== inst) });
-                                                    }
-                                                }}
-                                            />
-                                            <span className="text-xs font-bold text-gray-900">{inst}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-black uppercase text-gray-950 mb-1">Talla Samarreta</label>
-                                    <input
-                                        type="text"
-                                        className="w-full p-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 text-gray-950 font-bold focus:bg-white focus:border-primary outline-none transition-all shadow-sm"
-                                        value={formData.talla_samarreta}
-                                        onChange={(e) => setFormData({ ...formData, talla_samarreta: e.target.value.toUpperCase() })}
-                                        placeholder="ex: L"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black uppercase text-gray-950 mb-1">Talla Dessuadora</label>
-                                    <input
-                                        type="text"
-                                        className="w-full p-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 text-gray-950 font-bold focus:bg-white focus:border-primary outline-none transition-all shadow-sm"
-                                        value={formData.talla_dessuadora}
-                                        onChange={(e) => setFormData({ ...formData, talla_dessuadora: e.target.value.toUpperCase() })}
-                                        placeholder="ex: XL"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-text-secondary">Tipus de músic</label>
-                                <select
-                                    className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                    value={formData.tipus}
-                                    onChange={(e) => setFormData({ ...formData, tipus: e.target.value as any })}
-                                >
-                                    <option value="titular">Titular</option>
-                                    <option value="substitut">Substitut</option>
-                                </select>
-                            </div>
-
-                            <hr className="border-border my-4" />
-                            <p className="text-xs text-text-secondary mb-4">
-                                Aquí guardem els telèfons de contacte del músic (titular o substitut).
-                            </p>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-text-secondary">Telèfon principal</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                    value={formData.telefon_principal}
-                                    onChange={(e) => setFormData({ ...formData, telefon_principal: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-text-secondary">Altres telèfons</label>
-                                <textarea
-                                    className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[60px]"
-                                    value={formData.telefons_addicionals}
-                                    onChange={(e) => setFormData({ ...formData, telefons_addicionals: e.target.value })}
-                                    placeholder="Pots escriure més d'un número, separats per comes."
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end space-x-3 mt-6">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white rounded-xl max-w-md w-full my-8 shadow-xl border border-gray-200 max-h-[90vh] flex flex-col">
+                        {/* Header with close button */}
+                        <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-200">
+                            <h3 className="text-xl font-bold text-text-primary">
+                                {editingMusic ? 'Editar músic' : 'Nou músic'}
+                            </h3>
                             <button
                                 onClick={handleCloseModal}
-                                className="px-4 py-2 rounded text-text-secondary hover:bg-gray-100"
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                aria-label="Tancar"
+                            >
+                                <span className="material-icons-outlined text-gray-600">close</span>
+                            </button>
+                        </div>
+
+                        {/* Scrollable content */}
+                        <div className="overflow-y-auto flex-1 p-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-text-secondary">Nom del músic</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                        value={formData.nom}
+                                        onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-2 text-text-secondary">Instruments (selecciona un o més)</label>
+                                    <div className="grid grid-cols-2 gap-2 bg-gray-50 border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                        {INSTRUMENTS_LIST.map(inst => (
+                                            <label key={inst} className="flex items-center space-x-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
+                                                    checked={formData.instruments.includes(inst)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setFormData({ ...formData, instruments: [...formData.instruments, inst] });
+                                                        } else {
+                                                            setFormData({ ...formData, instruments: formData.instruments.filter(i => i !== inst) });
+                                                        }
+                                                    }}
+                                                />
+                                                <span className="text-xs font-bold text-gray-900">{inst}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-black uppercase text-gray-950 mb-1">Talla Samarreta</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 text-gray-950 font-bold focus:bg-white focus:border-primary outline-none transition-all shadow-sm"
+                                            value={formData.talla_samarreta}
+                                            onChange={(e) => setFormData({ ...formData, talla_samarreta: e.target.value.toUpperCase() })}
+                                            placeholder="ex: L"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black uppercase text-gray-950 mb-1">Talla Dessuadora</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 text-gray-950 font-bold focus:bg-white focus:border-primary outline-none transition-all shadow-sm"
+                                            value={formData.talla_dessuadora}
+                                            onChange={(e) => setFormData({ ...formData, talla_dessuadora: e.target.value.toUpperCase() })}
+                                            placeholder="ex: XL"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-text-secondary">Tipus de músic</label>
+                                    <select
+                                        className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                        value={formData.tipus}
+                                        onChange={(e) => setFormData({ ...formData, tipus: e.target.value as any })}
+                                    >
+                                        <option value="titular">Titular</option>
+                                        <option value="substitut">Substitut</option>
+                                    </select>
+                                </div>
+
+                                <hr className="border-border my-4" />
+                                <p className="text-xs text-text-secondary mb-4">
+                                    Aquí guardem els telèfons de contacte del músic (titular o substitut).
+                                </p>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-text-secondary">Telèfon principal</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                        value={formData.telefon_principal}
+                                        onChange={(e) => setFormData({ ...formData, telefon_principal: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-text-secondary">Altres telèfons</label>
+                                    <textarea
+                                        className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all min-h-[60px]"
+                                        value={formData.telefons_addicionals}
+                                        onChange={(e) => setFormData({ ...formData, telefons_addicionals: e.target.value })}
+                                        placeholder="Pots escriure més d'un número, separats per comes."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Fixed footer with buttons */}
+                        <div className="flex justify-end space-x-3 p-6 pt-4 border-t border-gray-200 bg-gray-50">
+                            <button
+                                onClick={handleCloseModal}
+                                className="px-4 py-2 rounded text-text-secondary hover:bg-gray-200 transition-colors"
                             >
                                 Cancel·lar
                             </button>
