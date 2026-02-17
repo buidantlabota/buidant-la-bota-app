@@ -451,14 +451,14 @@ export default function PressupostosPage() {
                             </div>
                         </div>
 
-                        <div className="flex justify-end pt-6 border-t border-gray-100 gap-4">
-                            <button onClick={() => setModalOpen(null)} className="px-8 py-4 font-black uppercase text-xs tracking-widest text-gray-400 hover:text-gray-600 transition-colors">
+                        <div className="flex flex-col sm:flex-row justify-end pt-6 border-t border-gray-100 gap-3 sm:gap-4">
+                            <button onClick={() => setModalOpen(null)} className="w-full sm:w-auto px-8 py-4 font-black uppercase text-xs tracking-widest text-gray-400 hover:text-gray-600 transition-colors order-2 sm:order-1">
                                 Cancel·lar
                             </button>
                             <button
                                 onClick={handleOpenPreviewComp}
                                 disabled={!selectedBolo || !selectedClient || articles.length === 0}
-                                className="px-10 py-4 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-red-900 transition-all shadow-xl active:scale-95 disabled:opacity-30 flex items-center gap-2"
+                                className="w-full sm:w-auto px-10 py-4 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-red-900 transition-all shadow-xl active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2 order-1 sm:order-2"
                             >
                                 <span className="material-icons-outlined">visibility</span>
                                 Previsualitzar i Editar Descripció
@@ -522,17 +522,17 @@ export default function PressupostosPage() {
                             </div>
                         </div>
 
-                        <div className="flex gap-4 pt-4 border-t border-gray-100">
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-gray-100">
                             <button
                                 onClick={() => setShowPreview(false)}
-                                className="flex-1 py-5 font-black uppercase text-xs tracking-widest text-gray-400 border-2 border-gray-100 rounded-3xl hover:bg-gray-50 transition-all hover:text-gray-700"
+                                className="w-full sm:flex-1 py-4 sm:py-5 font-black uppercase text-xs tracking-widest text-gray-400 border-2 border-gray-100 rounded-3xl hover:bg-gray-50 transition-all hover:text-gray-700 order-2 sm:order-1"
                             >
                                 Enrere
                             </button>
                             <button
                                 onClick={handleGeneratePDF}
                                 disabled={pdfGenerating}
-                                className="flex-[2] py-5 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-red-900 transition-all shadow-xl hover:shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-[0.98]"
+                                className="w-full sm:flex-[2] py-4 sm:py-5 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-red-900 transition-all shadow-xl hover:shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-[0.98] order-1 sm:order-2"
                             >
                                 {pdfGenerating ? (
                                     <>

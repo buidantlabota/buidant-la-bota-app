@@ -2230,17 +2230,17 @@ export default function BoloDetailPage() {
                                     {articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0).toFixed(2)}<span className="text-xl ml-1">€</span>
                                 </p>
                             </div>
-                            <div className="flex gap-3 w-full sm:w-auto">
+                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0">
                                 <button
                                     onClick={() => setShowPreview(false)}
-                                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase text-xs tracking-widest"
+                                    className="w-full sm:flex-none px-6 py-3 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase text-xs tracking-widest order-2 sm:order-1"
                                 >
                                     Enrere
                                 </button>
                                 <button
                                     onClick={() => handleGeneratePDF()}
                                     disabled={pdfGenerating}
-                                    className="flex-1 sm:flex-none px-8 py-3 rounded-xl bg-primary text-white font-black hover:bg-red-900 transition-all uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-2"
+                                    className="w-full sm:flex-none px-8 py-3 rounded-xl bg-primary text-white font-black hover:bg-red-900 transition-all uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-2 order-1 sm:order-2"
                                 >
                                     {pdfGenerating ? (
                                         <>

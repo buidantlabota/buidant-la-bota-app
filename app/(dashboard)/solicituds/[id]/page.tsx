@@ -180,11 +180,11 @@ export default function SolicitudDetailPage() {
                 </div>
 
                 {solicitud.estat === 'NOVA' && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                         <button
                             onClick={handleReject}
                             disabled={processing}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all border border-red-200"
+                            className="flex items-center justify-center gap-2 px-4 py-3 sm:py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all border border-red-200 w-full sm:w-auto order-2 sm:order-1"
                         >
                             <XCircle size={18} />
                             Rebutjar
@@ -192,7 +192,7 @@ export default function SolicitudDetailPage() {
                         <button
                             onClick={handleAccept}
                             disabled={processing}
-                            className="flex items-center gap-2 px-6 py-2 text-sm font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200 rounded-xl transition-all"
+                            className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 text-sm font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200 rounded-xl transition-all w-full sm:w-auto order-1 sm:order-2"
                         >
                             <CheckCircle2 size={18} />
                             Acceptar Sol·licitud
