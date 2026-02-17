@@ -159,7 +159,7 @@ export default function AssistenciaMusics({
                     <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-3">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark">Titulars</h3>
-                            <span className="bg-gray-200 dark:bg-gray-700 text-xs px-2 py-0.5 rounded-full text-gray-500 dark:text-text-secondary-dark font-mono">
+                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
                                 {titularsList.length}
                             </span>
                             {isEditable && (
@@ -207,7 +207,7 @@ export default function AssistenciaMusics({
                     <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-3">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark">Substituts</h3>
-                            <span className="bg-gray-200 dark:bg-gray-700 text-xs px-2 py-0.5 rounded-full text-gray-500 dark:text-text-secondary-dark font-mono">
+                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
                                 {substitutsList.length}
                             </span>
                             {isEditable && (
@@ -414,13 +414,13 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
             <td className="px-4 py-3 font-medium text-gray-900">
                 {item.music?.nom}
             </td>
-            <td className="px-4 py-3 text-gray-500">
+            <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                 <div className="flex items-center space-x-1">
-                    <span className="material-icons-outlined text-xs">music_note</span>
-                    <span>{item.music?.instruments}</span>
+                    <span className="material-icons-outlined text-xs text-primary/60">music_note</span>
+                    <span className="font-medium">{item.music?.instruments}</span>
                 </div>
             </td>
-            <td className="px-4 py-3 text-right font-mono text-gray-700 dark:text-gray-300">
+            <td className="px-4 py-3 text-right font-mono text-gray-900 dark:text-text-primary-dark font-bold">
                 {isEditingPrice ? (
                     <input
                         autoFocus
@@ -475,7 +475,7 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpda
                 ) : (
                     <div
                         onClick={() => isEditable && setIsEditingComment(true)}
-                        className={`text-sm cursor-pointer min-h-[1.5em] flex items-center ${!localComment ? 'text-gray-400 italic hover:text-gray-500' : 'text-gray-600 dark:text-gray-300'
+                        className={`text-sm cursor-pointer min-h-[1.5em] flex items-center ${!localComment ? 'text-gray-600 italic hover:text-primary' : 'text-gray-700 dark:text-gray-300'
                             }`}
                     >
                         {localComment || (isEditable ? 'Afegir comentari...' : '')}

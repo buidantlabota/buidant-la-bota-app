@@ -1749,13 +1749,13 @@ export default function BoloDetailPage() {
 
             {/* Economic Information Card */}
             <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-border-dark flex justify-between items-center">
+                <div
+                    className="px-6 py-4 border-b border-gray-200 dark:border-border-dark flex justify-between items-center bg-white cursor-pointer select-none"
+                    onClick={() => setIsEconomicsExpanded(!isEconomicsExpanded)}
+                >
                     <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
                         <button
-                            onClick={() => setIsEconomicsExpanded(!isEconomicsExpanded)}
                             className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none"
-                            aria-expanded={isEconomicsExpanded}
-                            aria-controls="economics-section"
                         >
                             <span className="material-icons-outlined transform transition-transform duration-200" style={{ transform: isEconomicsExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
                                 chevron_right
@@ -1791,206 +1791,203 @@ export default function BoloDetailPage() {
                         )}
                     </div>
                 </div>
-                <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Automatic Summary */}
-                    <div className="md:col-span-2 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
-                        <h3 className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/60 mb-4 tracking-[0.2em]">Resultat Econòmic (Automàtic)</h3>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Músics</p>
-                                <p className="text-xl font-black text-gray-900 dark:text-text-primary-dark leading-none">{bolo.num_musics || 0}</p>
-                            </div>
-                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Cost Músics</p>
-                                <p className="text-xl font-black text-red-600 dark:text-red-400 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
-                            </div>
-                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Marge (Pot)</p>
-                                <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                                    {(bolo.pot_delta || 0).toFixed(2)}€
-                                </p>
-                            </div>
-                            <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
-                                <p className="text-[10px] font-bold text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
-                                <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                                    {(bolo.pot_delta_final || 0).toFixed(2)}€
-                                </p>
+                {isEconomicsExpanded && (
+                    <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Automatic Summary */}
+                        <div className="md:col-span-2 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
+                            <h3 className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/60 mb-4 tracking-[0.2em]">Resultat Econòmic (Automàtic)</h3>
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                                    <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Músics</p>
+                                    <p className="text-xl font-black text-gray-900 dark:text-text-primary-dark leading-none">{bolo.num_musics || 0}</p>
+                                </div>
+                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                                    <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Cost Músics</p>
+                                    <p className="text-xl font-black text-red-600 dark:text-red-400 leading-none">{(bolo.cost_total_musics || 0).toFixed(2)}€</p>
+                                </div>
+                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                                    <p className="text-[10px] font-bold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-1">Marge (Pot)</p>
+                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                                        {(bolo.pot_delta || 0).toFixed(2)}€
+                                    </p>
+                                </div>
+                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
+                                    <p className="text-[10px] font-bold text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
+                                    <p className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                                        {(bolo.pot_delta_final || 0).toFixed(2)}€
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Advance Payments List (New Section) */}
-                    <div className="md:col-span-2 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20 shadow-sm mt-2">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-[0.2em]">Pagaments Anticipats</h3>
-                            <button
-                                onClick={() => {
-                                    setNewAdvancePayment({ ...newAdvancePayment, music_id: boloMusics[0]?.music_id || '' });
-                                    setShowAdvancePaymentModal(true);
-                                }}
-                                className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
-                            >
-                                <span className="material-icons-outlined text-sm">add</span> Nou Pagament
-                            </button>
-                        </div>
-
-                        {loadingAdvancePayments ? (
-                            <p className="text-sm text-amber-800/50 dark:text-amber-400/50 animate-pulse">Carregant pagaments...</p>
-                        ) : advancePayments.length === 0 ? (
-                            <p className="text-sm text-amber-800/50 dark:text-amber-400/50 italic">No s'han registrat pagaments anticipats per aquest bolo.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {advancePayments.map(p => {
-                                    const music = musics.find(m => m.id === p.music_id);
-                                    return (
-                                        <div key={p.id} className="bg-white dark:bg-card-dark p-2 rounded-lg border border-amber-200 dark:border-amber-900/30 flex justify-between items-center shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <span className="material-icons-outlined text-amber-500 text-sm">payments</span>
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{music?.nom || 'Músic desconegut'}</p>
-                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">-{p.import.toFixed(2)}€</p>
-                                                <button
-                                                    onClick={() => handleDeleteAdvancePayment(p.id)}
-                                                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                                >
-                                                    <span className="material-icons-outlined text-sm">delete</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                <div className="pt-2 border-t border-amber-200 dark:border-amber-900/30 flex justify-end">
-                                    <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-widest">Total Anticipat: {advancePayments.reduce((sum, p) => sum + p.import, 0).toFixed(2)}€</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {isEconomicsExpanded && (
-                        <>
-                            {/* Edit Fields */}
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={economicData.import_total}
-                                    onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
-                                    disabled={isRebutjat}
-                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Preu per músic (€)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={economicData.preu_per_musica}
-                                    onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
-                                    disabled={isRebutjat}
-                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
-                                <select
-                                    value={economicData.tipus_ingres}
-                                    onChange={(e) => setEconomicData({ ...economicData, tipus_ingres: e.target.value })}
-                                    disabled={isRebutjat}
-                                    className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none appearance-none disabled:opacity-50"
-                                >
-                                    <option value="Efectiu">Efectiu</option>
-                                    <option value="Factura">Factura</option>
-                                    <option value="Altres">Altres</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={economicData.ajust_pot_manual}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (val === '' || val === '-' || !isNaN(Number(val))) {
-                                            setEconomicData({ ...economicData, ajust_pot_manual: val as any });
-                                        }
-                                    }}
-                                    onBlur={() => {
-                                        let final = parseFloat(String(economicData.ajust_pot_manual));
-                                        if (isNaN(final)) final = 0;
-                                        setEconomicData({ ...economicData, ajust_pot_manual: final });
-                                    }}
-                                    disabled={isRebutjat}
-                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50 font-mono"
-                                />
-                            </div>
-                            <div className="space-y-1 sm:col-span-2">
-                                <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Motiu Ajust</label>
-                                <input
-                                    type="text"
-                                    value={economicData.comentari_ajust_pot || ''}
-                                    onChange={(e) => setEconomicData({ ...economicData, comentari_ajust_pot: e.target.value })}
-                                    disabled={isRebutjat}
-                                    placeholder="Ex: Propina, Taxi, Despesa extra..."
-                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
-                                />
-                            </div>
-
-                            <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
-                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                                    <input
-                                        type="checkbox"
-                                        id="cobrat_eco"
-                                        checked={economicData.cobrat || false}
-                                        onChange={(e) => {
-                                            setEconomicData({ ...economicData, cobrat: e.target.checked });
-                                            setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
-                                        }}
-                                        disabled={isRebutjat}
-                                        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                                    />
-                                    <label htmlFor="cobrat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
-                                        Cobrat (Ingrés al Pot)
-                                    </label>
-                                </div>
-
-                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                                    <input
-                                        type="checkbox"
-                                        id="pagat_eco"
-                                        checked={economicData.pagaments_musics_fets || false}
-                                        onChange={(e) => {
-                                            setEconomicData({ ...economicData, pagaments_musics_fets: e.target.checked });
-                                            setBolo(prev => prev ? { ...prev, pagaments_musics_fets: e.target.checked } : null);
-                                        }}
-                                        disabled={isRebutjat}
-                                        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                                    />
-                                    <label htmlFor="pagat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
-                                        Pagaments Músics Fets
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="md:col-span-2 pt-2">
+                        {/* Advance Payments List (New Section) */}
+                        <div className="md:col-span-2 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20 shadow-sm mt-2">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-[0.2em]">Pagaments Anticipats</h3>
                                 <button
-                                    onClick={handleSaveEconomicData}
-                                    disabled={updating || isRebutjat}
-                                    className="w-full sm:w-auto bg-primary hover:bg-red-900 text-white font-black py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-lg hover:shadow-primary/20 uppercase text-xs tracking-widest"
+                                    onClick={() => {
+                                        setNewAdvancePayment({ ...newAdvancePayment, music_id: boloMusics[0]?.music_id || '' });
+                                        setShowAdvancePaymentModal(true);
+                                    }}
+                                    className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
                                 >
-                                    <span className="material-icons-outlined mr-2">save</span>
-                                    Desar Dades Econòmiques
+                                    <span className="material-icons-outlined text-sm">add</span> Nou Pagament
                                 </button>
                             </div>
 
-                        </>
-                    )}
-                </div>
+                            {loadingAdvancePayments ? (
+                                <p className="text-sm text-amber-800/50 dark:text-amber-400/50 animate-pulse">Carregant pagaments...</p>
+                            ) : advancePayments.length === 0 ? (
+                                <p className="text-sm text-amber-800/50 dark:text-amber-400/50 italic">No s'han registrat pagaments anticipats per aquest bolo.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {advancePayments.map(p => {
+                                        const music = musics.find(m => m.id === p.music_id);
+                                        return (
+                                            <div key={p.id} className="bg-white dark:bg-card-dark p-2 rounded-lg border border-amber-200 dark:border-amber-900/30 flex justify-between items-center shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="material-icons-outlined text-amber-500 text-sm">payments</span>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{music?.nom || 'Músic desconegut'}</p>
+                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">-{p.import.toFixed(2)}€</p>
+                                                    <button
+                                                        onClick={() => handleDeleteAdvancePayment(p.id)}
+                                                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                    >
+                                                        <span className="material-icons-outlined text-sm">delete</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    <div className="pt-2 border-t border-amber-200 dark:border-amber-900/30 flex justify-end">
+                                        <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-widest">Total Anticipat: {advancePayments.reduce((sum, p) => sum + p.import, 0).toFixed(2)}€</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Edit Fields */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={economicData.import_total}
+                                onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
+                                disabled={isRebutjat}
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Preu per músic (€)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={economicData.preu_per_musica}
+                                onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
+                                disabled={isRebutjat}
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
+                            <select
+                                value={economicData.tipus_ingres}
+                                onChange={(e) => setEconomicData({ ...economicData, tipus_ingres: e.target.value })}
+                                disabled={isRebutjat}
+                                className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none appearance-none disabled:opacity-50"
+                            >
+                                <option value="Efectiu">Efectiu</option>
+                                <option value="Factura">Factura</option>
+                                <option value="Altres">Altres</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                value={economicData.ajust_pot_manual}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '' || val === '-' || !isNaN(Number(val))) {
+                                        setEconomicData({ ...economicData, ajust_pot_manual: val as any });
+                                    }
+                                }}
+                                onBlur={() => {
+                                    let final = parseFloat(String(economicData.ajust_pot_manual));
+                                    if (isNaN(final)) final = 0;
+                                    setEconomicData({ ...economicData, ajust_pot_manual: final });
+                                }}
+                                disabled={isRebutjat}
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50 font-mono"
+                            />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-white/60 uppercase tracking-widest pl-1">Motiu Ajust</label>
+                            <input
+                                type="text"
+                                value={economicData.comentari_ajust_pot || ''}
+                                onChange={(e) => setEconomicData({ ...economicData, comentari_ajust_pot: e.target.value })}
+                                disabled={isRebutjat}
+                                placeholder="Ex: Propina, Taxi, Despesa extra..."
+                                className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-50"
+                            />
+                        </div>
+
+                        <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
+                            <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                                <input
+                                    type="checkbox"
+                                    id="cobrat_eco"
+                                    checked={economicData.cobrat || false}
+                                    onChange={(e) => {
+                                        setEconomicData({ ...economicData, cobrat: e.target.checked });
+                                        setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
+                                    }}
+                                    disabled={isRebutjat}
+                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+                                />
+                                <label htmlFor="cobrat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
+                                    Cobrat (Ingrés al Pot)
+                                </label>
+                            </div>
+
+                            <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                                <input
+                                    type="checkbox"
+                                    id="pagat_eco"
+                                    checked={economicData.pagaments_musics_fets || false}
+                                    onChange={(e) => {
+                                        setEconomicData({ ...economicData, pagaments_musics_fets: e.target.checked });
+                                        setBolo(prev => prev ? { ...prev, pagaments_musics_fets: e.target.checked } : null);
+                                    }}
+                                    disabled={isRebutjat}
+                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+                                />
+                                <label htmlFor="pagat_eco" className="text-sm text-gray-900 dark:text-white font-bold cursor-pointer select-none">
+                                    Pagaments Músics Fets
+                                </label>
+                            </div>
+                        </div>
+                        <div className="md:col-span-2 pt-2">
+                            <button
+                                onClick={handleSaveEconomicData}
+                                disabled={updating || isRebutjat}
+                                className="w-full sm:w-auto bg-primary hover:bg-red-900 text-white font-black py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-lg hover:shadow-primary/20 uppercase text-xs tracking-widest"
+                            >
+                                <span className="material-icons-outlined mr-2">save</span>
+                                Desar Dades Econòmiques
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
             {/* Internal Comments Section */}
             <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden mt-6">
