@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Read CSV
+// Read CSV (force latin1/binary instead of utf-8 if accents are broken)
 const csvPath = path.join(__dirname, '..', 'MUNICIPIS.csv');
-const csvContent = fs.readFileSync(csvPath, 'utf-8');
+const csvContent = fs.readFileSync(csvPath, 'latin1');
 
 // Normalize function
 function normalize(text) {
@@ -38,7 +39,7 @@ for (const line of lines) {
         // Check for duplicates (Key: nom_normalitzat)
         // Since all are ES/Catalunya, uniqueness depends on name
         if (seen.has(normalized)) {
-            // console.error(`⚠️ Skipping duplicate: "${nom}" (${normalized})`);
+            console.error(`⚠️ Skipping duplicate/conflict: "${nom}" (${normalized})`);
             continue;
         }
         seen.add(normalized);
@@ -62,4 +63,7 @@ DO UPDATE SET
     provincia = EXCLUDED.provincia;
 `;
 
-console.log(sql);
+// Write to file directly (force UTF-8)
+const outputPath = path.join(__dirname, 'insert-municipis.sql');
+fs.writeFileSync(outputPath, sql, { encoding: 'utf-8' });
+console.log(`✅ SQL generated at: ${outputPath}`);
