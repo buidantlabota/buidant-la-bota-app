@@ -33,8 +33,8 @@ export default function Dashboard() {
   const [topAssistants, setTopAssistants] = useState<{ nom: string, count: number }[]>([]);
 
   // Bolo cards state
-  const [properBolo, setProperBolo] = useState<{ id: number, nom: string, data: string, tipus?: string, hora?: string | null } | null>(null);
-  const [pendingRequests, setPendingRequests] = useState<{ id: number, nom: string, data: string, estat: string, hora_inici?: string | null }[]>([]);
+  const [properBolo, setProperBolo] = useState<{ id: number, titol: string | null, poblacio: string, lloc?: string | null, data: string, tipus?: string, hora?: string | null } | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<{ id: number, titol: string | null, poblacio: string, data: string, estat: string, hora_inici?: string | null }[]>([]);
 
   // 1. Fetch available years on mount
   useEffect(() => {
@@ -81,8 +81,8 @@ export default function Dashboard() {
           supabase.from('view_bolos_resum_any').select('*').eq('any', selectedYear).single(),
           supabase.from('bolos').select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets'),
           supabase.from('despeses_ingressos').select('import, tipus'),
-          supabase.from('bolos').select('id, nom_poble, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
-          supabase.from('bolos').select('id, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
+          supabase.from('bolos').select('id, titol, nom_poble, lloc, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
+          supabase.from('bolos').select('id, titol, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
           supabase.from('pagaments_anticipats').select('*, bolos(estat)'),
           supabase.from('bolo_musics').select('music_id, musics(nom), bolos!inner(data_bolo)').eq('estat', 'confirmat').gte('bolos.data_bolo', `${selectedYear}-01-01`).lte('bolos.data_bolo', `${selectedYear}-12-31`)
         ]);
@@ -135,7 +135,9 @@ export default function Dashboard() {
         if (nextBolo) {
           setProperBolo({
             id: nextBolo.id,
-            nom: nextBolo.nom_poble,
+            titol: nextBolo.titol,
+            poblacio: nextBolo.nom_poble,
+            lloc: nextBolo.lloc,
             data: nextBolo.data_bolo,
             tipus: nextBolo.tipus_actuacio || 'Actuació',
             hora: nextBolo.hora_inici
@@ -148,7 +150,8 @@ export default function Dashboard() {
         if (requestBolos) {
           setPendingRequests(requestBolos.map((b: any) => ({
             id: b.id,
-            nom: b.nom_poble,
+            titol: b.titol,
+            poblacio: b.nom_poble,
             data: b.data_bolo,
             estat: b.estat,
             hora_inici: b.hora_inici
@@ -323,8 +326,12 @@ export default function Dashboard() {
                     Propera Actuació
                   </div>
                   <h2 className="text-4xl md:text-6xl font-black leading-tight tracking-tight">
-                    {properBolo.nom}
+                    {properBolo.titol || properBolo.poblacio}
                   </h2>
+                  <div className="flex items-center gap-2 text-white/80 font-bold mb-2">
+                    <span className="material-icons-outlined text-sm">location_on</span>
+                    {properBolo.poblacio}{properBolo.lloc ? ` (${properBolo.lloc})` : ''}
+                  </div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-white/90">
                     <div className="flex items-center gap-2">
                       <span className="material-icons-outlined">calendar_today</span>
@@ -562,7 +569,12 @@ export default function Dashboard() {
                     <span className="material-icons-outlined">notifications_active</span>
                   </div>
                   <div>
-                    <p className="font-bold text-lg text-text-primary">{bolo.nom}</p>
+                    <p className="font-bold text-lg text-text-primary">
+                      {bolo.titol || bolo.poblacio}
+                      <span className="ml-2 py-0.5 px-2 bg-gray-100 rounded text-[10px] text-gray-500 font-black tracking-tight uppercase">
+                        {bolo.poblacio}
+                      </span>
+                    </p>
                     <p className="text-sm text-text-secondary flex items-center gap-2">
                       {bolo.data ? formatDate(bolo.data) : 'Sense data'}
                       {bolo.hora_inici && (
