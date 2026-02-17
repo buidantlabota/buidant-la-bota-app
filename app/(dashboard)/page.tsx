@@ -207,8 +207,7 @@ export default function Dashboard() {
         });
         const assistantRanking = Object.entries(assistantMap)
           .map(([nom, count]) => ({ nom, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5);
+          .sort((a, b) => b.count - a.count);
         setTopAssistants(assistantRanking);
 
       } catch (error) {
@@ -397,6 +396,7 @@ export default function Dashboard() {
           </div>
           <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Pot Projectat</p>
           <p className="text-4xl font-extrabold tracking-tight">{loading ? '...' : formatCurrency(finances.projectat)}</p>
+          <p className="text-gray-500 text-xs mt-2 italic">Previsió incloent pendents de cobrar i pagar</p>
           <Link href="/pot" className="absolute inset-0" aria-label="Veure Pot"></Link>
         </div>
 
@@ -506,16 +506,16 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Top 5 Assistants */}
+        {/* Top 5 Assistants - Now showing ALL with scroll */}
         <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <span className="material-icons-outlined text-blue-600">emoji_events</span>
-            <h3 className="text-lg font-bold text-text-primary">Top 5 Assistents {selectedYear}</h3>
+            <h3 className="text-lg font-bold text-text-primary">Assistència Músics {selectedYear}</h3>
           </div>
           {loading ? (
             <p className="text-text-secondary text-sm">Carregant...</p>
           ) : topAssistants.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {topAssistants.map((assistant, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <div className="flex items-center gap-3">
