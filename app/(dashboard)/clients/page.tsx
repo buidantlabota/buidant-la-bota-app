@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { MunicipiSelector } from '@/components/MunicipiSelector';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function ClientsPage() {
     const supabase = createClient();
@@ -11,9 +12,12 @@ export default function ClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTipus, setFilterTipus] = useState<string>('tots');
     const [filterEstat, setFilterEstat] = useState<'tots' | 'potencial' | 'real'>('tots');
+    const [sortBy, setSortBy] = useState<'nom' | 'recent'>('nom');
     const [expandedClient, setExpandedClient] = useState<string | null>(null);
     const [editingClient, setEditingClient] = useState<any>(null);
     const [municipiSelection, setMunicipiSelection] = useState<any>(null);
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [toast, setToast] = useState<{ show: boolean, message: string, type: 'success' | 'error' }>({
         show: false,
@@ -23,7 +27,13 @@ export default function ClientsPage() {
 
     useEffect(() => {
         fetchClients();
-    }, []);
+    }, [sortBy]);
+
+    useEffect(() => {
+        if (searchParams.get('new') === 'true' && clients.length > 0 && !editingClient) {
+            handleAddNew();
+        }
+    }, [searchParams, clients.length]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ show: true, message, type });
@@ -32,10 +42,17 @@ export default function ClientsPage() {
 
     const fetchClients = async () => {
         setLoading(true);
-        const { data, error } = await supabase
+        let query = supabase
             .from('clients')
-            .select('*')
-            .order('nom');
+            .select('*');
+
+        if (sortBy === 'recent') {
+            query = query.order('created_at', { ascending: false });
+        } else {
+            query = query.order('nom');
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching clients:', error);
@@ -168,6 +185,11 @@ export default function ClientsPage() {
                 showToast('Client actualitzat correctament');
                 setExpandedClient(null);
                 setEditingClient(null);
+
+                const callback = searchParams.get('callback');
+                if (callback) {
+                    router.push(callback);
+                }
             }
         } catch (error: any) {
             console.error('Error saving:', error);
@@ -286,6 +308,15 @@ export default function ClientsPage() {
                         <option value="tots">Tots els estats</option>
                         <option value="potencial">Potencials 🟠</option>
                         <option value="real">Reals 🟢</option>
+                    </select>
+
+                    <select
+                        className="flex-1 sm:w-40 p-2 rounded border border-border bg-white text-text-primary font-bold"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                    >
+                        <option value="nom">Sort: A-Z</option>
+                        <option value="recent">Sort: Més recents</option>
                     </select>
                 </div>
             </div>

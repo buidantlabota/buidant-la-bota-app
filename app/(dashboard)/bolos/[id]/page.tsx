@@ -92,18 +92,10 @@ export default function BoloDetailPage() {
     // Client State
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-    const [newClientModalOpen, setNewClientModalOpen] = useState(false);
-    const [newClientData, setNewClientData] = useState({
-        nom: '',
-        telefon: '',
-        correu: '',
-        nif: '',
-        adreca: '',
-        observacions: ''
-    });
 
     // Navigation State
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [tempTitol, setTempTitol] = useState('');
     const [tempTitle, setTempTitle] = useState('');
     const [tempDate, setTempDate] = useState('');
     const [tempMunicipi, setTempMunicipi] = useState<{
@@ -327,6 +319,26 @@ export default function BoloDetailPage() {
         } catch (error) {
             console.error('Error adding comment:', error);
             showToastMessage('Error en afegir el comentari', 'error');
+        }
+    };
+
+    const handleDeleteComentari = async (id: number) => {
+        if (!bolo) return;
+        if (!confirm('Segur que vols eliminar aquest comentari?')) return;
+
+        try {
+            const { error } = await supabase
+                .from('bolo_comentaris')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            showToastMessage('Comentari eliminat correctament', 'success');
+            fetchComentaris(String(bolo.id), true);
+        } catch (error) {
+            console.error('Error deleting comment:', error);
+            showToastMessage('Error en eliminar el comentari', 'error');
         }
     };
 
@@ -805,6 +817,7 @@ export default function BoloDetailPage() {
             const { error } = await supabase
                 .from('bolos')
                 .update({
+                    titol: tempTitol.trim() || null,
                     nom_poble: (finalMunicipi?.municipi_text || tempTitle).trim(),
                     data_bolo: tempDate,
                     municipi_id: finalMunicipi?.municipi_id || null,
@@ -817,6 +830,7 @@ export default function BoloDetailPage() {
 
             setBolo({
                 ...bolo,
+                titol: tempTitol.trim() || null,
                 nom_poble: (finalMunicipi?.municipi_text || tempTitle).trim(),
                 data_bolo: tempDate,
                 municipi_id: finalMunicipi?.municipi_id || null,
@@ -862,45 +876,6 @@ export default function BoloDetailPage() {
         }
     };
 
-    const handleCreateClient = async () => {
-        if (!newClientData.nom) {
-            alert('El nom del client és obligatori');
-            return;
-        }
-
-        try {
-            const { data, error } = await supabase
-                .from('clients')
-                .insert([newClientData])
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            // Add to local list
-            setClients(prev => [...prev, data]);
-
-            // Assign to bolo
-            await handleClientChange(data.id);
-
-            // Close modal and reset
-            setNewClientModalOpen(false);
-            setNewClientData({
-                nom: '',
-                telefon: '',
-                correu: '',
-                nif: '',
-                adreca: '',
-                observacions: ''
-            });
-
-            showToastMessage('Client creat i assignat correctament', 'success');
-
-        } catch (error) {
-            console.error('Error creating client:', error);
-            showToastMessage("Error en crear el client", 'error');
-        }
-    };
 
     const [localHora, setLocalHora] = useState<string>('');
 
@@ -1294,35 +1269,54 @@ export default function BoloDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                         {isEditingTitle ? (
-                            <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                                <div className="flex-1 w-full">
-                                    <MunicipiSelector
-                                        value={tempMunicipi}
-                                        onChange={setTempMunicipi}
-                                        placeholder="Poble"
-                                    />
+                            <div className="flex flex-col gap-3 w-full">
+                                <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                                    <div className="flex-1 w-full">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Títol del Bolo</label>
+                                        <input
+                                            type="text"
+                                            value={tempTitol}
+                                            onChange={(e) => setTempTitol(e.target.value)}
+                                            placeholder="Títol del bolo"
+                                            className="w-full p-2 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none font-bold"
+                                        />
+                                    </div>
                                 </div>
-                                <input
-                                    type="date"
-                                    value={tempDate}
-                                    onChange={(e) => setTempDate(e.target.value)}
-                                    className="w-full sm:w-auto p-1.5 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none"
-                                />
-                                <div className="flex gap-1 shrink-0 w-full sm:w-auto justify-end">
-                                    <button onClick={handleUpdateTitle} className="p-2 rounded bg-green-100 text-green-700 hover:bg-green-200">
-                                        <span className="material-icons-outlined text-xl">check</span>
-                                    </button>
-                                    <button onClick={() => setIsEditingTitle(false)} className="p-2 rounded bg-red-100 text-red-700 hover:bg-red-200">
-                                        <span className="material-icons-outlined text-xl">close</span>
-                                    </button>
+                                <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                                    <div className="flex-1 w-full">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Poble / Municipi</label>
+                                        <MunicipiSelector
+                                            value={tempMunicipi}
+                                            onChange={setTempMunicipi}
+                                            placeholder="Poble"
+                                        />
+                                    </div>
+                                    <div className="w-full sm:w-auto">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Data</label>
+                                        <input
+                                            type="date"
+                                            value={tempDate}
+                                            onChange={(e) => setTempDate(e.target.value)}
+                                            className="w-full sm:w-auto p-1.5 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex gap-1 shrink-0 w-full sm:w-auto justify-end pt-5">
+                                        <button onClick={handleUpdateTitle} className="p-2 rounded bg-green-100 text-green-700 hover:bg-green-200">
+                                            <span className="material-icons-outlined text-xl">check</span>
+                                        </button>
+                                        <button onClick={() => setIsEditingTitle(false)} className="p-2 rounded bg-red-100 text-red-700 hover:bg-red-200">
+                                            <span className="material-icons-outlined text-xl">close</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
                             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-text-primary-dark flex items-center gap-2 group truncate">
-                                <span className="truncate">{bolo.nom_poble}</span>
+                                <span className="truncate">{bolo.titol || bolo.nom_poble}</span>
                                 {!isRebutjat && (bolo.estat as string) !== 'Tancat' && (
                                     <button
                                         onClick={() => {
+                                            setTempTitol(bolo.titol || '');
                                             setTempTitle(bolo.nom_poble);
                                             setTempDate(bolo.data_bolo);
                                             setTempMunicipi({
@@ -1504,7 +1498,7 @@ export default function BoloDetailPage() {
 
                         {/* 3. Durada */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Durada (h)</label>
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Durada (min)</label>
                             <input
                                 type="number"
                                 value={bolo.durada || ''}
@@ -1693,7 +1687,7 @@ export default function BoloDetailPage() {
                                         ))}
                                     </select>
                                     <button
-                                        onClick={() => setNewClientModalOpen(true)}
+                                        onClick={() => router.push(`/clients?new=true&callback=/bolos/${bolo.id}`)}
                                         className="bg-primary hover:bg-red-900 text-white font-medium py-2 px-4 rounded transition-colors whitespace-nowrap"
                                     >
                                         Afegir nou client
@@ -1846,8 +1840,8 @@ export default function BoloDetailPage() {
                                                 <div className="flex items-center gap-3">
                                                     <span className="material-icons-outlined text-amber-500 text-sm">payments</span>
                                                     <div>
-                                                        <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{music?.nom || 'Músic desconegut'}</p>
-                                                        <p className="text-[10px] text-gray-700 dark:text-gray-400 font-bold">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
+                                                        <p className="text-sm font-black text-gray-900 dark:text-gray-900 leading-tight">{music?.nom || 'Músic desconegut'}</p>
+                                                        <p className="text-[10px] text-gray-700 dark:text-gray-700 font-bold">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-4">
@@ -2012,12 +2006,21 @@ export default function BoloDetailPage() {
                                 <p className="text-gray-500 dark:text-text-secondary-dark text-sm italic">No hi ha comentaris encara. Aquesta secció serveix per deixar constància interna (decisions, incidències, etc.).</p>
                             ) : (
                                 comentaris.map((comentari) => (
-                                    <div key={comentari.id} className="bg-gray-50 dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-border-dark">
+                                    <div key={comentari.id} className="bg-gray-50 dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-border-dark group">
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="font-bold text-gray-900 dark:text-text-primary-dark text-sm">{comentari.autor || 'Sense autor'}</span>
-                                            <span className="text-xs text-gray-500 dark:text-text-secondary-dark">
-                                                {new Date(comentari.created_at).toLocaleString('ca-ES')}
-                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs text-gray-500 dark:text-text-secondary-dark">
+                                                    {new Date(comentari.created_at).toLocaleString('ca-ES')}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleDeleteComentari(comentari.id)}
+                                                    className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="Eliminar comentari"
+                                                >
+                                                    <span className="material-icons-outlined text-sm">delete</span>
+                                                </button>
+                                            </div>
                                         </div>
                                         <p className="text-gray-900 dark:text-text-primary-dark text-sm whitespace-pre-wrap">{comentari.text}</p>
                                     </div>
@@ -2061,89 +2064,6 @@ export default function BoloDetailPage() {
                     </div>
                 )}
             </div>
-
-            {/* New Client Modal */}
-            {newClientModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white dark:bg-card-dark rounded-xl max-w-lg w-full p-6 shadow-xl border border-gray-200 dark:border-border-dark my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-text-primary-dark">
-                            Afegir nou client
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Nom del client / entitat *</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
-                                    value={newClientData.nom}
-                                    onChange={(e) => setNewClientData({ ...newClientData, nom: e.target.value })}
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Telèfon</label>
-                                    <input
-                                        type="text"
-                                        className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
-                                        value={newClientData.telefon}
-                                        onChange={(e) => setNewClientData({ ...newClientData, telefon: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Correu electrònic</label>
-                                    <input
-                                        type="email"
-                                        className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
-                                        value={newClientData.correu}
-                                        onChange={(e) => setNewClientData({ ...newClientData, correu: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">NIF / CIF</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
-                                    value={newClientData.nif}
-                                    onChange={(e) => setNewClientData({ ...newClientData, nif: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Adreça</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
-                                    value={newClientData.adreca}
-                                    onChange={(e) => setNewClientData({ ...newClientData, adreca: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Observacions</label>
-                                <textarea
-                                    className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark min-h-[80px]"
-                                    value={newClientData.observacions}
-                                    onChange={(e) => setNewClientData({ ...newClientData, observacions: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end space-x-3 mt-6">
-                            <button
-                                onClick={() => setNewClientModalOpen(false)}
-                                className="px-4 py-2 rounded text-gray-500 dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-gray-800"
-                            >
-                                Cancel·lar
-                            </button>
-                            <button
-                                onClick={handleCreateClient}
-                                className="px-4 py-2 rounded bg-primary hover:bg-red-900 text-white font-medium transition-colors"
-                            >
-                                Desar i Assignar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-            )}
 
             {showPreview && (
                 <div className="fixed inset-0 bg-black/80 flex items-start sm:items-center justify-center z-[110] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
@@ -2404,55 +2324,55 @@ export default function BoloDetailPage() {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4 backdrop-blur-sm">
                     <div className="bg-white dark:bg-card-dark rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-border-dark">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Nou Pagament Anticipat</h3>
+                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Nou Pagament Anticipat</h3>
                             <button onClick={() => setShowAdvancePaymentModal(false)} className="text-gray-400 hover:text-gray-600">
                                 <span className="material-icons-outlined">close</span>
                             </button>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Músic</label>
+                                <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Músic</label>
                                 <select
                                     value={newAdvancePayment.music_id}
                                     onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, music_id: e.target.value })}
-                                    className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
                                 >
-                                    <option value="">Selecciona un músic...</option>
+                                    <option value="" className="text-gray-900">Selecciona un músic...</option>
                                     {boloMusics.filter(bm => bm.estat === 'confirmat').map(bm => {
                                         const m = musics.find(mu => mu.id === bm.music_id);
-                                        return <option key={bm.music_id} value={bm.music_id}>{m?.nom}</option>;
+                                        return <option key={bm.music_id} value={bm.music_id} className="text-gray-900">{m?.nom}</option>;
                                     })}
                                 </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Import (€)</label>
+                                    <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Import (€)</label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         value={newAdvancePayment.import}
                                         onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, import: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                        className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
                                         placeholder="0.00"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Data</label>
+                                    <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Data</label>
                                     <input
                                         type="date"
                                         value={newAdvancePayment.data_pagament}
                                         onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, data_pagament: e.target.value })}
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                        className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Notes (Opcional)</label>
+                                <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Notes (Opcional)</label>
                                 <input
                                     type="text"
                                     value={newAdvancePayment.notes || ''}
                                     onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, notes: e.target.value })}
-                                    className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
                                     placeholder="Ex: Pagament en efectiu, Bizum..."
                                 />
                             </div>

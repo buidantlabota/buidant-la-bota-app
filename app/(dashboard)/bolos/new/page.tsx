@@ -12,7 +12,9 @@ export default function NewBoloPage() {
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
+        titol: '',
         data_bolo: '',
+        hora_inici: '',
         import_total: '',
         tipus_ingres: 'Efectiu',
         notes: '',
@@ -53,8 +55,10 @@ export default function NewBoloPage() {
             // 2. Crear nou bolo
             const { error } = await supabase.from('bolos').insert([
                 {
+                    titol: formData.titol || null,
                     nom_poble: finalMunicipi?.municipi_text || 'Desconegut',
                     data_bolo: formData.data_bolo,
+                    hora_inici: formData.hora_inici || null,
                     import_total: formData.import_total ? parseFloat(formData.import_total) : 0,
                     tipus_ingres: formData.tipus_ingres,
                     notes: formData.notes || null,
@@ -106,6 +110,20 @@ export default function NewBoloPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="md:col-span-2">
+                            <label className="block text-sm font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                                Títol del Bolo
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.titol}
+                                onChange={e => setFormData({ ...formData, titol: e.target.value })}
+                                placeholder="Ex: Festa Major de Salt 2026"
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div className="md:col-span-2">
                             <MunicipiSelector
                                 label="Poble / Municipi"
                                 value={municipi}
@@ -115,17 +133,28 @@ export default function NewBoloPage() {
                             />
                         </div>
 
-                        {/* Data */}
-                        <div className="space-y-1.5">
-                            <label className="block text-sm font-bold text-gray-600 uppercase tracking-wider">
-                                Data del bolo
-                            </label>
-                            <input
-                                type="date"
-                                required
-                                value={formData.data_bolo}
-                                onChange={e => setFormData({ ...formData, data_bolo: e.target.value })}
-                            />
+                        <div className="space-y-1.5 flex flex-col sm:flex-row gap-4">
+                            <div className="flex-1 space-y-1.5">
+                                <label className="block text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                    Data del bolo
+                                </label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={formData.data_bolo}
+                                    onChange={e => setFormData({ ...formData, data_bolo: e.target.value })}
+                                />
+                            </div>
+                            <div className="w-full sm:w-48 space-y-1.5">
+                                <label className="block text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                    Hora d'inici
+                                </label>
+                                <input
+                                    type="time"
+                                    value={formData.hora_inici}
+                                    onChange={e => setFormData({ ...formData, hora_inici: e.target.value })}
+                                />
+                            </div>
                         </div>
 
                         {/* Tipus Actuació */}

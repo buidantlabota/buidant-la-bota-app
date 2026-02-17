@@ -3,6 +3,7 @@ export type SolicitudStatus = 'NOVA' | 'ACCEPTADA' | 'REBUTJADA'
 
 export interface Bolo {
     id: number
+    titol: string | null
     nom_poble: string
     municipi_id?: string | null
     municipi_custom_id?: string | null

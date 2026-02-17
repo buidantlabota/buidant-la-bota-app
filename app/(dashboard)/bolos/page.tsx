@@ -246,7 +246,7 @@ export default function BolosPage() {
                                                 <div className="flex items-start justify-between">
                                                     <div>
                                                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors truncate">
-                                                            {bolo.nom_poble}
+                                                            {bolo.titol || bolo.nom_poble}
                                                         </h3>
                                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                                                             {bolo.client?.nom && (

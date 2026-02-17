@@ -4,6 +4,26 @@ import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Music } from '@/types';
 
+const INSTRUMENTS_LIST = [
+    'Tuba',
+    'Bombardí',
+    'Trombó',
+    'Trompeta',
+    'Saxo Alt',
+    'Saxo Tenor',
+    'Saxo Baríton',
+    'Percussió (Bombo)',
+    'Percussió (Caixa)',
+    'Percussió (Plats)',
+    'Percussió (Bateria)',
+    'Clarinet',
+    'Flabiol',
+    'Tible',
+    'Tenora',
+    'Fiscorn',
+    'Gralla'
+];
+
 export default function MusicsPage() {
     const supabase = createClient();
     const [musics, setMusics] = useState<Music[]>([]);
@@ -14,7 +34,7 @@ export default function MusicsPage() {
     // Form state
     const [formData, setFormData] = useState({
         nom: '',
-        instruments: '',
+        instruments: [] as string[],
         talla_samarreta: '',
         talla_dessuadora: '',
         tipus: 'titular' as 'titular' | 'substitut',
@@ -78,7 +98,7 @@ export default function MusicsPage() {
             setEditingMusic(music);
             setFormData({
                 nom: music.nom,
-                instruments: music.instruments,
+                instruments: music.instruments ? music.instruments.split(',').map(i => i.trim()) : [],
                 talla_samarreta: music.talla_samarreta || '',
                 talla_dessuadora: music.talla_dessuadora || '',
                 tipus: music.tipus || 'titular',
@@ -89,7 +109,7 @@ export default function MusicsPage() {
             setEditingMusic(null);
             setFormData({
                 nom: '',
-                instruments: '',
+                instruments: [],
                 talla_samarreta: '',
                 talla_dessuadora: '',
                 tipus: 'titular',
@@ -106,10 +126,12 @@ export default function MusicsPage() {
     };
 
     const handleSave = async () => {
-        if (!formData.nom || !formData.instruments) {
-            alert('El nom i els instruments són obligatoris.');
+        if (!formData.nom || formData.instruments.length === 0) {
+            alert('El nom i almenys un instrument són obligatoris.');
             return;
         }
+
+        const instrumentsString = formData.instruments.join(', ');
 
         try {
             if (editingMusic) {
@@ -117,7 +139,7 @@ export default function MusicsPage() {
                     .from('musics')
                     .update({
                         nom: formData.nom,
-                        instruments: formData.instruments,
+                        instruments: instrumentsString,
                         talla_samarreta: formData.talla_samarreta,
                         talla_dessuadora: formData.talla_dessuadora,
                         tipus: formData.tipus,
@@ -133,7 +155,7 @@ export default function MusicsPage() {
                     .from('musics')
                     .insert([{
                         nom: formData.nom,
-                        instruments: formData.instruments,
+                        instruments: instrumentsString,
                         talla_samarreta: formData.talla_samarreta,
                         talla_dessuadora: formData.talla_dessuadora,
                         tipus: formData.tipus,
@@ -400,13 +422,26 @@ export default function MusicsPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-text-secondary">Instruments (separats per comes)</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 rounded bg-gray-50 border border-gray-300 text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                    value={formData.instruments}
-                                    onChange={(e) => setFormData({ ...formData, instruments: e.target.value })}
-                                />
+                                <label className="block text-sm font-bold mb-2 text-text-secondary">Instruments (selecciona un o més)</label>
+                                <div className="grid grid-cols-2 gap-2 bg-gray-50 border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                    {INSTRUMENTS_LIST.map(inst => (
+                                        <label key={inst} className="flex items-center space-x-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
+                                                checked={formData.instruments.includes(inst)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setFormData({ ...formData, instruments: [...formData.instruments, inst] });
+                                                    } else {
+                                                        setFormData({ ...formData, instruments: formData.instruments.filter(i => i !== inst) });
+                                                    }
+                                                }}
+                                            />
+                                            <span className="text-xs font-bold text-gray-900">{inst}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
