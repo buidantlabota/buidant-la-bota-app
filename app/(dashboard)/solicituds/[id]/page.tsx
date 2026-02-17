@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import {
     ArrowLeft, CheckCircle2, XCircle, UserPlus,
     Calendar, MapPin, Clock, Phone, Mail,
-    CreditCard, FileText, Info, Building2, Map
+    CreditCard, FileText, Info, Building2, Map, Trash2
 } from 'lucide-react';
 
 export default function SolicitudDetailPage() {
@@ -154,6 +154,37 @@ export default function SolicitudDetailPage() {
         setProcessing(false);
     };
 
+    const handleDelete = async () => {
+        if (!solicitud) return;
+
+        const confirmDelete = confirm(
+            "⚠️ ATENCIÓ: Estàs a punt d'ELIMINAR DEFINITIVAMENT aquesta sol·licitud.\n\n" +
+            "Això s'hauria de fer només per netejar dades de prova. " +
+            "Si la sol·licitud estava acceptada, el bolo existent perdrà el vincle amb aquesta fitxa.\n\n" +
+            "Vols continuar?"
+        );
+
+        if (!confirmDelete) return;
+
+        setProcessing(true);
+        try {
+            const { error } = await supabase
+                .from('solicituds')
+                .delete()
+                .eq('id', solicitud.id);
+
+            if (error) throw error;
+
+            alert('Sol·licitud eliminada correctament.');
+            router.push('/solicituds');
+        } catch (err: any) {
+            console.error('Error deleting:', err);
+            alert(`Error en eliminar: ${err.message}`);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     if (loading) return <div className="p-12 text-center text-gray-500">Carregant detalls...</div>;
     if (!solicitud) return null;
 
@@ -182,6 +213,15 @@ export default function SolicitudDetailPage() {
                 {solicitud.estat === 'NOVA' && (
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                         <button
+                            onClick={handleDelete}
+                            disabled={processing}
+                            className="flex items-center justify-center gap-2 px-4 py-3 sm:py-2 text-sm font-bold text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100 w-full sm:w-auto"
+                            title="Netejar prova"
+                        >
+                            <Trash2 size={18} />
+                            Eliminar
+                        </button>
+                        <button
                             onClick={handleReject}
                             disabled={processing}
                             className="flex items-center justify-center gap-2 px-4 py-3 sm:py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all border border-red-200 w-full sm:w-auto order-2 sm:order-1"
@@ -201,13 +241,35 @@ export default function SolicitudDetailPage() {
                 )}
 
                 {solicitud.bolo_id && (
-                    <Link
-                        href={`/bolos/${solicitud.bolo_id}`}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-all"
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                        <Link
+                            href={`/bolos/${solicitud.bolo_id}`}
+                            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-all w-full sm:w-auto"
+                        >
+                            <FileText size={18} />
+                            Veure Bolo Creat
+                        </Link>
+                        <button
+                            onClick={handleDelete}
+                            disabled={processing}
+                            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100 w-full sm:w-auto"
+                            title="Eliminar definitivament (només proves)"
+                        >
+                            <Trash2 size={18} />
+                            Eliminar
+                        </button>
+                    </div>
+                )}
+
+                {solicitud.estat === 'REBUTJADA' && !solicitud.bolo_id && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={processing}
+                        className="flex items-center justify-center gap-2 px-6 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all border border-red-200 w-full sm:w-auto"
                     >
-                        <FileText size={18} />
-                        Veure Bolo Creat
-                    </Link>
+                        <Trash2 size={18} />
+                        Eliminar Sol·licitud
+                    </button>
                 )}
             </div>
 
