@@ -45,8 +45,10 @@ export default function BolosPage() {
     const filteredBolos = bolos.filter((bolo: Bolo) => {
         const searchLower = searchTerm.toLowerCase();
         const clientNom = bolo.client?.nom || '';
+        const titol = bolo.titol || '';
         const matchesSearch =
             bolo.nom_poble.toLowerCase().includes(searchLower) ||
+            titol.toLowerCase().includes(searchLower) ||
             clientNom.toLowerCase().includes(searchLower);
 
         if (!matchesSearch) return false;
@@ -112,12 +114,12 @@ export default function BolosPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* Search */}
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Cerca</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Cerca Poble o Client</label>
                         <div className="relative">
                             <span className="material-icons-outlined absolute left-3 top-2.5 text-gray-400">search</span>
                             <input
                                 type="text"
-                                placeholder="Cerca per poble o client..."
+                                placeholder="Cerca per municipi, poble o client..."
                                 className="pl-10"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -249,6 +251,12 @@ export default function BolosPage() {
                                                             {bolo.titol || bolo.nom_poble}
                                                         </h3>
                                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                                                            {/* Població - Always show if titol exists, or just show it anyway for context */}
+                                                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                                                                <span className="material-icons-outlined text-base">location_on</span>
+                                                                <span className="font-medium">{bolo.nom_poble}</span>
+                                                            </div>
+
                                                             {bolo.client?.nom && (
                                                                 <div className="flex items-center gap-1.5 text-sm text-gray-500">
                                                                     <span className="material-icons-outlined text-base">business</span>

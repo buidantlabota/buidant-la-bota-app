@@ -18,7 +18,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [numBolos, setNumBolos] = useState(0);
   const [totalIngres, setTotalIngres] = useState(0);
-  const [potActual, setPotActual] = useState(0);
+
+  // Financial detailed state
+  const [finances, setFinances] = useState({
+    potReal: 0,
+    aCobrar: 0,
+    aPagar: 0,
+    projectat: 0
+  });
 
   // Bolo cards state
   const [properBolo, setProperBolo] = useState<{ id: number, nom: string, data: string, tipus?: string, hora?: string | null } | null>(null);
@@ -54,68 +61,26 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+        const today = new Date().toLocaleDateString('en-CA');
 
-        // Define promises for parallel execution
-        const statsPromise = supabase
-          .from('view_bolos_resum_any')
-          .select('*')
-          .eq('any', selectedYear)
-          .single();
-
-        // For pot calc: get all bolos pot_delta_final
-        const boloPotPromise = supabase
-          .from('bolos')
-          .select('pot_delta_final')
-          .not('pot_delta_final', 'is', null);
-
-        // For pot calc: get all expenses
-        const expensesPromise = supabase
-          .from('despeses_ingressos')
-          .select('import, tipus');
-
-        // Next Confirmed Bolo
-        const nextBoloPromise = supabase
-          .from('bolos')
-          .select('id, nom_poble, data_bolo, tipus_actuacio, hora_inici')
-          .in('estat', ['Confirmada', 'Pendents de cobrar', 'Per pagar'])
-          .gte('data_bolo', today)
-          .order('data_bolo', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        // Pending Requests
-        const pendingRequestsPromise = supabase
-          .from('bolos')
-          .select('id, nom_poble, data_bolo, estat, hora_inici')
-          .in('estat', ['Nova', 'Pendent de confirmació'])
-          .gte('data_bolo', today)
-          .order('data_bolo', { ascending: true })
-          .limit(5);
-
-        // 5. Bolo Counts by State for Mini-Kanban
-        const countsPromise = supabase
-          .from('bolos')
-          .select('estat');
-
-        // Execute all in parallel
+        // Parallel requests
         const [
           { data: viewData },
-          { data: boloData },
+          { data: allBolos },
           { data: allMovements },
           { data: nextBolo },
           { data: requestBolos },
-          { data: allBolosStatus }
+          { data: allAdvances }
         ] = await Promise.all([
-          statsPromise,
-          boloPotPromise,
-          expensesPromise,
-          nextBoloPromise,
-          pendingRequestsPromise,
-          countsPromise
+          supabase.from('view_bolos_resum_any').select('*').eq('any', selectedYear).single(),
+          supabase.from('bolos').select('id, estat, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets'),
+          supabase.from('despeses_ingressos').select('import, tipus'),
+          supabase.from('bolos').select('id, nom_poble, data_bolo, tipus_actuacio, hora_inici').in('estat', ['Confirmada', 'Pendents de cobrar', 'Per pagar']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(1).maybeSingle(),
+          supabase.from('bolos').select('id, nom_poble, data_bolo, estat, hora_inici').in('estat', ['Nova', 'Pendent de confirmació']).gte('data_bolo', today).order('data_bolo', { ascending: true }).limit(5),
+          supabase.from('pagaments_anticipats').select('*, bolos(estat)')
         ]);
 
-        // A. Stats
+        // A. Stats (Annual)
         if (viewData) {
           const stats = viewData as unknown as ViewBolosResumAny;
           setNumBolos(stats.total_bolos || 0);
@@ -125,13 +90,39 @@ export default function Dashboard() {
           setTotalIngres(0);
         }
 
-        // B. Global Pot
-        const totalBoloPot = (boloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
-        let totalExtraPot = 0;
-        if (allMovements) {
-          totalExtraPot = allMovements.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
-        }
-        setPotActual(totalBoloPot + totalExtraPot);
+        // B. Detailed Finances (Global)
+        const totalManualBalance = (allMovements || []).reduce((sum, m) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+
+        const closedBolosPot = (allBolos || [])
+          .filter(b => b.estat === 'Tancades')
+          .reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+
+        const pendingAdvances = (allAdvances || [])
+          .filter(p => (p.bolos as any)?.estat !== 'Tancades')
+          .reduce((sum, p) => sum + (p.import || 0), 0);
+
+        const potReal = totalManualBalance + closedBolosPot - pendingAdvances;
+
+        const aCobrar = (allBolos || [])
+          .filter(b => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.cobrat)
+          .reduce((sum, b) => sum + (b.import_total || 0), 0);
+
+        const aPagar = (allBolos || [])
+          .filter(b => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.pagaments_musics_fets)
+          .reduce((sum, b) => {
+            const totalCost = b.cost_total_musics || 0;
+            const advancesForThisBolo = (allAdvances || [])
+              .filter(p => p.bolo_id === b.id)
+              .reduce((acc, p) => acc + (p.import || 0), 0);
+            return sum + (totalCost - advancesForThisBolo);
+          }, 0);
+
+        setFinances({
+          potReal,
+          aCobrar,
+          aPagar,
+          projectat: potReal + aCobrar - aPagar
+        });
 
         // C. Next Bolo
         if (nextBolo) {
@@ -159,7 +150,7 @@ export default function Dashboard() {
           setPendingRequests([]);
         }
 
-        // E. Count Bolos per State
+        // E. Count Bolos per State for Mini-Kanban
         const counts = {
           'Nova': 0,
           'Pendent de confirmació': 0,
@@ -169,13 +160,12 @@ export default function Dashboard() {
           'Tancades': 0
         };
 
-        if (allBolosStatus) {
-          allBolosStatus.forEach((b: any) => {
+        if (allBolos) {
+          allBolos.forEach((b: any) => {
             if (counts.hasOwnProperty(b.estat)) {
               // @ts-ignore
               counts[b.estat]++;
             } else {
-              // Map legacy
               if (b.estat === 'Sol·licitat') counts['Nova']++;
               if (b.estat === 'Confirmat') counts['Confirmada']++;
               if (b.estat === 'Tancat') counts['Tancades']++;
@@ -363,57 +353,42 @@ export default function Dashboard() {
 
       {/* KPI Grid */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Pot Actual (Global) */}
-        <div className="bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-          <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:opacity-30 transition-opacity">
-            <span className="material-icons-outlined text-9xl">savings</span>
+        {/* Pot Final Projectat (Forecast) */}
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="material-icons-outlined text-9xl">calculate</span>
           </div>
-          <p className="text-yellow-100 text-sm font-bold uppercase tracking-wider mb-1">Pot Actual</p>
-          <p className="text-4xl font-extrabold tracking-tight">{loading ? '...' : formatCurrency(potActual)}</p>
+          <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Pot Projectat</p>
+          <p className="text-4xl font-extrabold tracking-tight">{loading ? '...' : formatCurrency(finances.projectat)}</p>
           <Link href="/pot" className="absolute inset-0" aria-label="Veure Pot"></Link>
         </div>
 
-        {/* Ingressos (Year) */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm relative overflow-hidden group hover:border-green-500/50 transition-colors">
-          <div className="absolute top-4 right-4 p-2 bg-green-100 rounded-lg text-green-600">
+        {/* Pot Real (Diners en Caixa) */}
+        <div className="bg-gradient-to-br from-primary to-red-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="material-icons-outlined text-9xl">payments</span>
+          </div>
+          <p className="text-white/70 text-sm font-bold uppercase tracking-wider mb-1">Diners en Caixa</p>
+          <p className="text-4xl font-extrabold tracking-tight">{loading ? '...' : formatCurrency(finances.potReal)}</p>
+          <Link href="/pot" className="absolute inset-0" aria-label="Veure Pot"></Link>
+        </div>
+
+        {/* A cobrar */}
+        <div className="bg-card-bg rounded-2xl p-6 border border-emerald-100 shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+          <div className="absolute top-4 right-4 p-2 bg-emerald-50 rounded-lg text-emerald-600">
             <span className="material-icons-outlined">trending_up</span>
           </div>
-          <p className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Ingressos {selectedYear}</p>
-          <p className="text-3xl font-bold text-text-primary">{loading ? '...' : formatCurrency(totalIngres)}</p>
+          <p className="text-emerald-600 text-sm font-bold uppercase tracking-wider mb-2">Pendent d'entrada</p>
+          <p className="text-3xl font-bold text-emerald-700">{loading ? '...' : formatCurrency(finances.aCobrar)}</p>
         </div>
 
-        {/* Bolos Count (Year) */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm relative overflow-hidden group hover:border-primary/50 transition-colors">
-          <div className="absolute top-4 right-4 p-2 bg-red-100 rounded-lg text-primary">
-            <span className="material-icons-outlined">music_note</span>
+        {/* A pagar */}
+        <div className="bg-card-bg rounded-2xl p-6 border border-red-100 shadow-sm relative overflow-hidden group hover:border-red-500/50 transition-colors">
+          <div className="absolute top-4 right-4 p-2 bg-red-50 rounded-lg text-red-600">
+            <span className="material-icons-outlined">trending_down</span>
           </div>
-          <p className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Bolos {selectedYear}</p>
-          <p className="text-3xl font-bold text-text-primary">{loading ? '...' : animatedBolos}</p>
-        </div>
-
-        {/* Mini Kanban Summary (Replaces Pending Tasks) */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm relative overflow-hidden group hover:border-blue-500/50 transition-colors">
-          <div className="absolute top-4 right-4 p-2 bg-blue-100 rounded-lg text-blue-600">
-            <span className="material-icons-outlined">analytics</span>
-          </div>
-          <p className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-4">Estat dels Bolos (Total)</p>
-
-          <div className="flex justify-between items-end gap-1">
-            {[
-              { label: 'Nova', count: boloCounts['Nova'], color: 'text-red-500' },
-              { label: 'Pend.', count: boloCounts['Pendent de confirmació'], color: 'text-orange-500' },
-              { label: 'Conf.', count: boloCounts['Confirmada'], color: 'text-emerald-500' },
-              { label: 'Cobrar', count: boloCounts['Pendents de cobrar'], color: 'text-yellow-500' },
-              { label: 'Pagar', count: boloCounts['Per pagar'], color: 'text-lime-500' },
-              { label: 'Tanc.', count: boloCounts['Tancades'], color: 'text-red-900' },
-            ].map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <span className={`text-xl font-black ${item.color}`}>{item.count}</span>
-                <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tighter">{item.label}</span>
-              </div>
-            ))}
-          </div>
-          <Link href="/tasques" className="absolute inset-0" aria-label="Veure Tauler"></Link>
+          <p className="text-red-600 text-sm font-bold uppercase tracking-wider mb-2">Pendent de sortida</p>
+          <p className="text-3xl font-bold text-red-700">{loading ? '...' : formatCurrency(finances.aPagar)}</p>
         </div>
       </section>
 

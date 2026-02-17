@@ -18,15 +18,18 @@ interface DespesaIngres {
 export default function GestioPotPage() {
     const supabase = createClient();
     const [movements, setMovements] = useState<DespesaIngres[]>([]);
+    const [activeAdvances, setActiveAdvances] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [year, setYear] = useState(new Date().getFullYear());
     const [stats, setStats] = useState({
-        totalPot: 0,
+        totalPotReal: 0,      // Money actually in the box
+        totalACobrar: 0,      // Projected income from uncollected bolos
+        totalAPagar: 0,       // Projected debt to musicians
+        totalProjectat: 0,    // Real + ACobrar - APagar
         yearBoloPot: 0,
         yearExtraPot: 0,
         yearIngressos: 0,
-        yearDespeses: 0,
-        yearBalance: 0
+        yearDespeses: 0
     });
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,119 +42,104 @@ export default function GestioPotPage() {
     });
     const [amountStr, setAmountStr] = useState('');
 
-    const [bolos, setBolos] = useState<Bolo[]>([]); // For linking if needed
+    const [bolos, setBolos] = useState<Bolo[]>([]);
 
-    // Fetch data
     const fetchPot = async () => {
         setLoading(true);
-
-        // 1. Get ALL movements to calc global pot (expensive if many rows, but okay for now)
-        // Optimization: Create a view or a separate table for cached balance. 
-        // For now, we fetch current year detailed, and maybe a separate query for total balance.
-
-        // Let's simplified: Fetch filtered year for the table, and a separate aggregation query for global pot.
-
-        // A. Table Data (Current Year)
         const start = `${year}-01-01`;
         const end = `${year}-12-31`;
 
-        const { data: yearData, error: yearError } = await supabase
+        // 1. Manual Movements for the table
+        const { data: yearData } = await supabase
             .from('despeses_ingressos')
             .select('*')
             .gte('data', start)
             .lte('data', end)
             .order('data', { ascending: false });
 
-        let ing = 0;
-        let desp = 0;
-
-        if (yearData) {
-            setMovements(yearData);
-
-            // Year Stats
-            ing = yearData.filter((m: DespesaIngres) => m.tipus === 'ingrés').reduce((sum: number, m: DespesaIngres) => sum + m.import, 0);
-            desp = yearData.filter((m: DespesaIngres) => m.tipus === 'despesa').reduce((sum: number, m: DespesaIngres) => sum + m.import, 0);
-
-            // setStats(prev => ({ ...prev, yearIngressos: ing, yearDespeses: desp, yearBalance: ing - desp })); 
-            // We do global update at the end now to be cleaner
-        }
-
-        // B. Global Pot Balance
-        // We can use RPC or a raw query, strictly speaking. Or just fetch all.
-        // Let's try to fetch all IDs and amounts just for calc, if not huge.
-        // Better: Use the view_bolos_resum_any we made? No, that's only for bolos.
-        // The "Pot" includes logic from DespesesIngressos AND Bolos usually.
-        // But wait, the user said "Pot" section manages general expenses.
-        // The GLOBAL POT is usually: (Sum of all Bolos Pot Delta) + (Sum of all Ingressos - Despeses in DespesesIngressos).
-        // That's complex. Let's stick to showing the balance of THIS table + maybe fetching the Bolo Pot Sum.
-
-        // Fetch Bolo Pot Sum
-        const { data: boloData } = await supabase
+        // 2. All Bolos for calculations
+        const { data: allBolos } = await supabase
             .from('bolos')
-            .select('pot_delta_final')
-            .not('pot_delta_final', 'is', null);
+            .select('id, estat, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets');
 
-        const totalBoloPot = (boloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
-
-        // Fetch All DespesesIngressos Sum
+        // 3. All Manual Movements for global balance
         const { data: allMovements } = await supabase.from('despeses_ingressos').select('import, tipus');
-        let totalExtraPot = 0;
-        if (allMovements) {
-            totalExtraPot = allMovements.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
-        }
 
-        // Fetch Advance Payments Sum
-        const { data: allAdvancePayments } = await supabase.from('pagaments_anticipats').select('import');
-        const totalAdvancePayments = (allAdvancePayments || []).reduce((sum: number, p: any) => sum + (p.import || 0), 0);
-
-        // C. Annual Bolo Pot
-        const { data: yearBoloData } = await supabase
-            .from('bolos')
-            .select('pot_delta_final')
-            .not('pot_delta_final', 'is', null)
-            .gte('data_bolo', start)
-            .lte('data_bolo', end);
-
-        const yearBoloPot = (yearBoloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
-
-        // Annual Advance Payments
-        const { data: yearAdvancePayments } = await supabase
+        // 4. All Advance Payments with Bolo status
+        const { data: allAdvances } = await supabase
             .from('pagaments_anticipats')
-            .select('import')
-            .gte('data_pagament', start)
-            .lte('data_pagament', end);
-        const yearAdvancePot = (yearAdvancePayments || []).reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+            .select('*, bolos(estat, nom_poble, data_bolo)');
 
-        // Annual Extra Pot
-        const yearExtraPot = ing - desp;
+        // CALCULATIONS
 
-        setStats(prev => ({
-            ...prev,
-            totalPot: totalBoloPot + totalExtraPot - totalAdvancePayments,
+        // A. Pot Real (Money in hand)
+        // Manual balance
+        const totalManualBalance = (allMovements || []).reduce((sum, m) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+
+        // Closed bolos net profit
+        const closedBolosPot = (allBolos || [])
+            .filter(b => b.estat === 'Tancades')
+            .reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+
+        // Pending advances that ALREADY left the box
+        const pendingAdvances = (allAdvances || [])
+            .filter(p => (p.bolos as any)?.estat !== 'Tancades')
+            .reduce((sum, p) => sum + (p.import || 0), 0);
+
+        const potReal = totalManualBalance + closedBolosPot - pendingAdvances;
+
+        // B. Pending entries (A cobrar)
+        // Sum of import_total of bolos not collected
+        const aCobrar = (allBolos || [])
+            .filter(b => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.cobrat)
+            .reduce((sum, b) => sum + (b.import_total || 0), 0);
+
+        // C. Pending departures (A pagar)
+        // Sum of remaining cost of musicians for bolos not fully paid
+        const aPagar = (allBolos || [])
+            .filter(b => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.pagaments_musics_fets)
+            .reduce((sum, b) => {
+                const totalCost = b.cost_total_musics || 0;
+                // Subtract advances already paid for this bolo
+                const advancesForThisBolo = (allAdvances || [])
+                    .filter(p => p.bolo_id === b.id)
+                    .reduce((acc, p) => acc + (p.import || 0), 0);
+                return sum + (totalCost - advancesForThisBolo);
+            }, 0);
+
+        // D. Annual Metrics
+        const yearBoloPot = (allBolos || [])
+            .filter(b => b.data_bolo >= start && b.data_bolo <= end)
+            .reduce((sum, b) => sum + (b.pot_delta_final || 0), 0);
+
+        const yearIng = (yearData || []).filter(m => m.tipus === 'ingrés').reduce((sum, m) => sum + m.import, 0);
+        const yearDesp = (yearData || []).filter(m => m.tipus === 'despesa').reduce((sum, m) => sum + m.import, 0);
+
+        setMovements(yearData || []);
+        setActiveAdvances((allAdvances || []).filter(p => (p.bolos as any)?.estat !== 'Tancades'));
+
+        setStats({
+            totalPotReal: potReal,
+            totalACobrar: aCobrar,
+            totalAPagar: aPagar,
+            totalProjectat: potReal + aCobrar - aPagar,
             yearBoloPot,
-            yearExtraPot: yearExtraPot - yearAdvancePot,
-            yearIngressos: ing,
-            yearDespeses: desp + yearAdvancePot,
-            yearBalance: yearExtraPot - yearAdvancePot
-        }));
+            yearExtraPot: yearIng - yearDesp,
+            yearIngressos: yearIng,
+            yearDespeses: yearDesp
+        });
         setLoading(false);
     };
 
     useEffect(() => {
         fetchPot();
-        // Fetch bolos for dropdown
         supabase.from('bolos').select('id, nom_poble, data_bolo').order('data_bolo', { ascending: false }).limit(20)
             .then(({ data }: { data: any }) => setBolos(data || []));
     }, [year]);
 
     const handleAdd = async () => {
         if (!newMovement.import || !newMovement.descripcio) return;
-
-        const { error } = await supabase.from('despeses_ingressos').insert([{
-            ...newMovement,
-            any_pot: year // Explicitly set year if needed, or rely on data trigger if implemented. Just data date is likely enough.
-        }]);
-
+        const { error } = await supabase.from('despeses_ingressos').insert([newMovement]);
         if (error) {
             console.error(error);
             alert('Error al guardar');
@@ -170,200 +158,211 @@ export default function GestioPotPage() {
     };
 
     return (
-        <div className="p-2 sm:p-8 space-y-4 sm:space-y-6">
+        <div className="p-4 sm:p-8 space-y-8 max-w-[1400px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h1 className="text-3xl font-bold text-text-primary">
-                    Gestió del Pot
-                </h1>
-                {/* Year Selector */}
-                <div className="flex items-center space-x-2">
-                    <button onClick={() => setYear(prev => prev - 1)} className="p-2 rounded hover:bg-gray-100"><span className="material-icons-outlined">chevron_left</span></button>
-                    <span className="text-xl font-bold font-mono">{year}</span>
-                    <button onClick={() => setYear(prev => prev + 1)} className="p-2 rounded hover:bg-gray-100"><span className="material-icons-outlined">chevron_right</span></button>
+                <div>
+                    <h1 className="text-4xl font-black text-text-primary tracking-tight">Gestió Econòmica</h1>
+                    <p className="text-text-secondary mt-1 font-medium">Control del pot reial i previsions de futur</p>
+                </div>
+                <div className="flex items-center bg-white rounded-xl border border-gray-200 p-1 shadow-sm">
+                    <button onClick={() => setYear(prev => prev - 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><span className="material-icons-outlined">chevron_left</span></button>
+                    <span className="px-6 text-xl font-black font-mono">{year}</span>
+                    <button onClick={() => setYear(prev => prev + 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><span className="material-icons-outlined">chevron_right</span></button>
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Global Pot */}
-                <div className="md:col-span-3 bg-gradient-to-r from-primary via-red-800 to-red-950 text-white p-8 rounded-2xl shadow-2xl border border-red-700/50 relative overflow-hidden">
+            {/* Main Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* 1. POT REIAL */}
+                <div className="bg-gradient-to-br from-primary to-red-900 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <span className="material-icons-outlined text-9xl">savings</span>
+                        <span className="material-icons-outlined text-9xl">payments</span>
                     </div>
-                    <p className="text-red-100/80 text-lg font-medium mb-2 uppercase tracking-wider">Pot Actual disponible</p>
-                    <div className="flex items-baseline gap-4">
-                        <p className="text-6xl font-bold font-mono tracking-tighter">{stats.totalPot.toFixed(2)}€</p>
+                    <div>
+                        <p className="text-white/70 text-sm font-black uppercase tracking-[0.2em] mb-1">Diners en Caixa (Reial)</p>
+                        <p className="text-5xl font-black font-mono tracking-tighter">{stats.totalPotReal.toFixed(2)}€</p>
+                    </div>
+                    <p className="text-white/60 text-[10px] font-bold mt-4 italic">Inclou bolos tancats i despeses manuals.</p>
+                </div>
+
+                {/* 2. PENDENT COBRAMENT */}
+                <div className="bg-white border-2 border-emerald-100 p-6 rounded-3xl shadow-sm flex flex-col justify-center relative group">
+                    <div className="absolute top-4 right-4 text-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                        <span className="material-icons-outlined text-3xl">trending_up</span>
+                    </div>
+                    <p className="text-emerald-600 text-[10px] font-black uppercase tracking-wider mb-2">Pendent d'entrada</p>
+                    <p className="text-3xl font-black text-emerald-700 font-mono">+{stats.totalACobrar.toFixed(2)}€</p>
+                    <p className="text-[10px] text-gray-400 mt-2">Bolo no cobrats encara.</p>
+                </div>
+
+                {/* 3. PENDENT PAGAMENT */}
+                <div className="bg-white border-2 border-red-100 p-6 rounded-3xl shadow-sm flex flex-col justify-center relative group">
+                    <div className="absolute top-4 right-4 text-red-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                        <span className="material-icons-outlined text-3xl">trending_down</span>
+                    </div>
+                    <p className="text-red-600 text-[10px] font-black uppercase tracking-wider mb-2">Pendent de sortida (Musics)</p>
+                    <p className="text-3xl font-black text-red-700 font-mono">-{stats.totalAPagar.toFixed(2)}€</p>
+                    <p className="text-[10px] text-gray-400 mt-2">Deute amb músics (confirmats).</p>
+                </div>
+
+                {/* 4. BALANÇ PROJECTAT */}
+                <div className="bg-gray-900 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-center relative">
+                    <div className="absolute top-4 right-4 text-white/20">
+                        <span className="material-icons-outlined text-3xl">calculate</span>
+                    </div>
+                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-wider mb-2">Pot Final Projectat</p>
+                    <p className="text-3xl font-black text-white font-mono">{stats.totalProjectat.toFixed(2)}€</p>
+                    <p className="text-[10px] text-gray-500 mt-2 italic">Diners que tindrem al final.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Manual Movements List */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold flex items-center gap-2">
+                            <span className="material-icons-outlined text-primary">receipt_long</span>
+                            Moviments Manuals {year}
+                        </h3>
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-primary hover:bg-red-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
+                        >
+                            <span className="material-icons-outlined text-sm">add</span>
+                            Afegir
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="max-h-[500px] overflow-y-auto">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 sticky top-0 border-b border-gray-100 italic">
+                                    <tr className="text-[10px] text-gray-400 uppercase tracking-[0.1em]">
+                                        <th className="p-4">Data</th>
+                                        <th className="p-4">Concepte</th>
+                                        <th className="p-4 text-right">Import</th>
+                                        <th className="p-4 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {movements.map(m => (
+                                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 text-xs font-mono text-gray-500">
+                                                {new Date(m.data).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit' })}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="font-bold text-sm text-gray-700">{m.descripcio}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase font-black">{m.categoria}</div>
+                                            </td>
+                                            <td className={`p-4 text-right font-mono font-black ${m.tipus === 'ingrés' ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                {m.tipus === 'ingrés' ? '+' : '-'}{m.import.toFixed(2)}€
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button onClick={() => handleDelete(m.id)} className="text-gray-200 hover:text-red-500 transition-colors">
+                                                    <span className="material-icons-outlined text-lg">close</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {movements.length === 0 && (
+                                        <tr><td colSpan={4} className="p-12 text-center text-gray-400">Cap moviment registrat aquest any.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                {/* Bolos Breakdown (ANNUAL) */}
-                <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-xl shadow-lg border border-gray-700 relative group transition-transform hover:-translate-y-1">
-                    <div className="absolute top-4 right-4 p-2 bg-white/10 rounded-lg">
-                        <span className="material-icons-outlined text-green-400">music_note</span>
-                    </div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Resultat Bolos {year}</p>
-                    <p className={`text-3xl font-bold font-mono ${stats.yearBoloPot >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {stats.yearBoloPot >= 0 ? '+' : ''}{stats.yearBoloPot.toFixed(2)}€
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">Benefici net dels bolos de l'any {year}.</p>
-                </div>
-
-                {/* Extras Breakdown (ANNUAL) */}
-                <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-xl shadow-lg border border-gray-700 relative group transition-transform hover:-translate-y-1">
-                    <div className="absolute top-4 right-4 p-2 bg-white/10 rounded-lg">
-                        <span className="material-icons-outlined text-orange-400">account_balance_wallet</span>
-                    </div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Moviments Manuals {year}</p>
-                    <div className="flex items-end justify-between">
-                        <p className={`text-3xl font-bold font-mono ${stats.yearExtraPot >= 0 ? 'text-green-400' : 'text-orange-400'}`}>
-                            {stats.yearExtraPot >= 0 ? '+' : ''}{stats.yearExtraPot.toFixed(2)}€
+                {/* Active Advances List */}
+                <div className="space-y-4">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                        <span className="material-icons-outlined text-orange-500">priority_high</span>
+                        Pagaments Anticipats (Actius)
+                    </h3>
+                    <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-6">
+                        <p className="text-xs text-orange-800 font-medium mb-4 leading-relaxed bg-white border border-orange-100 p-3 rounded-lg">
+                            ⚠️ Aquests pagaments ja han sortit de la caixa i es resten automàticament del Pot Reial.
+                            Desapareixeran d'aquesta llista quan el bolo corresponent es marqui com a <strong>Tancat</strong>.
                         </p>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">Balanç d'altres ingressos/despeses de l'any {year}.</p>
-                </div>
 
-                {/* Income/Expenses Split (ANNUAL) */}
-                <div className="rounded-xl shadow-lg border border-gray-700 overflow-hidden flex flex-col group transition-transform hover:-translate-y-1">
-                    {/* Income Top Half */}
-                    <div className="flex-1 bg-gradient-to-r from-green-900/50 to-green-800/50 p-4 flex items-center justify-between border-b border-gray-700/50">
-                        <div>
-                            <p className="text-green-400 text-xs font-bold uppercase tracking-widest mb-1">Ingressos Extra {year}</p>
-                            <p className="text-2xl font-bold text-green-300 font-mono">+{stats.yearIngressos.toFixed(2)}€</p>
+                        <div className="space-y-3">
+                            {activeAdvances.length > 0 ? (
+                                activeAdvances.map(adv => (
+                                    <div key={adv.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex items-center justify-between">
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-black text-orange-600 uppercase tracking-tighter">
+                                                {(adv.bolos as any)?.nom_poble}
+                                            </p>
+                                            <p className="text-sm font-bold text-gray-700 truncate">
+                                                {adv.notes || 'Avançament de sou'}
+                                            </p>
+                                            <p className="text-[10px] text-gray-400 italic">
+                                                {new Date(adv.data_pagament).toLocaleDateString('ca-ES')}
+                                            </p>
+                                        </div>
+                                        <div className="text-xl font-mono font-black text-orange-700">
+                                            -{adv.import.toFixed(2)}€
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-8 text-orange-300 italic text-sm">No hi ha avançaments actius.</div>
+                            )}
                         </div>
-                        <span className="material-icons-outlined text-green-400/20 text-4xl">trending_up</span>
-                    </div>
-
-                    {/* Expenses Bottom Half */}
-                    <div className="flex-1 bg-gradient-to-r from-red-900/50 to-red-800/50 p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-red-400 text-xs font-bold uppercase tracking-widest mb-1">Despeses Extra {year}</p>
-                            <p className="text-2xl font-bold text-red-300 font-mono">-{stats.yearDespeses.toFixed(2)}€</p>
-                        </div>
-                        <span className="material-icons-outlined text-red-400/20 text-4xl">trending_down</span>
                     </div>
                 </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-border">
-                <p className="text-sm text-text-secondary font-medium">
-                    Llistat de moviments manuals (no vinculats automàticament a bolos)
-                </p>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center space-x-2 bg-primary hover:bg-red-900 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
-                >
-                    <span className="material-icons-outlined">add</span>
-                    <span>Afegir Moviment</span>
-                </button>
-            </div>
-
-            {/* Table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-white text-xs uppercase text-text-primary border-b border-border font-semibold">
-                        <tr>
-                            <th className="p-4">Data</th>
-                            <th className="p-4">Descripció</th>
-                            <th className="p-4">Categoria</th>
-                            <th className="p-4 text-center">Tipus</th>
-                            <th className="p-4 text-right">Import</th>
-                            <th className="p-4 w-10"></th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-light">
-                        {loading ? (
-                            <tr><td colSpan={6} className="p-6 text-center">Carregant...</td></tr>
-                        ) : movements.length === 0 ? (
-                            <tr><td colSpan={6} className="p-6 text-center text-text-secondary">No hi ha moviments extra aquest any.</td></tr>
-                        ) : (
-                            movements.map(m => (
-                                <tr key={m.id} className="hover:bg-gray-50">
-                                    <td className="p-4 font-mono text-sm">{new Date(m.data).toLocaleDateString('ca-ES')}</td>
-                                    <td className="p-4 font-medium">{m.descripcio}</td>
-                                    <td className="p-4 text-sm text-text-secondary">{m.categoria || '-'}</td>
-                                    <td className="p-4 text-center">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${m.tipus === 'ingrés' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                            }`}>
-                                            {m.tipus}
-                                        </span>
-                                    </td>
-                                    <td className={`p-4 text-right font-mono font-bold ${m.tipus === 'ingrés' ? 'text-green-600' : 'text-red-500'}`}>
-                                        {m.tipus === 'ingrés' ? '+' : '-'}{m.import.toFixed(2)}€
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <button onClick={() => handleDelete(m.id)} className="text-gray-400 hover:text-red-500 transition-colors">
-                                            <span className="material-icons-outlined">delete</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
             </div>
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 my-auto max-h-[95vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4">Nou Moviment</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Tipus</label>
-                                <div className="flex rounded-md shadow-sm">
-                                    <button
-                                        onClick={() => setNewMovement({ ...newMovement, tipus: 'despesa' })}
-                                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-l-md border ${newMovement.tipus === 'despesa' ? 'bg-red-100 border-red-300 text-red-800' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                                    >
-                                        Despesa
-                                    </button>
-                                    <button
-                                        onClick={() => setNewMovement({ ...newMovement, tipus: 'ingrés' })}
-                                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-r-md border ${newMovement.tipus === 'ingrés' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                                    >
-                                        Ingrés
-                                    </button>
-                                </div>
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h3 className="text-2xl font-black mb-6 text-gray-900">Nou Moviment</h3>
+                        <div className="space-y-5">
+                            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-50 rounded-xl">
+                                <button
+                                    onClick={() => setNewMovement({ ...newMovement, tipus: 'despesa' })}
+                                    className={`py-2 px-4 rounded-lg font-bold text-sm transition-all ${newMovement.tipus === 'despesa' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Despesa
+                                </button>
+                                <button
+                                    onClick={() => setNewMovement({ ...newMovement, tipus: 'ingrés' })}
+                                    className={`py-2 px-4 rounded-lg font-bold text-sm transition-all ${newMovement.tipus === 'ingrés' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Ingrés
+                                </button>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium mb-1">Data</label>
-                                <input type="date" value={newMovement.data} onChange={e => setNewMovement({ ...newMovement, data: e.target.value })} className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-900 focus:bg-white transition-colors" />
+                                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Data</label>
+                                <input type="date" value={newMovement.data} onChange={e => setNewMovement({ ...newMovement, data: e.target.value })} className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all font-medium text-gray-700" />
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium mb-1">Import (€)</label>
+                                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Import (€)</label>
                                 <input
                                     type="number"
                                     step="0.01"
                                     value={amountStr}
                                     onChange={e => {
                                         setAmountStr(e.target.value);
-                                        const val = parseFloat(e.target.value);
-                                        setNewMovement({ ...newMovement, import: isNaN(val) ? 0 : val });
+                                        setNewMovement({ ...newMovement, import: parseFloat(e.target.value) || 0 });
                                     }}
-                                    className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-900 focus:bg-white transition-colors"
+                                    className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all font-mono font-bold text-xl"
                                     placeholder="0.00"
                                 />
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium mb-1">Descripció</label>
-                                <input type="text" value={newMovement.descripcio} onChange={e => setNewMovement({ ...newMovement, descripcio: e.target.value })} className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-900 focus:bg-white transition-colors" placeholder="Ex: Compra pegatines..." />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Categoria</label>
-                                <select value={newMovement.categoria || ''} onChange={e => setNewMovement({ ...newMovement, categoria: e.target.value })} className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-900 focus:bg-white transition-colors">
-                                    <option value="Altres">Altres</option>
-                                    <option value="Material">Material</option>
-                                    <option value="Transport">Transport</option>
-                                    <option value="Menjar/Beure">Menjar/Beure</option>
-                                    <option value="Loteria">Loteria</option>
-                                    <option value="Subvenció">Subvenció</option>
-                                </select>
+                                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Descripció</label>
+                                <input type="text" value={newMovement.descripcio} onChange={e => setNewMovement({ ...newMovement, descripcio: e.target.value })} className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all font-medium" placeholder="Ex: Compra de material..." />
                             </div>
                         </div>
-                        <div className="flex justify-end space-x-3 mt-6">
-                            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-text-secondary">Cancel·lar</button>
-                            <button onClick={handleAdd} className="px-4 py-2 bg-primary text-white rounded">Guardar</button>
+
+                        <div className="flex gap-4 mt-10">
+                            <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel·lar</button>
+                            <button onClick={handleAdd} className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold shadow-lg shadow-gray-200 hover:bg-black transition-all">Guardar</button>
                         </div>
                     </div>
                 </div>
