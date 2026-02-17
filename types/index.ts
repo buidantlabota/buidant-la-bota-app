@@ -174,8 +174,19 @@ export interface BoloMusic {
     tipus: 'titular' | 'substitut'
     estat: 'pendent' | 'confirmat' | 'no' | 'baixa'
     import_assignat: number
+    preu_personalitzat: number | null
     comentari: string | null
     updated_at: string
+}
+
+export interface AdvancePayment {
+    id: string
+    bolo_id: number
+    music_id: string
+    import: number
+    data_pagament: string
+    notes: string | null
+    creat_at: string
 }
 
 export interface Tasca {

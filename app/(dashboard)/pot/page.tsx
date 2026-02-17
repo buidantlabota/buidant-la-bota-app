@@ -100,6 +100,10 @@ export default function GestioPotPage() {
             totalExtraPot = allMovements.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
         }
 
+        // Fetch Advance Payments Sum
+        const { data: allAdvancePayments } = await supabase.from('pagaments_anticipats').select('import');
+        const totalAdvancePayments = (allAdvancePayments || []).reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+
         // C. Annual Bolo Pot
         const { data: yearBoloData } = await supabase
             .from('bolos')
@@ -110,17 +114,25 @@ export default function GestioPotPage() {
 
         const yearBoloPot = (yearBoloData || []).reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
+        // Annual Advance Payments
+        const { data: yearAdvancePayments } = await supabase
+            .from('pagaments_anticipats')
+            .select('import')
+            .gte('data_pagament', start)
+            .lte('data_pagament', end);
+        const yearAdvancePot = (yearAdvancePayments || []).reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+
         // Annual Extra Pot
         const yearExtraPot = ing - desp;
 
         setStats(prev => ({
             ...prev,
-            totalPot: totalBoloPot + totalExtraPot,
+            totalPot: totalBoloPot + totalExtraPot - totalAdvancePayments,
             yearBoloPot,
-            yearExtraPot,
+            yearExtraPot: yearExtraPot - yearAdvancePot,
             yearIngressos: ing,
-            yearDespeses: desp,
-            yearBalance: yearExtraPot
+            yearDespeses: desp + yearAdvancePot,
+            yearBalance: yearExtraPot - yearAdvancePot
         }));
         setLoading(false);
     };

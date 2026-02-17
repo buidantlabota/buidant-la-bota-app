@@ -11,6 +11,7 @@ interface AssistenciaMusicsProps {
     onUpdateStatus: (musicId: string, status: string) => Promise<void>;
     onUpdateComment: (musicId: string, comment: string) => Promise<void>;
     onRemove: (attendanceId: string, musicId: string) => Promise<void>;
+    onUpdatePrice: (musicId: string, price: number | null) => Promise<void>;
     onRequestMaterial: () => Promise<void>;
     isEditable: boolean;
 }
@@ -51,6 +52,7 @@ export default function AssistenciaMusics({
     onUpdateStatus,
     onUpdateComment,
     onRemove,
+    onUpdatePrice,
     onRequestMaterial,
     isEditable
 }: AssistenciaMusicsProps) {
@@ -189,6 +191,7 @@ export default function AssistenciaMusics({
                             isEditable={isEditable}
                             onUpdateStatus={onUpdateStatus}
                             onUpdateComment={onUpdateComment}
+                            onUpdatePrice={onUpdatePrice}
                             onRemove={onRemove}
                         />
                     </div>
@@ -236,6 +239,7 @@ export default function AssistenciaMusics({
                             isEditable={isEditable}
                             onUpdateStatus={onUpdateStatus}
                             onUpdateComment={onUpdateComment}
+                            onUpdatePrice={onUpdatePrice}
                             onRemove={onRemove}
                         />
                         <div className="mt-4 flex flex-wrap gap-4 items-center">
@@ -343,7 +347,7 @@ export default function AssistenciaMusics({
     );
 }
 
-function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, onRemove }: any) {
+function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, onUpdatePrice, onRemove }: any) {
     if (items.length === 0) return <p className="text-sm text-gray-500 italic py-2">Cap músic assignat.</p>;
 
     return (
@@ -367,6 +371,7 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, on
                             isEditable={isEditable}
                             onUpdateStatus={onUpdateStatus}
                             onUpdateComment={onUpdateComment}
+                            onUpdatePrice={onUpdatePrice}
                             onRemove={onRemove}
                         />
                     ))}
@@ -376,9 +381,19 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateComment, on
     );
 }
 
-function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onRemove }: any) {
+function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onUpdatePrice, onRemove }: any) {
     const [localComment, setLocalComment] = useState(item.comentari || '');
+    const [localPrice, setLocalPrice] = useState(item.preu_personalitzat?.toString() || '');
     const [isEditingComment, setIsEditingComment] = useState(false);
+    const [isEditingPrice, setIsEditingPrice] = useState(false);
+
+    const handleBlurPrice = () => {
+        setIsEditingPrice(false);
+        const price = localPrice === '' ? null : parseFloat(localPrice);
+        if (price !== item.preu_personalitzat) {
+            onUpdatePrice(item.music_id, price);
+        }
+    };
 
     const handleBlurComment = () => {
         setIsEditingComment(false);
@@ -406,7 +421,26 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateComment, onRemo
                 </div>
             </td>
             <td className="px-4 py-3 text-right font-mono text-gray-700 dark:text-gray-300">
-                {item.import_assignat ?? 0}€
+                {isEditingPrice ? (
+                    <input
+                        autoFocus
+                        type="number"
+                        step="0.01"
+                        className="w-16 text-xs p-1 rounded border border-primary bg-white text-right"
+                        value={localPrice}
+                        onChange={(e) => setLocalPrice(e.target.value)}
+                        onBlur={handleBlurPrice}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleBlurPrice(); }}
+                    />
+                ) : (
+                    <div
+                        onClick={() => isEditable && setIsEditingPrice(true)}
+                        className={`cursor-pointer group-hover:bg-primary/5 rounded px-1 ${item.preu_personalitzat !== null ? 'text-primary font-bold underline decoration-dotted' : ''}`}
+                        title={item.preu_personalitzat !== null ? 'Preu personalitzat' : 'Preu estàndard'}
+                    >
+                        {item.preu_personalitzat !== null ? item.preu_personalitzat : (item.import_assignat ?? 0)}€
+                    </div>
+                )}
             </td>
             <td className="px-4 py-3">
                 {isEditable ? (

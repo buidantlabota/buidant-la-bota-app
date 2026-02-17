@@ -144,8 +144,81 @@ export default function BoloDetailPage() {
             fetchClients();
             fetchComentaris(params.id as string);
             fetchTasques(params.id as string);
+            fetchAdvancePayments(params.id as string);
         }
     }, [params.id]);
+
+    const [advancePayments, setAdvancePayments] = useState<AdvancePayment[]>([]);
+    const [loadingAdvancePayments, setLoadingAdvancePayments] = useState(false);
+    const [showAdvancePaymentModal, setShowAdvancePaymentModal] = useState(false);
+    const [newAdvancePayment, setNewAdvancePayment] = useState<Partial<AdvancePayment>>({
+        music_id: '',
+        import: 0,
+        data_pagament: new Date().toISOString().split('T')[0],
+        notes: ''
+    });
+
+    const fetchAdvancePayments = async (boloId: string) => {
+        setLoadingAdvancePayments(true);
+        const { data, error } = await supabase
+            .from('pagaments_anticipats')
+            .select('*')
+            .eq('bolo_id', Number(boloId))
+            .order('data_pagament', { ascending: false });
+
+        if (error) console.error('Error fetching advance payments:', error);
+        else setAdvancePayments(data || []);
+        setLoadingAdvancePayments(false);
+    };
+
+    const handleAddAdvancePayment = async () => {
+        if (!bolo || !newAdvancePayment.music_id || !newAdvancePayment.import) return;
+        setUpdating(true);
+        try {
+            const { error } = await supabase
+                .from('pagaments_anticipats')
+                .insert([{
+                    bolo_id: bolo.id,
+                    music_id: newAdvancePayment.music_id,
+                    import: newAdvancePayment.import,
+                    data_pagament: newAdvancePayment.data_pagament,
+                    notes: newAdvancePayment.notes
+                }]);
+
+            if (error) throw error;
+            setShowAdvancePaymentModal(false);
+            setNewAdvancePayment({ music_id: '', import: 0, data_pagament: new Date().toISOString().split('T')[0], notes: '' });
+            await fetchAdvancePayments(String(bolo.id));
+            await fetchPot(); // Defined in pot/page.tsx? No, we need to refresh global pot logic if it's here? 
+            // In BoloDetailPage, we usually just care about this bolo's data.
+            await fetchBolo(String(bolo.id), false);
+        } catch (error) {
+            console.error('Error adding advance payment:', error);
+            showToastMessage('Error en afegir el pagament', 'error');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleDeleteAdvancePayment = async (id: string) => {
+        if (!confirm('Segur que vols eliminar aquest pagament anticipat?')) return;
+        setUpdating(true);
+        try {
+            const { error } = await supabase
+                .from('pagaments_anticipats')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await fetchAdvancePayments(String(bolo!.id));
+            await fetchBolo(String(bolo!.id), false);
+        } catch (error) {
+            console.error('Error deleting advance payment:', error);
+            showToastMessage('Error en eliminar el pagament', 'error');
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     const showToastMessage = (message: string, type: 'success' | 'error') => {
         setToast({ show: true, message, type });
@@ -367,6 +440,27 @@ export default function BoloDetailPage() {
         } catch (error) {
             console.error('Error updating comment:', error);
             showToastMessage('Error en desar el comentari', 'error');
+        }
+    };
+
+    const handleUpdateMusicianPrice = async (musicId: string, price: number | null) => {
+        if (!bolo) return;
+
+        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, preu_personalitzat: price } : bm));
+
+        try {
+            const { error } = await supabase
+                .from('bolo_musics')
+                .update({ preu_personalitzat: price })
+                .eq('bolo_id', bolo.id)
+                .eq('music_id', musicId);
+
+            if (error) throw error;
+            await fetchBolo(String(bolo.id), false);
+        } catch (error) {
+            console.error('Error updating price:', error);
+            showToastMessage('Error en actualitzar el preu', 'error');
+            await fetchMusicsAndAttendance(String(bolo.id), true);
         }
     };
 
@@ -1642,6 +1736,7 @@ export default function BoloDetailPage() {
                                 onAdd={handleAddMusicians}
                                 onUpdateStatus={handleUpdateMusicianStatus}
                                 onUpdateComment={handleUpdateMusicianComment}
+                                onUpdatePrice={handleUpdateMusicianPrice}
                                 onRemove={handleRemoveMusician}
                                 onRequestMaterial={handleRequestMaterial}
                                 isEditable={!isRebutjat && (bolo.estat as string) !== 'Tancat'}
@@ -1723,6 +1818,57 @@ export default function BoloDetailPage() {
                                 </p>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Advance Payments List (New Section) */}
+                    <div className="md:col-span-2 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20 shadow-sm mt-2">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-[0.2em]">Pagaments Anticipats</h3>
+                            <button
+                                onClick={() => {
+                                    setNewAdvancePayment({ ...newAdvancePayment, music_id: boloMusics[0]?.music_id || '' });
+                                    setShowAdvancePaymentModal(true);
+                                }}
+                                className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
+                            >
+                                <span className="material-icons-outlined text-sm">add</span> Nou Pagament
+                            </button>
+                        </div>
+
+                        {loadingAdvancePayments ? (
+                            <p className="text-sm text-amber-800/50 dark:text-amber-400/50 animate-pulse">Carregant pagaments...</p>
+                        ) : advancePayments.length === 0 ? (
+                            <p className="text-sm text-amber-800/50 dark:text-amber-400/50 italic">No s'han registrat pagaments anticipats per aquest bolo.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {advancePayments.map(p => {
+                                    const music = musics.find(m => m.id === p.music_id);
+                                    return (
+                                        <div key={p.id} className="bg-white dark:bg-card-dark p-2 rounded-lg border border-amber-200 dark:border-amber-900/30 flex justify-between items-center shadow-sm">
+                                            <div className="flex items-center gap-3">
+                                                <span className="material-icons-outlined text-amber-500 text-sm">payments</span>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{music?.nom || 'Músic desconegut'}</p>
+                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">-{p.import.toFixed(2)}€</p>
+                                                <button
+                                                    onClick={() => handleDeleteAdvancePayment(p.id)}
+                                                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                >
+                                                    <span className="material-icons-outlined text-sm">delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <div className="pt-2 border-t border-amber-200 dark:border-amber-900/30 flex justify-end">
+                                    <p className="text-[10px] font-black uppercase text-amber-600/70 tracking-widest">Total Anticipat: {advancePayments.reduce((sum, p) => sum + p.import, 0).toFixed(2)}€</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {isEconomicsExpanded && (
@@ -2255,6 +2401,82 @@ export default function BoloDetailPage() {
                                     )}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Advance Payment Modal (New) */}
+            {showAdvancePaymentModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-card-dark rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-border-dark">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Nou Pagament Anticipat</h3>
+                            <button onClick={() => setShowAdvancePaymentModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <span className="material-icons-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Músic</label>
+                                <select
+                                    value={newAdvancePayment.music_id}
+                                    onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, music_id: e.target.value })}
+                                    className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="">Selecciona un músic...</option>
+                                    {boloMusics.filter(bm => bm.estat === 'confirmat').map(bm => {
+                                        const m = musics.find(mu => mu.id === bm.music_id);
+                                        return <option key={bm.music_id} value={bm.music_id}>{m?.nom}</option>;
+                                    })}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Import (€)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={newAdvancePayment.import}
+                                        onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, import: parseFloat(e.target.value) || 0 })}
+                                        className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Data</label>
+                                    <input
+                                        type="date"
+                                        value={newAdvancePayment.data_pagament}
+                                        onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, data_pagament: e.target.value })}
+                                        className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Notes (Opcional)</label>
+                                <input
+                                    type="text"
+                                    value={newAdvancePayment.notes || ''}
+                                    onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, notes: e.target.value })}
+                                    className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary/20"
+                                    placeholder="Ex: Pagament en efectiu, Bizum..."
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-8">
+                            <button
+                                onClick={() => setShowAdvancePaymentModal(false)}
+                                className="px-6 py-2 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all uppercase tracking-widest"
+                            >
+                                Cancel·lar
+                            </button>
+                            <button
+                                onClick={handleAddAdvancePayment}
+                                disabled={updating || !newAdvancePayment.music_id || !newAdvancePayment.import}
+                                className="px-8 py-2 rounded-lg bg-amber-600 text-white font-black hover:bg-amber-700 transition-all uppercase text-xs tracking-widest shadow-lg disabled:opacity-50"
+                            >
+                                Guardar Pagament
+                            </button>
                         </div>
                     </div>
                 </div>
