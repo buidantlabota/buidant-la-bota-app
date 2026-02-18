@@ -229,7 +229,7 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             setAvailableYears(years as string[]);
 
             // Extract unique act types
-            const types = Array.from(new Set((data || []).map((b: Bolo) => b.tipus_actuacio).filter(t => !!t)));
+            const types = Array.from(new Set((data as any[] || []).map((b: any) => b.tipus_actuacio).filter((t: any) => !!t)));
             const baseTypes = ['Festa Major', 'Cercavila', 'Concert', 'Correfoc', 'Privat', 'Casament'];
             const allTypes = Array.from(new Set([...baseTypes, ...types as string[]])).sort();
             setActuacioOptions(allTypes.map(t => ({ value: t, label: t })));

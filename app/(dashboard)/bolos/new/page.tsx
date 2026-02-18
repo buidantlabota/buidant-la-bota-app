@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
@@ -35,7 +35,7 @@ export default function NewBoloPage() {
         const fetchTypes = async () => {
             const { data } = await supabase.from('bolos').select('tipus_actuacio');
             if (data) {
-                const types = Array.from(new Set(data.map(b => b.tipus_actuacio).filter(t => !!t)));
+                const types = Array.from(new Set((data as any[]).map((b: any) => b.tipus_actuacio).filter((t: any) => !!t)));
                 setExistingTypes(prev => Array.from(new Set([...prev, ...types as string[]])).sort());
             }
         };

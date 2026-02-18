@@ -190,7 +190,7 @@ export default function BillingPage() {
 
             alert(`${formData.type === 'factura' ? 'Factura' : 'Pressupost'} ${invoiceNumber} creat!`);
             setShowModal(false);
-            setFormData({ type: 'factura', client_name: '', total_amount: '', bolo_id: '', notes: '' });
+            setFormData({ type: 'factura', invoice_number: '', client_name: '', total_amount: '', bolo_id: '', notes: '' });
             fetchRecords();
 
         } catch (e: any) {
