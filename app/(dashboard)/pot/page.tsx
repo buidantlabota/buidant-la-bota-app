@@ -183,9 +183,9 @@ export default function GestioPotPage() {
             </div>
 
             {/* Main Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                 {/* 1. POT REIAL */}
-                <div className="bg-gradient-to-br from-primary to-red-900 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
+                <div className="bg-gradient-to-br from-primary to-red-900 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[180px] max-w-2xl">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <span className="material-icons-outlined text-9xl">payments</span>
                     </div>
@@ -194,36 +194,6 @@ export default function GestioPotPage() {
                         <p className="text-5xl font-black font-mono tracking-tighter">{stats.totalPotReal.toFixed(2)}€</p>
                     </div>
                     <p className="text-white/60 text-[10px] font-bold mt-4 italic">Inclou bolos tancats i despeses manuals.</p>
-                </div>
-
-                {/* 2. PENDENT COBRAMENT */}
-                <div className="bg-white border-2 border-emerald-100 p-6 rounded-3xl shadow-sm flex flex-col justify-center relative group">
-                    <div className="absolute top-4 right-4 text-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity">
-                        <span className="material-icons-outlined text-3xl">trending_up</span>
-                    </div>
-                    <p className="text-emerald-600 text-[10px] font-black uppercase tracking-wider mb-2">Pendent d'entrada</p>
-                    <p className="text-3xl font-black text-emerald-700 font-mono">+{stats.totalACobrar.toFixed(2)}€</p>
-                    <p className="text-[10px] text-gray-400 mt-2">Bolo no cobrats encara.</p>
-                </div>
-
-                {/* 3. PENDENT PAGAMENT */}
-                <div className="bg-white border-2 border-red-100 p-6 rounded-3xl shadow-sm flex flex-col justify-center relative group">
-                    <div className="absolute top-4 right-4 text-red-500 opacity-20 group-hover:opacity-100 transition-opacity">
-                        <span className="material-icons-outlined text-3xl">trending_down</span>
-                    </div>
-                    <p className="text-red-600 text-[10px] font-black uppercase tracking-wider mb-2">Pendent de sortida (Musics)</p>
-                    <p className="text-3xl font-black text-red-700 font-mono">-{stats.totalAPagar.toFixed(2)}€</p>
-                    <p className="text-[10px] text-gray-400 mt-2">Deute amb músics (confirmats).</p>
-                </div>
-
-                {/* 4. BALANÇ PROJECTAT */}
-                <div className="bg-gray-900 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-center relative">
-                    <div className="absolute top-4 right-4 text-white/20">
-                        <span className="material-icons-outlined text-3xl">calculate</span>
-                    </div>
-                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-wider mb-2">Pot Final Projectat</p>
-                    <p className="text-3xl font-black text-white font-mono">{stats.totalProjectat.toFixed(2)}€</p>
-                    <p className="text-[10px] text-gray-500 mt-2 italic">Diners que tindrem al final.</p>
                 </div>
             </div>
 

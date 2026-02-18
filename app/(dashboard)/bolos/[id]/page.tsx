@@ -659,17 +659,27 @@ export default function BoloDetailPage() {
             setDescriptionText(initialText);
             setPreviewType(type);
 
-            // Fetch next number
-            const currentYear = new Date().getFullYear().toString().slice(-2);
-            const { data: config } = await supabase.from('app_config').select('value').eq('key', 'invoice_counter').single();
-            let nextNum = 1;
-            if (config?.value) {
-                const val = config.value as { last_number: number; year: number };
-                if (val.year === parseInt(currentYear)) {
-                    nextNum = val.last_number + 1;
+            // Fetch next number from registry
+            const currentYearPrefix = new Date().getFullYear().toString().slice(-2);
+            const { data: lastRecord } = await supabase
+                .from('invoice_records')
+                .select('invoice_number')
+                .eq('type', type)
+                .like('invoice_number', `${currentYearPrefix}/%`)
+                .order('invoice_number', { ascending: false })
+                .limit(1);
+
+            let nextNumStr = '001';
+            if (lastRecord && lastRecord.length > 0) {
+                const parts = lastRecord[0].invoice_number.split('/');
+                if (parts.length === 2) {
+                    const lastNum = parseInt(parts[1]);
+                    if (!isNaN(lastNum)) {
+                        nextNumStr = (lastNum + 1).toString().padStart(3, '0');
+                    }
                 }
             }
-            setManualNumber(`${currentYear}/${nextNum.toString().padStart(3, '0')}`);
+            setManualNumber(`${currentYearPrefix}/${nextNumStr}`);
 
             // Initialize articles
             setArticles([{ descripcio: 'Actuació', preu: bolo.import_total || 0, quantitat: 1 }]);
@@ -762,29 +772,6 @@ export default function BoloDetailPage() {
                 showToastMessage(`${docType === 'factura' ? 'Factura' : 'Pressupost'} registrat correctament!`, 'success');
             }
 
-            // B. Actualitzar comptador (només per Factures, per ara)
-            if (docType === 'factura') {
-                try {
-                    const [yearStr, numStr] = manualNumber.split('/');
-                    const num = parseInt(numStr);
-                    const currentYearTwoDigits = parseInt(today.getFullYear().toString().slice(-2));
-
-                    if (parseInt(yearStr) === currentYearTwoDigits) {
-                        const { data: config } = await supabase.from('app_config').select('value').eq('key', 'invoice_counter').single();
-                        const currentMax = (config?.value as any)?.last_number || 0;
-
-                        if (num >= currentMax) {
-                            const { error: counterError } = await supabase.from('app_config').upsert({
-                                key: 'invoice_counter',
-                                value: { last_number: num, year: currentYearTwoDigits }
-                            });
-                            if (counterError) console.error("Error actualitzant comptador:", counterError);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Error actualitzant comptador (ignorable):", e);
-                }
-            }
 
             showToastMessage("Document generat correctament!", 'success');
 

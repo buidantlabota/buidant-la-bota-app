@@ -33,6 +33,7 @@ export default function BillingPage() {
     // Form state
     const [formData, setFormData] = useState({
         type: 'factura',
+        invoice_number: '',
         client_name: '',
         total_amount: '',
         bolo_id: '',
@@ -120,40 +121,56 @@ export default function BillingPage() {
         }
     };
 
+    const calculateNextNumber = async (type: string) => {
+        const today = new Date();
+        const currentYearPrefix = today.getFullYear().toString().slice(-2);
+
+        // Query last record in DB for this year and type
+        const { data, error } = await supabase
+            .from('invoice_records')
+            .select('invoice_number')
+            .eq('type', type)
+            .like('invoice_number', `${currentYearPrefix}/%`)
+            .order('invoice_number', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            console.error("Error fetching last number:", error);
+            return `${currentYearPrefix}/001`;
+        }
+
+        if (data && data.length > 0) {
+            // Check if it follows the YY/NNN format
+            const parts = data[0].invoice_number.split('/');
+            if (parts.length === 2) {
+                const lastNum = parseInt(parts[1]);
+                if (!isNaN(lastNum)) {
+                    return `${currentYearPrefix}/${(lastNum + 1).toString().padStart(3, '0')}`;
+                }
+            }
+        }
+
+        return `${currentYearPrefix}/001`;
+    };
+
+    useEffect(() => {
+        if (showModal) {
+            calculateNextNumber(formData.type).then(nextNum => {
+                setFormData(prev => ({ ...prev, invoice_number: nextNum }));
+            });
+        }
+    }, [showModal, formData.type]);
+
     const handleRegisterManual = async () => {
-        if (!formData.client_name || !formData.total_amount) {
-            alert('Camps obligatoris incomplerts.');
+        if (!formData.client_name || !formData.total_amount || !formData.invoice_number) {
+            alert('Camps obligatoris incomplerts (Nom, Import i Número).');
             return;
         }
 
         try {
-            // Generate number logic (Simplified for Manual)
-            // For functionality, we'll suggest a manual number or auto-generate if possible.
-            // But to keep it robust as requested, let's reuse the counter logic only for invoices.
-
-            let invoiceNumber = '';
             const today = new Date();
+            const invoiceNumber = formData.invoice_number;
 
-            if (formData.type === 'factura') {
-                const currentYear = today.getFullYear().toString().slice(-2);
-                const { data: config } = await supabase.from('app_config').select('value').eq('key', 'invoice_counter').single();
-
-                let nextNum = 1;
-                const val = config?.value as any;
-                if (val && val.year === parseInt(currentYear)) {
-                    nextNum = val.last_number + 1;
-                }
-
-                invoiceNumber = `${currentYear}/${nextNum.toString().padStart(3, '0')}`;
-
-                // Update counter
-                await supabase.from('app_config').upsert({
-                    key: 'invoice_counter', value: { last_number: nextNum, year: parseInt(currentYear) }
-                });
-            } else {
-                // For quotes, generate a random temporary ID or simple one
-                invoiceNumber = `P-${format(today, 'yyyyMMdd-HHmm')}`;
-            }
 
             const payload = {
                 type: formData.type,
@@ -349,6 +366,17 @@ export default function BillingPage() {
                                     <option value="factura">Factura</option>
                                     <option value="pressupost">Pressupost</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Núm. Document</label>
+                                <input
+                                    className="w-full p-2 border rounded-lg font-mono font-bold text-primary"
+                                    placeholder="Ex: 26/001"
+                                    value={formData.invoice_number}
+                                    onChange={e => setFormData({ ...formData, invoice_number: e.target.value })}
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1 italic">Calculat automàticament segons l'últim registre.</p>
                             </div>
 
                             <div>

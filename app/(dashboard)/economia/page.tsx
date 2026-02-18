@@ -29,7 +29,14 @@ export default function EconomiaPage() {
     const [loading, setLoading] = useState(true);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [showCurrentMonth, setShowCurrentMonth] = useState(false);
-    const [stats, setStats] = useState({ ingressos: 0, despeses_musics: 0, pot: 0 });
+    const [filterTipusIngres, setFilterTipusIngres] = useState<string>('tots');
+    const [stats, setStats] = useState({
+        ingressos: 0,
+        ingressosEfectiu: 0,
+        ingressosFactura: 0,
+        despeses_musics: 0,
+        pot: 0
+    });
 
     const fetchEconomia = async () => {
         setLoading(true);
@@ -48,7 +55,7 @@ export default function EconomiaPage() {
             endDate = `${selectedYear}-12-31`;
         }
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('bolos')
             .select(`
                 bolo_id:id,
@@ -68,26 +75,42 @@ export default function EconomiaPage() {
             `)
             .gte('data_bolo', startDate)
             .lte('data_bolo', endDate)
-            .not('estat', 'in', '("Cancel·lat", "Cancel·lats", "rebutjat", "rebutjats")')
+            .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")')
             .order('data_bolo', { ascending: false });
+
+        if (filterTipusIngres !== 'tots') {
+            query = query.eq('tipus_ingres', filterTipusIngres);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching economia:', error);
         } else {
             setBolos(data || []);
 
-            // Calc stats locally from view data
+            // Calc stats locally from fetched data
             const ing = (data || []).reduce((acc: number, b: any) => acc + (b.import_total || 0), 0);
             const cost = (data || []).reduce((acc: number, b: any) => acc + (b.cost_total_musics || 0), 0);
             const p = (data || []).reduce((acc: number, b: any) => acc + (b.pot_delta_final || 0), 0);
-            setStats({ ingressos: ing, despeses_musics: cost, pot: p });
+
+            const ingEfectiu = (data || []).filter((b: any) => b.tipus_ingres === 'Efectiu').reduce((acc: number, b: any) => acc + (b.import_total || 0), 0);
+            const ingFactura = (data || []).filter((b: any) => b.tipus_ingres === 'Factura').reduce((acc: number, b: any) => acc + (b.import_total || 0), 0);
+
+            setStats({
+                ingressos: ing,
+                ingressosEfectiu: ingEfectiu,
+                ingressosFactura: ingFactura,
+                despeses_musics: cost,
+                pot: p
+            });
         }
         setLoading(false);
     };
 
     useEffect(() => {
         fetchEconomia();
-    }, [selectedYear, showCurrentMonth]);
+    }, [selectedYear, showCurrentMonth, filterTipusIngres]);
 
     const handleUpdate = async (id: number, field: string, value: any) => {
         // Optimistic update for UI responsiveness
@@ -179,16 +202,45 @@ export default function EconomiaPage() {
                             <span className="material-icons-outlined">chevron_right</span>
                         </button>
                     </div>
+
+                    {/* Tipus Ingrés Filter */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tipus:</span>
+                        <select
+                            value={filterTipusIngres}
+                            onChange={(e) => setFilterTipusIngres(e.target.value)}
+                            className="bg-white border border-border rounded-xl px-3 py-2 text-sm font-bold shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                        >
+                            <option value="tots">Tots els ingressos</option>
+                            <option value="Factura">Factures</option>
+                            <option value="Efectiu">Efectiu</option>
+                            <option value="Altres">Altres</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm">
-                    <p className="text-sm text-text-secondary font-medium mb-1">Total Ingressos</p>
-                    <p className="text-3xl font-bold text-green-600 font-mono">
-                        {stats.ingressos.toFixed(2)}€
-                    </p>
+                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm flex flex-col justify-between">
+                    <div>
+                        <p className="text-sm text-text-secondary font-medium mb-1">Total Ingressos</p>
+                        <p className="text-3xl font-bold text-green-600 font-mono">
+                            {stats.ingressos.toFixed(2)}€
+                        </p>
+                    </div>
+                    {filterTipusIngres === 'tots' && (
+                        <div className="mt-4 pt-4 border-t border-border space-y-1">
+                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                <span>Factura</span>
+                                <span className="text-gray-900">{stats.ingressosFactura.toFixed(2)}€</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                <span>Efectiu</span>
+                                <span className="text-gray-900">{stats.ingressosEfectiu.toFixed(2)}€</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm">
                     <p className="text-sm text-text-secondary font-medium mb-1">Cost Músics</p>
