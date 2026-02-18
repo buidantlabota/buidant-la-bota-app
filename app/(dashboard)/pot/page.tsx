@@ -72,32 +72,43 @@ export default function GestioPotPage() {
 
         // CALCULATIONS
 
-        // A. Pot Real (Money in hand)
-        // Manual balance
-        const totalManualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+        const potBase = 510;
+        const cutoffDate = '2025-01-01';
 
-        // Closed bolos net profit
+        // A. Pot Real (Money in hand)
+        // Manual balance (since cutoff)
+        const totalManualBalance = (allMovements || [])
+            .filter((m: any) => m.data >= cutoffDate || !m.data)
+            .reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+
+        // Closed bolos net profit (since cutoff)
         const closedBolosPot = (allBolos || [])
-            .filter((b: any) => b.estat === 'Tancades')
+            .filter((b: any) => (b.estat === 'Tancades' || b.estat === 'Tancat') && b.data_bolo >= cutoffDate)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        // Pending advances that ALREADY left the box
+        // Pending advances that ALREADY left the box (since cutoff)
         const pendingAdvances = (allAdvances || [])
-            .filter((p: any) => (p.bolos as any)?.estat !== 'Tancades')
+            .filter((p: any) => (p.bolos as any)?.estat !== 'Tancades' && (p.bolos as any)?.estat !== 'Tancat' && p.data_pagament >= cutoffDate)
             .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
-        const potReal = totalManualBalance + closedBolosPot - pendingAdvances;
+        const potReal = potBase + totalManualBalance + closedBolosPot - pendingAdvances;
 
         // B. Pending entries (A cobrar)
-        // Sum of import_total of bolos not collected
+        // Sum of import_total of bolos not collected (since cutoff)
         const aCobrar = (allBolos || [])
-            .filter((b: any) => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.cobrat)
-            .reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
+            .filter((b: any) => !['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat) && !b.cobrat && b.data_bolo >= cutoffDate)
+            .reduce((sum: number, b: any) => {
+                const income = b.import_total || 0;
+                const advancesReceived = (allAdvances || [])
+                    .filter((p: any) => p.bolo_id === b.id)
+                    .reduce((acc: number, p: any) => acc + (p.import || 0), 0);
+                return sum + (income - advancesReceived);
+            }, 0);
 
         // C. Pending departures (A pagar)
-        // Sum of remaining cost of musicians for bolos not fully paid
+        // Sum of remaining cost of musicians for bolos not fully paid (since cutoff)
         const aPagar = (allBolos || [])
-            .filter((b: any) => b.estat !== 'Tancades' && b.estat !== 'Cancel·lats' && !b.pagaments_musics_fets)
+            .filter((b: any) => !['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat) && !b.pagaments_musics_fets && b.data_bolo >= cutoffDate)
             .reduce((sum: number, b: any) => {
                 const totalCost = b.cost_total_musics || 0;
                 // Subtract advances already paid for this bolo
@@ -109,14 +120,14 @@ export default function GestioPotPage() {
 
         // D. Annual Metrics
         const yearBoloPot = (allBolos || [])
-            .filter((b: any) => b.data_bolo >= start && b.data_bolo <= end)
+            .filter((b: any) => b.data_bolo >= start && b.data_bolo <= end && !['Cancel·lats', 'Cancel·lat'].includes(b.estat))
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const yearIng = (yearData || []).filter((m: any) => m.tipus === 'ingrés').reduce((sum: number, m: any) => sum + m.import, 0);
         const yearDesp = (yearData || []).filter((m: any) => m.tipus === 'despesa').reduce((sum: number, m: any) => sum + m.import, 0);
 
         setMovements(yearData || []);
-        setActiveAdvances((allAdvances || []).filter((p: any) => (p.bolos as any)?.estat !== 'Tancades'));
+        setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancades', 'Tancat'].includes((p.bolos as any)?.estat)));
 
         setStats({
             totalPotReal: potReal,

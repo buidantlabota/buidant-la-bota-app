@@ -93,38 +93,50 @@ export default function Dashboard() {
           supabase.from('economy_settings').select('*').single()
         ]);
 
-        // A. Stats (Annual)
-        if (viewData) {
-          const stats = viewData as unknown as ViewBolosResumAny;
-          setNumBolos(stats.total_bolos || 0);
-          setTotalIngres(stats.total_ingressos || 0);
+        // A. Stats (Annual - Only confirmed)
+        if (allBolos) {
+          const yearStart = `${selectedYear}-01-01`;
+          const yearEnd = `${selectedYear}-12-31`;
+          const confirmedStates = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat'];
+
+          const filteredForStats = allBolos.filter((b: any) =>
+            b.data_bolo >= yearStart &&
+            b.data_bolo <= yearEnd &&
+            confirmedStates.includes(b.estat)
+          );
+
+          setNumBolos(filteredForStats.length);
+          const totalIng = filteredForStats.reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
+          setTotalIngres(totalIng);
         } else {
           setNumBolos(0);
           setTotalIngres(0);
         }
 
-        const totalManualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+        const potBase = 510;
+        const cutoffDate = '2025-01-01';
+
+        const totalManualBalance = (allMovements || [])
+          .filter((m: any) => m.data >= cutoffDate || !m.data) // Assuming older movements don't have date or are pre-2025
+          .reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const closedBolosPot = (allBolos || [])
-          .filter((b: any) => b.estat === 'Tancades' || b.estat === 'Tancat')
+          .filter((b: any) => (b.estat === 'Tancades' || b.estat === 'Tancat') && b.data_bolo >= cutoffDate)
           .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const currentAdvances = (allAdvances || [])
-          .filter((a: any) => a.bolos?.pot_delta_final === null)
+          .filter((a: any) => a.bolos?.pot_delta_final === null && a.data_pagament >= cutoffDate)
           .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-        const potReal = totalManualBalance + closedBolosPot + currentAdvances;
+        const potReal = potBase + totalManualBalance + closedBolosPot + currentAdvances;
 
         const aCobrar = (allBolos || [])
           .filter((b: any) => {
             const skip = ['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat);
-            return !skip && !b.cobrat;
+            return !skip && !b.cobrat && b.data_bolo >= cutoffDate;
           })
           .reduce((sum: number, b: any) => {
             const income = b.import_total || 0;
-            // Subtraction of advances already received is handled via potReal + aCobrar if we assume advances are part of aCobrar, 
-            // but usually aCobrar means "what remains to be collected".
-            // Let's keep it simple and consistent with Previsio: aCobrar is total remaining of open bolos.
             const advancesForThisBolo = (allAdvances || [])
               .filter((p: any) => p.bolo_id === b.id)
               .reduce((acc: number, p: any) => acc + (p.import || 0), 0);
@@ -134,7 +146,7 @@ export default function Dashboard() {
         const aPagar = (allBolos || [])
           .filter((b: any) => {
             const skip = ['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat);
-            return !skip && !b.pagaments_musics_fets;
+            return !skip && !b.pagaments_musics_fets && b.data_bolo >= cutoffDate;
           })
           .reduce((sum: number, b: any) => {
             const totalCost = b.cost_total_musics || 0;
@@ -592,67 +604,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Pending Requests Section */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
-            <span className="material-icons-outlined text-primary">pending_actions</span>
-            Sol·licituds pendents
-          </h3>
-          <Link href="/bolos" className="text-sm font-bold text-primary hover:underline">Veure tot</Link>
-        </div>
-
-        <div className="grid gap-4">
-          {pendingRequests.length > 0 ? (
-            pendingRequests.map(bolo => (
-              <div key={bolo.id} className="bg-card-bg p-4 rounded-xl border border-border hover:shadow-md transition-shadow flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="bg-yellow-100 p-3 rounded-full text-yellow-700">
-                    <span className="material-icons-outlined">notifications_active</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg text-text-primary">
-                      {bolo.titol || bolo.poblacio}
-                      <span className="ml-2 py-0.5 px-2 bg-gray-100 rounded text-[10px] text-gray-500 font-black tracking-tight uppercase">
-                        {bolo.poblacio}
-                      </span>
-                    </p>
-                    <p className="text-sm text-text-secondary flex items-center gap-2">
-                      {bolo.data ? formatDate(bolo.data) : 'Sense data'}
-                      {bolo.hora_inici && (
-                        <span className="flex items-center text-xs bg-gray-100 rounded px-1 text-gray-600">
-                          <span className="material-icons-outlined text-[10px] mr-1">schedule</span>
-                          {bolo.hora_inici.substring(0, 5)}h
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right hidden sm:block">
-                    {bolo.data && (
-                      <p className="text-xs font-bold text-primary uppercase tracking-wider">
-                        Atenció necessària
-                      </p>
-                    )}
-                  </div>
-                  <Link href={`/bolos/${bolo.id}`} className="p-2 text-gray-400 hover:text-primary transition-colors">
-                    <span className="material-icons-outlined">arrow_forward_ios</span>
-                  </Link>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12 bg-card-bg rounded-xl border border-dashed border-gray-300">
-              <div className="mb-3">
-                <span className="material-icons-outlined text-4xl text-gray-300">task_alt</span>
-              </div>
-              <p className="text-gray-500 font-medium">No hi ha sol·licituds de bolos pendents.</p>
-              <p className="text-gray-400 text-sm mt-1">Tot està al dia!</p>
-            </div>
-          )}
-        </div>
-      </section>
     </div>
   );
 }

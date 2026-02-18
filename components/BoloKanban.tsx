@@ -65,7 +65,9 @@ export function BoloKanban() {
         : bolos.filter(b => new Date(b.data_bolo).getFullYear() === selectedYear);
 
     const getBoloColumn = (bolo: Bolo): string => {
-        if (bolo.estat === 'Cancel·lat') return '';
+        const skipStates = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'REBUTJADA'];
+        if (skipStates.includes(bolo.estat as string)) return '';
+
         const col = COLUMNS.find(c => c.title === (bolo.estat as string));
         if (col) return col.id;
 
@@ -74,6 +76,7 @@ export function BoloKanban() {
         if (bolo.estat as string === 'Confirmat') return 'confirmada';
         if (bolo.estat as string === 'Tancat') return 'tancada';
 
+        // Check if status exists in our COLUMNS titles
         return 'nova';
     };
 
@@ -187,22 +190,22 @@ export function BoloKanban() {
                 </div>
             </div>
 
-            <div className="flex gap-6 overflow-x-auto pb-8 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin scrollbar-thumb-gray-200">
                 {COLUMNS.map(col => (
-                    <div key={col.id} className="flex-shrink-0 w-72 flex flex-col h-full min-h-[600px] group/col">
-                        <div className={`${col.color} ${col.textColor} p-4 rounded-t-3xl font-black uppercase text-[10px] tracking-widest shadow-md flex justify-between items-center transition-all duration-300 group-hover/col:shadow-lg`}>
+                    <div key={col.id} className="flex-shrink-0 w-64 flex flex-col h-[600px] group/col">
+                        <div className={`${col.color} ${col.textColor} p-3 rounded-t-2xl font-black uppercase text-[9px] tracking-widest shadow-sm flex justify-between items-center shrink-0`}>
                             <span>{col.title}</span>
-                            <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px]">{filteredBolos.filter(b => getBoloColumn(b) === col.id).length}</span>
+                            <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{filteredBolos.filter(b => getBoloColumn(b) === col.id).length}</span>
                         </div>
-                        <div className="flex-1 bg-gray-50/30 p-4 rounded-b-3xl border-x border-b border-gray-100 space-y-4 shadow-inner min-h-[500px]">
+                        <div className="flex-1 bg-gray-50/50 p-3 rounded-b-2xl border-x border-b border-gray-100 space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300">
                             {filteredBolos
                                 .filter(b => getBoloColumn(b) === col.id)
                                 .map(renderBoloCard)}
 
                             {filteredBolos.filter(b => getBoloColumn(b) === col.id).length === 0 && (
-                                <div className="text-center py-20 opacity-10 flex flex-col items-center gap-2">
-                                    <span className="material-icons-outlined text-6xl">inventory_2</span>
-                                    <span className="text-xs font-bold uppercase tracking-tighter">Buit</span>
+                                <div className="text-center py-10 opacity-10 flex flex-col items-center gap-2">
+                                    <span className="material-icons-outlined text-4xl">inventory_2</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-tighter">Buit</span>
                                 </div>
                             )}
                         </div>
