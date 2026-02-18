@@ -124,6 +124,7 @@ export default function BolosPage() {
     const [filterAny, setFilterAny] = useState('tots');
     const [filterTipusActuacio, setFilterTipusActuacio] = useState('tots');
     const [availableYears, setAvailableYears] = useState<string[]>([]);
+    const [sortBy, setSortBy] = useState<string>('data-desc');
 
     useEffect(() => {
         fetchBolos();
@@ -178,6 +179,24 @@ export default function BolosPage() {
         }
 
         return true;
+    }).sort((a, b) => {
+        switch (sortBy) {
+            case 'poble-asc':
+                return a.nom_poble.localeCompare(b.nom_poble);
+            case 'poble-desc':
+                return b.nom_poble.localeCompare(a.nom_poble);
+            case 'preu-desc':
+                return (b.import_total || 0) - (a.import_total || 0);
+            case 'preu-asc':
+                return (a.import_total || 0) - (b.import_total || 0);
+            case 'tipus-asc':
+                return (a.tipus_actuacio || '').localeCompare(b.tipus_actuacio || '');
+            case 'data-asc':
+                return new Date(a.data_bolo).getTime() - new Date(b.data_bolo).getTime();
+            case 'data-desc':
+            default:
+                return new Date(b.data_bolo).getTime() - new Date(a.data_bolo).getTime();
+        }
     });
 
     const handleDelete = async (e: React.MouseEvent, id: string | number) => {
@@ -246,6 +265,22 @@ export default function BolosPage() {
                                 {availableYears.map(year => (
                                     <option key={year} value={year}>{year}</option>
                                 ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Ordenar per</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                            >
+                                <option value="data-desc">Data (més recent)</option>
+                                <option value="data-asc">Data (antic primer)</option>
+                                <option value="poble-asc">Poble (A-Z)</option>
+                                <option value="poble-desc">Poble (Z-A)</option>
+                                <option value="preu-desc">Preu (més car)</option>
+                                <option value="preu-asc">Preu (més barat)</option>
+                                <option value="tipus-asc">Tipus actuació</option>
                             </select>
                         </div>
 

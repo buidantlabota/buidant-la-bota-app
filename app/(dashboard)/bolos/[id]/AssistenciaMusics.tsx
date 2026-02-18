@@ -66,6 +66,7 @@ export default function AssistenciaMusics({
     const [addType, setAddType] = useState<'titular' | 'substitut'>('titular');
     const [selectedMusicsToAdd, setSelectedMusicsToAdd] = useState<string[]>([]);
     const [filterInstrument, setFilterInstrument] = useState<string>('Tots');
+    const [searchMusicTerm, setSearchMusicTerm] = useState<string>('');
 
     // -- Derived Data --
     const assignedIds = new Set(attendance.map(a => a.music_id));
@@ -91,6 +92,12 @@ export default function AssistenciaMusics({
         if (filterInstrument !== 'Tots') {
             filtered = filtered.filter(m =>
                 normalizeInstrument(m.instruments).includes(normalizeInstrument(filterInstrument))
+            );
+        }
+        if (searchMusicTerm.trim() !== '') {
+            const lowerTerm = searchMusicTerm.toLowerCase();
+            filtered = filtered.filter(m =>
+                m.nom.toLowerCase().includes(lowerTerm)
             );
         }
         return filtered.sort((a, b) => {
@@ -171,6 +178,7 @@ export default function AssistenciaMusics({
                                         setAddType('titular');
                                         setShowAddDialog(true);
                                         setFilterInstrument('Tots');
+                                        setSearchMusicTerm('');
                                         setSelectedMusicsToAdd([]);
                                     }}
                                     className="bg-primary/10 hover:bg-primary/20 text-primary p-1 rounded-full transition-colors"
@@ -220,6 +228,7 @@ export default function AssistenciaMusics({
                                         setAddType('substitut');
                                         setShowAddDialog(true);
                                         setFilterInstrument('Tots');
+                                        setSearchMusicTerm('');
                                         setSelectedMusicsToAdd([]);
                                     }}
                                     className="bg-primary/10 hover:bg-primary/20 text-primary p-1 rounded-full transition-colors"
@@ -275,11 +284,22 @@ export default function AssistenciaMusics({
                             </button>
                         </div>
 
-                        <div className="p-4 border-b border-gray-200 flex gap-4 bg-white">
+                        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row gap-4 bg-white">
+                            <div className="flex-1 relative">
+                                <span className="material-icons-outlined absolute left-3 top-2.5 text-gray-400 text-sm">search</span>
+                                <input
+                                    type="text"
+                                    placeholder="Cerca per nom..."
+                                    className="pl-9 w-full p-2 rounded border border-gray-300 text-sm focus:ring-1 focus:ring-primary outline-none"
+                                    value={searchMusicTerm}
+                                    onChange={(e) => setSearchMusicTerm(e.target.value)}
+                                />
+                            </div>
+
                             <select
                                 value={filterInstrument}
                                 onChange={(e) => setFilterInstrument(e.target.value)}
-                                className="flex-1 p-2 rounded border border-gray-300 bg-white text-gray-900 text-sm"
+                                className="sm:w-48 p-2 rounded border border-gray-300 bg-white text-gray-900 text-sm"
                             >
                                 <option value="Tots">Tots els instruments</option>
                                 {allInstruments.map(inst => (
@@ -289,7 +309,7 @@ export default function AssistenciaMusics({
 
                             <button
                                 onClick={handleSelectAll}
-                                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded border border-gray-300 transition"
+                                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded border border-gray-300 transition shrink-0"
                             >
                                 {selectedMusicsToAdd.length === displayedMusicsToAdd.length && displayedMusicsToAdd.length > 0
                                     ? 'Deseleccionar tots'

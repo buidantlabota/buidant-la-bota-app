@@ -1213,7 +1213,10 @@ export default function BoloDetailPage() {
         <div className="p-2 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 relative">
             {/* Toast */}
             {toast.show && (
-                <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white z-[110] ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white z-[110] font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300 ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                    <span className="material-icons-outlined text-base">
+                        {toast.type === 'success' ? 'check_circle' : 'error'}
+                    </span>
                     {toast.message}
                 </div>
             )}

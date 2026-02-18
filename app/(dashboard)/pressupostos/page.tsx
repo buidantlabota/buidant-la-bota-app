@@ -10,6 +10,11 @@ export default function PressupostosPage() {
     const [bolos, setBolos] = useState<Bolo[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+    const [bolosWithQuotes, setBolosWithQuotes] = useState<Set<number>>(new Set());
+    const [bolosWithInvoices, setBolosWithInvoices] = useState<Set<number>>(new Set());
+    const [showAllBolos, setShowAllBolos] = useState(false);
+    const [yearFilter, setYearFilter] = useState<string>('all');
+    const [availableYears, setAvailableYears] = useState<string[]>([]);
 
     // Modals & Selection
     const [modalOpen, setModalOpen] = useState<'pressupost' | 'factura' | null>(null);
@@ -31,12 +36,27 @@ export default function PressupostosPage() {
 
     const fetchInitialData = async () => {
         setLoading(true);
-        const [bolosRes, clientsRes] = await Promise.all([
+        const [bolosRes, clientsRes, quotesRes, invoicesRes] = await Promise.all([
             supabase.from('bolos').select('*').order('data_bolo', { ascending: false }),
-            supabase.from('clients').select('*').order('nom')
+            supabase.from('clients').select('*').order('nom'),
+            supabase.from('quote_records').select('bolo_id'),
+            supabase.from('invoice_records').select('bolo_id')
         ]);
-        setBolos(bolosRes.data || []);
+
+        const b = bolosRes.data || [];
+        setBolos(b);
         setClients(clientsRes.data || []);
+
+        // Track which bolos already have documents
+        const qIds = new Set<number>((quotesRes.data || []).filter((q: any) => q.bolo_id).map((q: any) => q.bolo_id));
+        const iIds = new Set<number>((invoicesRes.data || []).filter((i: any) => i.bolo_id).map((i: any) => i.bolo_id));
+        setBolosWithQuotes(qIds);
+        setBolosWithInvoices(iIds);
+
+        // Extract years for filtering
+        const years = Array.from(new Set(b.map((x: any) => new Date(x.data_bolo).getFullYear().toString()))).sort().reverse() as string[];
+        setAvailableYears(years);
+
         setLoading(false);
     };
 
@@ -246,16 +266,54 @@ export default function PressupostosPage() {
                                 <h4 className="font-black text-xs uppercase tracking-widest text-primary">1. Selecció del Bolo i Dades</h4>
                                 <div className="space-y-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
                                     <div>
-                                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1">Bolo de Referència</label>
+                                        <div className="flex justify-between items-end mb-1">
+                                            <label className="block text-[10px] font-black uppercase text-gray-400">Bolo de Referència</label>
+                                            <div className="flex items-center gap-4">
+                                                {showAllBolos && (
+                                                    <select
+                                                        value={yearFilter}
+                                                        onChange={(e) => setYearFilter(e.target.value)}
+                                                        className="text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-primary cursor-pointer"
+                                                    >
+                                                        <option value="all">Tots els anys</option>
+                                                        {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                                                    </select>
+                                                )}
+                                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={showAllBolos}
+                                                        onChange={(e) => setShowAllBolos(e.target.checked)}
+                                                        className="w-3 h-3 rounded border-gray-300 text-primary focus:ring-primary"
+                                                    />
+                                                    <span className="text-[10px] font-bold uppercase text-gray-500">Repetir / Veure tots</span>
+                                                </label>
+                                            </div>
+                                        </div>
                                         <select
                                             className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary font-bold text-sm"
                                             value={selectedBoloId || ''}
                                             onChange={(e) => handleBoloChange(Number(e.target.value))}
                                         >
                                             <option value="">-- Tria un bolo --</option>
-                                            {bolos.map(b => (
-                                                <option key={b.id} value={b.id}>{b.nom_poble} ({new Date(b.data_bolo).toLocaleDateString()})</option>
-                                            ))}
+                                            {bolos
+                                                .filter(b => {
+                                                    // Filter by year if in showAllBolos and yearFilter is not 'all'
+                                                    if (showAllBolos && yearFilter !== 'all') {
+                                                        const bYear = new Date(b.data_bolo).getFullYear().toString();
+                                                        if (bYear !== yearFilter) return false;
+                                                    }
+                                                    // If not showing all, filter those that already have document of this type
+                                                    if (!showAllBolos) {
+                                                        if (modalOpen === 'pressupost' && bolosWithQuotes.has(b.id)) return false;
+                                                        if (modalOpen === 'factura' && bolosWithInvoices.has(b.id)) return false;
+                                                    }
+                                                    return true;
+                                                })
+                                                .map(b => (
+                                                    <option key={b.id} value={b.id}>{b.nom_poble} ({new Date(b.data_bolo).toLocaleDateString()})</option>
+                                                ))
+                                            }
                                         </select>
                                     </div>
                                     {selectedBolo && (

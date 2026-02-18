@@ -190,9 +190,9 @@ export function BoloKanban() {
                 </div>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin scrollbar-thumb-gray-200">
+            <div className="flex lg:grid lg:grid-cols-6 gap-4 overflow-x-auto lg:overflow-x-visible pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin scrollbar-thumb-gray-200">
                 {COLUMNS.map(col => (
-                    <div key={col.id} className="flex-shrink-0 w-64 flex flex-col h-[600px] group/col">
+                    <div key={col.id} className="flex-shrink-0 w-64 lg:w-auto flex flex-col h-[600px] group/col">
                         <div className={`${col.color} ${col.textColor} p-3 rounded-t-2xl font-black uppercase text-[9px] tracking-widest shadow-sm flex justify-between items-center shrink-0`}>
                             <span>{col.title}</span>
                             <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">{filteredBolos.filter(b => getBoloColumn(b) === col.id).length}</span>
