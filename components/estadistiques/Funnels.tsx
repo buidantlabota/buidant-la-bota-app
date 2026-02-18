@@ -28,24 +28,33 @@ export const FunnelSollicituds = ({ data }: { data: FunnelData }) => {
                     const width = data.total > 0 ? (step.value / data.total) * 100 : 0;
 
                     return (
-                        <div key={idx} className="relative">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                whileInView={{ width: `${Math.max(width, 15)}%` }}
-                                transition={{ duration: 0.8, delay: idx * 0.1 }}
-                                className={`h-20 ${step.color} rounded-2xl flex items-center px-8 relative overflow-hidden shadow-sm`}
-                            >
-                                <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
-                                <div className={`flex items-center gap-4 ${step.textColor} relative z-10`}>
+                        <div key={idx} className="relative group flex items-center h-20">
+                            <div className="absolute inset-0 z-0 h-full">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    whileInView={{ width: `${Math.max(width, 1)}%` }}
+                                    transition={{ duration: 0.8, delay: idx * 0.1 }}
+                                    className={`h-full ${step.color} rounded-2xl shadow-sm`}
+                                />
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-6 px-8 w-full group">
+                                <div className={`p-2.5 rounded-xl bg-white shadow-sm transition-transform duration-500 group-hover:scale-110 ${step.textColor.includes('white') ? 'text-gray-900' : step.textColor}`}>
                                     <step.icon size={20} className="shrink-0" />
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-70 leading-none mb-1">{step.label}</p>
-                                        <p className={`text-4xl font-black ${step.textColor} leading-none truncate`}>{step.value}</p>
-                                    </div>
                                 </div>
-                            </motion.div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-gray-900 transition-colors leading-none mb-1">{step.label}</p>
+                                    <p className="text-3xl font-black text-gray-900 leading-none">{step.value}</p>
+                                </div>
+                                {width > 0 && (
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{Math.round(width)}%</p>
+                                    </div>
+                                )}
+                            </div>
+
                             {idx < steps.length - 1 && (
-                                <div className="ml-10 h-4 w-px bg-gray-200 border-l border-dashed border-gray-300" />
+                                <div className="absolute left-14 -bottom-4 h-4 w-px bg-gray-200 border-l border-dashed border-gray-300 z-0" />
                             )}
                         </div>
                     );

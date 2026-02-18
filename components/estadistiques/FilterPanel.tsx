@@ -40,13 +40,14 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
         years: [] as string[],
         towns: [] as string[],
         types: [] as string[],
-        status: 'tots',
+        status: [] as string[],
         paymentType: 'tots',
         minPrice: '',
         maxPrice: ''
     });
 
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+    const [townSearch, setTownSearch] = useState('');
 
     // Notify parent on change
     useEffect(() => {
@@ -56,7 +57,7 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
         return () => clearTimeout(timeout);
     }, [filters, onFilterChange]);
 
-    const toggleMultiSelect = (key: 'years' | 'towns' | 'types', value: string) => {
+    const toggleMultiSelect = (key: 'years' | 'towns' | 'types' | 'status', value: string) => {
         setFilters(prev => ({
             ...prev,
             [key]: prev[key].includes(value)
@@ -70,12 +71,13 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
             years: [],
             towns: [],
             types: [],
-            status: 'tots',
+            status: [],
             paymentType: 'tots',
             minPrice: '',
             maxPrice: ''
         });
         setActiveDropdown(null);
+        setTownSearch('');
     };
 
     const Dropdown = ({ id, label, icon: Icon, children, count }: { id: string, label: string, icon: any, children: React.ReactNode, count?: number }) => (
@@ -83,10 +85,10 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
             <button
                 onClick={() => setActiveDropdown(activeDropdown === id ? null : id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border ${activeDropdown === id
-                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                        : (count && count > 0)
-                            ? 'bg-primary/5 text-primary border-primary/20'
-                            : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200 shadow-sm'
+                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                    : (count && count > 0)
+                        ? 'bg-primary/5 text-primary border-primary/20'
+                        : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200 shadow-sm'
                     }`}
             >
                 <Icon size={14} className={activeDropdown === id ? 'text-white' : 'text-primary'} />
@@ -130,8 +132,8 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
         <button
             onClick={onClick}
             className={`flex items-center justify-between px-3 py-2 rounded-xl text-left text-[11px] font-bold transition-all ${active
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-gray-600 hover:bg-gray-50'
+                ? 'bg-primary/10 text-primary'
+                : 'text-gray-600 hover:bg-gray-50'
                 }`}
         >
             <span>{label}</span>
@@ -164,13 +166,13 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
                         ))}
                     </Dropdown>
 
-                    <Dropdown id="status" label="Estat" icon={Activity} count={filters.status !== 'tots' ? 1 : 0}>
-                        {STATUS_OPTIONS.map(s => (
+                    <Dropdown id="status" label="Estat" icon={Activity} count={filters.status.length}>
+                        {STATUS_OPTIONS.filter(s => s.value !== 'tots').map(s => (
                             <Option
                                 key={s.value}
                                 label={s.label}
-                                active={filters.status === s.value}
-                                onClick={() => setFilters(prev => ({ ...prev, status: s.value }))}
+                                active={filters.status.includes(s.value)}
+                                onClick={() => toggleMultiSelect('status', s.value)}
                             />
                         ))}
                     </Dropdown>
@@ -198,14 +200,31 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
                     </Dropdown>
 
                     <Dropdown id="towns" label="Pobles" icon={MapPin} count={filters.towns.length}>
-                        {availableData.towns.map(town => (
-                            <Option
-                                key={town}
-                                label={town}
-                                active={filters.towns.includes(town)}
-                                onClick={() => toggleMultiSelect('towns', town)}
-                            />
-                        ))}
+                        <div className="px-2 pb-2 sticky top-0 bg-white z-20">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                <input
+                                    type="text"
+                                    placeholder="Cerca poble..."
+                                    value={townSearch}
+                                    onChange={e => setTownSearch(e.target.value)}
+                                    className="w-full bg-gray-50 border-none rounded-xl text-[11px] font-bold pl-9 pr-3 py-2.5 focus:ring-1 focus:ring-primary/30"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            {availableData.towns
+                                .filter(t => t.toLowerCase().includes(townSearch.toLowerCase()))
+                                .map(town => (
+                                    <Option
+                                        key={town}
+                                        label={town}
+                                        active={filters.towns.includes(town)}
+                                        onClick={() => toggleMultiSelect('towns', town)}
+                                    />
+                                ))
+                            }
+                        </div>
                     </Dropdown>
 
                     <Dropdown id="price" label="Preu" icon={Euro} count={!!filters.minPrice || !!filters.maxPrice ? 1 : 0}>
