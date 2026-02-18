@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
-import type { ViewBolosResumAny } from '@/types';
 import { PrivacyMask } from '@/components/PrivacyMask';
 import { usePrivacy } from '@/context/PrivacyContext';
 
@@ -20,7 +19,6 @@ export default function Dashboard() {
   // Stats state
   const [loading, setLoading] = useState(true);
   const [numBolos, setNumBolos] = useState(0);
-  const [totalIngres, setTotalIngres] = useState(0);
 
   // Financial detailed state
   const [finances, setFinances] = useState({
@@ -30,9 +28,6 @@ export default function Dashboard() {
     projectat: 0
   });
 
-  // Rankings state
-  const [topPopulations, setTopPopulations] = useState<{ nom: string, count: number }[]>([]);
-  const [topAssistants, setTopAssistants] = useState<{ nom: string, count: number }[]>([]);
 
   // Bolo cards state
   const [properBolo, setProperBolo] = useState<{ id: number, titol: string | null, poblacio: string, lloc?: string | null, data: string, tipus?: string, hora?: string | null } | null>(null);
@@ -104,13 +99,9 @@ export default function Dashboard() {
             b.data_bolo <= yearEnd &&
             confirmedStates.includes(b.estat)
           );
-
           setNumBolos(filteredForStats.length);
-          const totalIng = filteredForStats.reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
-          setTotalIngres(totalIng);
         } else {
           setNumBolos(0);
-          setTotalIngres(0);
         }
 
         const potBase = 510;
@@ -227,35 +218,6 @@ export default function Dashboard() {
         }
         setBoloCounts(counts);
 
-        // F. Rankings
-        const yearStart = `${selectedYear}-01-01`;
-        const yearEnd = `${selectedYear}-12-31`;
-
-        // 1. Top Populations
-        const popMap: Record<string, number> = {};
-        (allBolos || []).forEach((b: any) => {
-          if (b.data_bolo >= yearStart && b.data_bolo <= yearEnd) {
-            popMap[b.nom_poble] = (popMap[b.nom_poble] || 0) + 1;
-          }
-        });
-        const popRanking = Object.entries(popMap)
-          .map(([nom, count]) => ({ nom, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5);
-        setTopPopulations(popRanking);
-
-        // 2. Top Assistants
-        const assistantMap: Record<string, number> = {};
-        (attendanceData || []).forEach((row: any) => {
-          const nom = row.musics?.nom;
-          if (nom) {
-            assistantMap[nom] = (assistantMap[nom] || 0) + 1;
-          }
-        });
-        const assistantRanking = Object.entries(assistantMap)
-          .map(([nom, count]) => ({ nom, count }))
-          .sort((a, b) => b.count - a.count);
-        setTopAssistants(assistantRanking);
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);

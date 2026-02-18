@@ -66,21 +66,21 @@ export default function EstadistiquesPage() {
             ]);
 
             if (allBolos) {
-                const yearBolos = allBolos.filter(b => b.data_bolo >= yearStart && b.data_bolo <= yearEnd);
+                const yearBolos = allBolos.filter((b: any) => b.data_bolo >= yearStart && b.data_bolo <= yearEnd);
                 const confirmedStates = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat'];
-                const confirmedYearBolos = yearBolos.filter(b => confirmedStates.includes(b.estat));
+                const confirmedYearBolos = yearBolos.filter((b: any) => confirmedStates.includes(b.estat));
 
                 // 1. General Stats
-                const totalRevenue = confirmedYearBolos.reduce((sum, b) => sum + (b.import_total || 0), 0);
+                const totalRevenue = confirmedYearBolos.reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
 
                 // 2. Musician breakdown
-                const titularsCount = (allMusics || []).filter(m => m.tipus === 'titular').length;
-                const substitutsCount = (allMusics || []).filter(m => m.tipus === 'substitut').length;
+                const titularsCount = (allMusics || []).filter((m: any) => m.tipus === 'titular').length;
+                const substitutsCount = (allMusics || []).filter((m: any) => m.tipus === 'substitut').length;
 
                 // 3. Attendance breakdown
                 let attTitulars = 0;
                 let attSubstituts = 0;
-                (attendanceData || []).forEach(row => {
+                (attendanceData || []).forEach((row: any) => {
                     const date = (row.bolos as any)?.data_bolo;
                     if (date && date >= yearStart && date <= yearEnd && row.estat === 'confirmat') {
                         if (row.tipus === 'titular') attTitulars++;
@@ -103,7 +103,7 @@ export default function EstadistiquesPage() {
                 const popMap: Record<string, { count: number, revenue: number }> = {};
                 const clientMap: Record<string, { count: number, revenue: number }> = {};
 
-                yearBolos.forEach(b => {
+                yearBolos.forEach((b: any) => {
                     // Populations
                     if (!popMap[b.nom_poble]) popMap[b.nom_poble] = { count: 0, revenue: 0 };
                     popMap[b.nom_poble].count++;
@@ -137,11 +137,11 @@ export default function EstadistiquesPage() {
                 // 5. Monthly Evolution
                 const months = ['Gen', 'Feb', 'Mar', 'Abr', 'Maig', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Des'];
                 const monthlyData = months.map((m, idx) => {
-                    const mBolos = confirmedYearBolos.filter(b => new Date(b.data_bolo).getMonth() === idx);
+                    const mBolos = confirmedYearBolos.filter((b: any) => new Date(b.data_bolo).getMonth() === idx);
                     return {
                         month: m,
                         count: mBolos.length,
-                        revenue: mBolos.reduce((sum, b) => sum + (b.import_total || 0), 0)
+                        revenue: mBolos.reduce((sum: number, b: any) => sum + (b.import_total || 0), 0)
                     };
                 });
                 setMonthlyDistribution(monthlyData);
@@ -149,7 +149,7 @@ export default function EstadistiquesPage() {
 
             // 6. Detailed Attendance Rankings
             if (attendanceData && allMusics) {
-                const musicInfoMap = Object.fromEntries(allMusics.map(m => [m.id, { nom: m.nom, inst: m.instruments, tipus: m.tipus }]));
+                const musicInfoMap = Object.fromEntries(allMusics.map((m: any) => [m.id, { nom: m.nom, inst: m.instruments, tipus: m.tipus }]));
                 const assistantMap: Record<string, number> = {};
 
                 attendanceData.forEach((row: any) => {
