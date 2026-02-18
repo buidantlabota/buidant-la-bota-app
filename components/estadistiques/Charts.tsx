@@ -39,7 +39,7 @@ export const ChartCard = ({ title, subtitle, children }: ChartCardProps) => (
             <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
             {subtitle && <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{subtitle}</p>}
         </div>
-        <div className="h-72 w-full">
+        <div className="h-96 w-full">
             {children}
         </div>
     </motion.div>

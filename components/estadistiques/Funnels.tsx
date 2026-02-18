@@ -33,14 +33,14 @@ export const FunnelSollicituds = ({ data }: { data: FunnelData }) => {
                                 initial={{ width: 0 }}
                                 whileInView={{ width: `${Math.max(width, 15)}%` }}
                                 transition={{ duration: 0.8, delay: idx * 0.1 }}
-                                className={`h-16 ${step.color} rounded-2xl flex items-center px-6 relative overflow-hidden`}
+                                className={`h-20 ${step.color} rounded-2xl flex items-center px-8 relative overflow-hidden shadow-sm`}
                             >
                                 <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
                                 <div className={`flex items-center gap-4 ${step.textColor} relative z-10`}>
                                     <step.icon size={20} className="shrink-0" />
                                     <div>
                                         <p className="text-[10px] font-black uppercase tracking-widest opacity-70 leading-none mb-1">{step.label}</p>
-                                        <p className="text-xl font-black leading-none">{step.value}</p>
+                                        <p className={`text-4xl font-black ${step.textColor} leading-none truncate`}>{step.value}</p>
                                     </div>
                                 </div>
                             </motion.div>

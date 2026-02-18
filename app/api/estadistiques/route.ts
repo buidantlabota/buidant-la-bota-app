@@ -64,13 +64,16 @@ export async function GET(request: Request) {
         }
 
         if (status !== 'tots') {
-            // Map common status filters
+            // Map common status filters or use direct value
             if (status === 'acceptat') {
                 query = query.in('estat', ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat']);
             } else if (status === 'rebutjat') {
                 query = query.in('estat', ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats']);
             } else if (status === 'pendent') {
                 query = query.in('estat', ['Nova', 'Pendent de confirmació', 'Sol·licitat']);
+            } else {
+                // Direct status match
+                query = query.eq('estat', status);
             }
         }
 

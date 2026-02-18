@@ -28,10 +28,10 @@ export const ElevenGala = ({ musicians }: { musicians: Musician[] }) => (
             </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-10 scrollbar-thin">
-            <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto px-10 pb-10 scrollbar-thin">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {musicians.length === 0 ? (
-                    <div className="text-center py-20 text-gray-300 italic font-medium">No hi ha prou dades per l'Eleven de Gala</div>
+                    <div className="col-span-full text-center py-20 text-gray-300 italic font-medium">No hi ha prou dades per l'Eleven de Gala</div>
                 ) : (
                     musicians.map((m, idx) => (
                         <motion.div
@@ -39,18 +39,18 @@ export const ElevenGala = ({ musicians }: { musicians: Musician[] }) => (
                             whileInView={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.05 }}
                             key={idx}
-                            className="bg-gray-50/50 hover:bg-white hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300 p-5 rounded-3xl border border-transparent hover:border-gray-100 group flex items-center justify-between"
+                            className="bg-gray-50/50 hover:bg-white hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300 p-6 rounded-3xl border border-transparent hover:border-gray-100 group flex items-center justify-between"
                         >
                             <div className="flex items-center gap-5">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 shadow-sm ${idx === 0 ? 'bg-yellow-400 text-white shadow-yellow-200' :
-                                        idx === 1 ? 'bg-gray-300 text-white shadow-gray-200' :
-                                            idx === 2 ? 'bg-orange-400 text-white shadow-orange-200' :
-                                                'bg-white text-gray-400 border border-gray-100'
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-black shrink-0 shadow-sm ${idx === 0 ? 'bg-yellow-400 text-white shadow-yellow-200' :
+                                    idx === 1 ? 'bg-gray-300 text-white shadow-gray-200' :
+                                        idx === 2 ? 'bg-orange-400 text-white shadow-orange-200' :
+                                            'bg-white text-gray-400 border border-gray-100'
                                     }`}>
                                     {idx + 1}
                                 </div>
                                 <div>
-                                    <span className="text-sm font-black text-gray-900 group-hover:text-primary transition-colors">{m.name}</span>
+                                    <span className="text-base font-black text-gray-900 group-hover:text-primary transition-colors">{m.name}</span>
                                     <div className="flex items-center gap-3 mt-1">
                                         <span className="text-[9px] font-black uppercase text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg group-hover:bg-primary/5 group-hover:text-primary transition-colors">{m.instrument}</span>
                                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${m.type === 'titular' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>{m.type}</span>
@@ -60,10 +60,10 @@ export const ElevenGala = ({ musicians }: { musicians: Musician[] }) => (
 
                             <div className="text-right">
                                 <div className="flex items-baseline gap-1 justify-end">
-                                    <span className="text-xl font-black text-gray-900 font-mono tracking-tighter">{m.count}</span>
-                                    <span className="text-[9px] font-black text-gray-300 uppercase">Bolos</span>
+                                    <span className="text-2xl font-black text-gray-900 font-mono tracking-tighter">{m.count}</span>
+                                    <span className="text-[10px] font-black text-gray-300 uppercase">Bolos</span>
                                 </div>
-                                <div className="mt-1.5 w-24 bg-gray-200 h-1 rounded-full overflow-hidden">
+                                <div className="mt-2 w-24 bg-gray-200 h-1.5 rounded-full overflow-hidden">
                                     <motion.div
                                         initial={{ width: 0 }}
                                         whileInView={{ width: `${m.percentage}%` }}

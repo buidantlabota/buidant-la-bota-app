@@ -69,7 +69,7 @@ export default function KpiCard({ title, value, subtitle, icon, trend, color = '
 
             <div className="mt-6">
                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{title}</h4>
-                <p className="text-3xl font-black text-gray-900 leading-none truncate">{value}</p>
+                <p className="text-4xl font-black text-gray-900 leading-none truncate">{value}</p>
                 {subtitle && (
                     <p className="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest">{subtitle}</p>
                 )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
     BarChart3,
@@ -12,7 +12,8 @@ import {
     CreditCard,
     Activity,
     Award,
-    Star
+    Star,
+    ArrowUpRight
 } from 'lucide-react';
 import { PrivacyMask } from '@/components/PrivacyMask';
 import FilterPanel from '@/components/estadistiques/FilterPanel';
@@ -49,15 +50,15 @@ export default function EstadistiquesPage() {
         fetchMeta();
     }, []);
 
-
     // 2. Fetch stats when filters change
     const fetchStats = useCallback(async (currentFilters: any) => {
+        if (!currentFilters) return;
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (currentFilters.years.length) params.append('years', currentFilters.years.join(','));
-            if (currentFilters.towns.length) params.append('towns', currentFilters.towns.join(','));
-            if (currentFilters.types.length) params.append('types', currentFilters.types.join(','));
+            if (currentFilters.years?.length) params.append('years', currentFilters.years.join(','));
+            if (currentFilters.towns?.length) params.append('towns', currentFilters.towns.join(','));
+            if (currentFilters.types?.length) params.append('types', currentFilters.types.join(','));
             if (currentFilters.status !== 'tots') params.append('status', currentFilters.status);
             if (currentFilters.paymentType !== 'tots') params.append('paymentType', currentFilters.paymentType);
             if (currentFilters.minPrice) params.append('minPrice', currentFilters.minPrice);
@@ -73,34 +74,44 @@ export default function EstadistiquesPage() {
         }
     }, []);
 
-    const handleFilterChange = (newFilters: any) => {
+    const handleFilterChange = useCallback((newFilters: any) => {
         setFilters(newFilters);
         fetchStats(newFilters);
-    };
+    }, [fetchStats]);
 
     return (
-        <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50/50">
-            {/* Sidebar Filters */}
+        <div className="min-h-screen bg-gray-50/50 flex flex-col">
+            {/* Horizontal Top Filters */}
             <FilterPanel
                 availableData={metaData}
                 onFilterChange={handleFilterChange}
             />
 
             {/* Main Content */}
-            <main className="flex-1 p-4 md:p-10 space-y-12">
+            <main className="flex-1 p-4 md:p-10 space-y-12 max-w-[1600px] mx-auto w-full">
                 {/* Header */}
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200">
                     <div>
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-4">
-                            <span className="p-3 bg-primary text-white rounded-[2rem] shadow-2xl shadow-primary/20">
-                                <LayoutDashboard size={32} />
-                            </span>
-                            Dashboard d'Anàlisi
+                        <div className="flex items-center gap-3 text-primary mb-2">
+                            <span className="p-1.5 bg-primary/10 rounded-lg"><Activity size={18} /></span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em]">Business Intelligence</span>
+                        </div>
+                        <h1 className="text-5xl font-black text-gray-900 tracking-tighter">
+                            Estadístiques <span className="text-primary">&</span> Analítica
                         </h1>
-                        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-4 flex items-center gap-2">
-                            <Activity size={16} className="text-primary" />
-                            Vista professional de rendiment i mètriques
+                        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-4">
+                            Panell de control i monitorització de rendiment
                         </p>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="px-4 py-2 text-right">
+                            <p className="text-[9px] font-black text-gray-400 uppercase leading-none">Última Actualització</p>
+                            <p className="text-xs font-bold text-gray-900 mt-1">Avui a les {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center animate-pulse">
+                            <ArrowUpRight size={20} />
+                        </div>
                     </div>
                 </header>
 
@@ -140,60 +151,101 @@ export default function EstadistiquesPage() {
                     />
                 </section>
 
-                {loading && !stats ? (
-                    <div className="flex flex-col items-center justify-center py-40 gap-6">
+                <div className="relative">
+                    {/* Overlay subtle loading state instead of full replace to avoid "buggy" UX */}
+                    {loading && stats && (
+                        <div className="absolute top-0 right-0 p-4 z-40">
+                            <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                className="rounded-full h-8 w-8 border-4 border-primary border-t-transparent shadow-lg"
+                            />
+                        </div>
+                    )}
+
+                    {!stats && loading ? (
+                        <div className="flex flex-col items-center justify-center py-60 gap-8">
+                            <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                className="rounded-full h-20 w-20 border-4 border-primary border-t-transparent shadow-2xl"
+                            />
+                            <div className="text-center">
+                                <p className="font-black text-gray-900 text-xl tracking-tighter uppercase mb-2">Processant Dades</p>
+                                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse">Calculant mètriques de rendiment...</p>
+                            </div>
+                        </div>
+                    ) : (
                         <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                            className="rounded-full h-16 w-16 border-4 border-primary border-t-transparent shadow-xl"
-                        />
-                        <p className="font-black text-gray-300 uppercase tracking-[0.3em] animate-pulse">Carregant dades...</p>
-                    </div>
-                ) : (
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={JSON.stringify(filters)}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.4 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5 }}
                             className="space-y-12"
                         >
-                            {/* Charts Section 1: Financial & Volume */}
-                            <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                <MonthlyEvolutionChart data={stats?.charts?.monthly || []} />
-                                <VolumeVsRevenueChart data={stats?.charts?.monthly || []} />
-                            </section>
-
-                            {/* Charts Section 2: Distribution */}
-                            <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <div className="md:col-span-2">
+                            {/* Financial & Evolution Section */}
+                            <section className="space-y-8">
+                                <div className="grid grid-cols-1 gap-8">
+                                    <MonthlyEvolutionChart data={stats?.charts?.monthly || []} />
+                                </div>
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                    <VolumeVsRevenueChart data={stats?.charts?.monthly || []} />
                                     <TopTownsChart data={stats?.charts?.towns || []} />
                                 </div>
-                                <div className="space-y-8">
+                            </section>
+
+                            {/* Distribution Section - Now more prominent */}
+                            <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                                <div className="xl:col-span-1">
                                     <PaymentDistributionChart data={stats?.charts?.payments || []} />
+                                </div>
+                                <div className="xl:col-span-1">
                                     <PriceRangesChart data={stats?.charts?.prices || []} />
+                                </div>
+                                <div className="xl:col-span-1 bg-white p-8 rounded-[2.5rem] border border-gray-100 flex flex-col justify-center items-center text-center">
+                                    <div className="p-6 bg-primary/5 rounded-full text-primary mb-6">
+                                        <TrendingUp size={48} />
+                                    </div>
+                                    <h3 className="text-4xl font-black text-gray-900 mb-2">
+                                        {stats?.kpis?.acceptanceRate ? Math.round(stats.kpis.acceptanceRate) : 0}%
+                                    </h3>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Taxa d'Acceptació Global</p>
+                                    <div className="mt-8 w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${stats?.kpis?.acceptanceRate || 0}%` }}
+                                            className="h-full bg-primary"
+                                        />
+                                    </div>
                                 </div>
                             </section>
 
-                            {/* Cool Stats Section */}
-                            <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                                <div className="xl:col-span-2">
-                                    <ElevenGala musicians={stats?.rankings?.elevenGala || []} />
-                                </div>
-                                <div className="space-y-8">
-                                    <TopBySection sections={stats?.rankings?.topSections || []} />
-                                    <FunnelSollicituds data={{
-                                        total: stats?.kpis?.count || 0,
-                                        accepted: stats?.kpis?.confirmedCount || 0,
-                                        rejected: stats?.kpis?.rejectedCount || 0,
-                                        pending: stats?.kpis?.pendingCount || 0
-                                    }} />
-                                </div>
+                            {/* Rankings - Full width boxes */}
+                            <section className="grid grid-cols-1 gap-8">
+                                <ElevenGala musicians={stats?.rankings?.elevenGala || []} />
+                            </section>
+
+                            <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                <TopBySection sections={stats?.rankings?.topSections || []} />
+                                <FunnelSollicituds data={{
+                                    total: stats?.kpis?.count || 0,
+                                    accepted: stats?.kpis?.confirmedCount || 0,
+                                    rejected: stats?.kpis?.rejectedCount || 0,
+                                    pending: stats?.kpis?.pendingCount || 0
+                                }} />
                             </section>
                         </motion.div>
-                    </AnimatePresence>
-                )}
+                    )}
+                </div>
+
+                {/* Footer simple */}
+                <footer className="pt-12 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                    <span>&copy; {new Date().getFullYear()} Buidant la Bota Analytics</span>
+                    <div className="flex gap-6">
+                        <span>Seguretat Supabase</span>
+                        <span>Dades encriptades</span>
+                        <span>Vercel Edge</span>
+                    </div>
+                </footer>
             </main>
         </div>
     );

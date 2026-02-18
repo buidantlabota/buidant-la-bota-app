@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-    X,
-    ChevronDown,
     Filter,
     Calendar,
     MapPin,
@@ -11,7 +9,9 @@ import {
     Activity,
     Euro,
     CreditCard,
-    RotateCcw
+    RotateCcw,
+    ChevronDown,
+    Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,8 +24,18 @@ interface FilterPanelProps {
     };
 }
 
+const STATUS_OPTIONS = [
+    { value: 'tots', label: 'Tots els estats' },
+    { value: 'Nova', label: 'Nova' },
+    { value: 'Pendent de confirmació', label: 'Pendent' },
+    { value: 'Confirmada', label: 'Confirmada' },
+    { value: 'Pendents de cobrar', label: 'De cobrar' },
+    { value: 'Per pagar', label: 'Per pagar' },
+    { value: 'Tancades', label: 'Tancades' },
+    { value: 'Cancel·lats', label: 'Cancel·lats' },
+];
+
 export default function FilterPanel({ onFilterChange, availableData }: FilterPanelProps) {
-    const [isOpen, setIsOpen] = useState(false);
     const [filters, setFilters] = useState({
         years: [] as string[],
         towns: [] as string[],
@@ -36,9 +46,14 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
         maxPrice: ''
     });
 
+    const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
     // Notify parent on change
     useEffect(() => {
-        onFilterChange(filters);
+        const timeout = setTimeout(() => {
+            onFilterChange(filters);
+        }, 300); // Debounce to avoid "weird bugs" during rapid clicks
+        return () => clearTimeout(timeout);
     }, [filters, onFilterChange]);
 
     const toggleMultiSelect = (key: 'years' | 'towns' | 'types', value: string) => {
@@ -60,163 +75,182 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
             minPrice: '',
             maxPrice: ''
         });
+        setActiveDropdown(null);
     };
 
-    const FilterSection = ({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) => (
-        <div className="space-y-3 pb-6 border-b border-gray-100 last:border-0 last:pb-0">
-            <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Icon size={12} className="text-primary" />
-                {title}
-            </h5>
-            <div className="flex flex-wrap gap-2">
-                {children}
-            </div>
+    const Dropdown = ({ id, label, icon: Icon, children, count }: { id: string, label: string, icon: any, children: React.ReactNode, count?: number }) => (
+        <div className="relative">
+            <button
+                onClick={() => setActiveDropdown(activeDropdown === id ? null : id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border ${activeDropdown === id
+                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                        : (count && count > 0)
+                            ? 'bg-primary/5 text-primary border-primary/20'
+                            : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200 shadow-sm'
+                    }`}
+            >
+                <Icon size={14} className={activeDropdown === id ? 'text-white' : 'text-primary'} />
+                <span>{label}</span>
+                {count && count > 0 ? (
+                    <span className={`ml-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] ${activeDropdown === id ? 'bg-white text-primary' : 'bg-primary text-white'}`}>
+                        {count}
+                    </span>
+                ) : (
+                    <ChevronDown size={14} className={`ml-1 transition-transform ${activeDropdown === id ? 'rotate-180' : ''}`} />
+                )}
+            </button>
+
+            <AnimatePresence>
+                {activeDropdown === id && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setActiveDropdown(null)}
+                            className="fixed inset-0 z-[90]"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute top-full left-0 mt-2 w-64 bg-white rounded-3xl border border-gray-100 shadow-2xl z-[100] max-h-80 overflow-y-auto p-4 scrollbar-thin"
+                        >
+                            <div className="flex flex-col gap-1">
+                                {children}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 
-    const Badge = ({ label, active, onClick, color = 'primary' }: { label: string, active: boolean, onClick: () => void, color?: string }) => (
+    const Option = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
         <button
             onClick={onClick}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${active
-                    ? 'bg-primary text-white border-primary shadow-sm'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-primary/30 hover:text-primary'
+            className={`flex items-center justify-between px-3 py-2 rounded-xl text-left text-[11px] font-bold transition-all ${active
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-gray-600 hover:bg-gray-50'
                 }`}
         >
-            {label}
+            <span>{label}</span>
+            {active && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
         </button>
     );
 
     return (
-        <>
-            {/* Mobile Toggle */}
-            <button
-                onClick={() => setIsOpen(true)}
-                className="lg:hidden fixed bottom-6 right-6 z-50 bg-primary text-white p-4 rounded-full shadow-2xl flex items-center gap-2 font-bold"
-            >
-                <Filter size={20} />
-                Filtres
-            </button>
-
-            {/* Overlay */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsOpen(false)}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* Panel */}
-            <motion.aside
-                className={`fixed lg:sticky top-0 right-0 lg:left-0 h-screen w-80 bg-white border-l lg:border-l-0 lg:border-r border-gray-100 z-[101] lg:z-0 flex flex-col shadow-2xl lg:shadow-none overflow-hidden ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
-                    } transition-transform duration-300`}
-            >
-                {/* Header */}
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                    <div>
-                        <h4 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                            <Filter size={20} className="text-primary" />
-                            Filtres
-                        </h4>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Personalitza la teva anàlisi</p>
+        <div className="w-full bg-white/50 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 px-4 md:px-10 py-4">
+            <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2 mr-4 border-r border-gray-100 pr-6 hidden xl:flex">
+                    <div className="bg-primary text-white p-2 rounded-xl">
+                        <Filter size={18} />
                     </div>
-                    <button onClick={() => setIsOpen(false)} className="lg:hidden p-2 hover:bg-gray-200 rounded-full transition-colors">
-                        <X size={20} />
-                    </button>
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none">Filtres</p>
+                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-tighter mt-0.5">Configuració d'anàlisi</p>
+                    </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin">
-                    <FilterSection title="Anys" icon={Calendar}>
+                <div className="flex flex-wrap items-center gap-3">
+                    <Dropdown id="years" label="Anys" icon={Calendar} count={filters.years.length}>
                         {availableData.years.map(year => (
-                            <Badge
+                            <Option
                                 key={year}
                                 label={year}
                                 active={filters.years.includes(year)}
                                 onClick={() => toggleMultiSelect('years', year)}
                             />
                         ))}
-                    </FilterSection>
+                    </Dropdown>
 
-                    <FilterSection title="Estat" icon={Activity}>
-                        {['tots', 'acceptat', 'rebutjat', 'pendent'].map(s => (
-                            <Badge
-                                key={s}
-                                label={s.charAt(0).toUpperCase() + s.slice(1)}
-                                active={filters.status === s}
-                                onClick={() => setFilters(prev => ({ ...prev, status: s }))}
+                    <Dropdown id="status" label="Estat" icon={Activity} count={filters.status !== 'tots' ? 1 : 0}>
+                        {STATUS_OPTIONS.map(s => (
+                            <Option
+                                key={s.value}
+                                label={s.label}
+                                active={filters.status === s.value}
+                                onClick={() => setFilters(prev => ({ ...prev, status: s.value }))}
                             />
                         ))}
-                    </FilterSection>
+                    </Dropdown>
 
-                    <FilterSection title="Forma de Pagament" icon={CreditCard}>
+                    <Dropdown id="payments" label="Pagament" icon={CreditCard} count={filters.paymentType !== 'tots' ? 1 : 0}>
                         {['tots', 'Factura', 'Efectiu'].map(p => (
-                            <Badge
+                            <Option
                                 key={p}
-                                label={p === 'tots' ? 'Tots' : p}
+                                label={p === 'tots' ? 'Tots els mètodes' : p}
                                 active={filters.paymentType === p}
                                 onClick={() => setFilters(prev => ({ ...prev, paymentType: p }))}
                             />
                         ))}
-                    </FilterSection>
+                    </Dropdown>
 
-                    <FilterSection title="Tipus Actuació" icon={Tag}>
-                        {availableData.types.slice(0, 10).map(type => (
-                            <Badge
+                    <Dropdown id="types" label="Tipus" icon={Tag} count={filters.types.length}>
+                        {availableData.types.map(type => (
+                            <Option
                                 key={type}
                                 label={type}
                                 active={filters.types.includes(type)}
                                 onClick={() => toggleMultiSelect('types', type)}
                             />
                         ))}
-                    </FilterSection>
+                    </Dropdown>
 
-                    <FilterSection title="Pobles" icon={MapPin}>
-                        {availableData.towns.slice(0, 15).map(town => (
-                            <Badge
+                    <Dropdown id="towns" label="Pobles" icon={MapPin} count={filters.towns.length}>
+                        {availableData.towns.map(town => (
+                            <Option
                                 key={town}
                                 label={town}
                                 active={filters.towns.includes(town)}
                                 onClick={() => toggleMultiSelect('towns', town)}
                             />
                         ))}
-                    </FilterSection>
+                    </Dropdown>
 
-                    <FilterSection title="Preu (€)" icon={Euro}>
-                        <div className="grid grid-cols-2 gap-3 w-full">
-                            <input
-                                type="number"
-                                placeholder="Min"
-                                value={filters.minPrice}
-                                onChange={e => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
-                                className="w-full bg-gray-50 border-none rounded-xl text-xs font-bold p-3 focus:ring-2 focus:ring-primary/20"
-                            />
-                            <input
-                                type="number"
-                                placeholder="Max"
-                                value={filters.maxPrice}
-                                onChange={e => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
-                                className="w-full bg-gray-50 border-none rounded-xl text-xs font-bold p-3 focus:ring-2 focus:ring-primary/20"
-                            />
+                    <Dropdown id="price" label="Preu" icon={Euro} count={!!filters.minPrice || !!filters.maxPrice ? 1 : 0}>
+                        <div className="p-2 space-y-4">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Rang d'import (€)</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                        type="number"
+                                        placeholder="Mínim"
+                                        value={filters.minPrice}
+                                        onChange={e => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
+                                        className="w-full bg-gray-50 border-none rounded-xl text-[11px] font-bold p-2.5 focus:ring-1 focus:ring-primary/30"
+                                    />
+                                    <input
+                                        type="number"
+                                        placeholder="Màxim"
+                                        value={filters.maxPrice}
+                                        onChange={e => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
+                                        className="w-full bg-gray-50 border-none rounded-xl text-[11px] font-bold p-2.5 focus:ring-1 focus:ring-primary/30"
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setActiveDropdown(null)}
+                                className="w-full py-2 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-800 transition-colors"
+                            >
+                                Aplicar
+                            </button>
                         </div>
-                    </FilterSection>
-                </div>
+                    </Dropdown>
 
-                {/* Footer */}
-                <div className="p-6 border-t border-gray-100 bg-gray-50/50">
                     <button
                         onClick={resetFilters}
-                        className="w-full py-3 bg-white border border-gray-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2 group shadow-sm"
+                        className="p-2.5 hover:bg-gray-100 rounded-2xl text-gray-400 hover:text-primary transition-all group"
+                        title="Reset filtres"
                     >
-                        <RotateCcw size={14} className="group-hover:rotate-[-180deg] transition-transform duration-500" />
-                        Reset Filtres
+                        <RotateCcw size={18} className="group-hover:rotate-[-180deg] transition-transform duration-500" />
                     </button>
                 </div>
-            </motion.aside>
-        </>
+
+                <div className="ml-auto hidden lg:block">
+                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">Dades en temps real</p>
+                </div>
+            </div>
+        </div>
     );
 }
