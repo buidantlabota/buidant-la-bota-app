@@ -120,12 +120,88 @@ export default function BolosPage() {
     // Filters State
     const [searchTerm, setSearchTerm] = useState('');
     const [filterEstat, setFilterEstat] = useState<string[]>([]);
-    const [filterTipusIngres, setFilterTipusIngres] = useState('tots');
+    const [filterTipusIngres, setFilterTipusIngres] = useState<string[]>([]);
     const [filterAny, setFilterAny] = useState('tots');
-    const [filterTipusActuacio, setFilterTipusActuacio] = useState('tots');
+    const [filterTipusActuacio, setFilterTipusActuacio] = useState<string[]>([]);
     const [filterCurrentMonth, setFilterCurrentMonth] = useState(false);
     const [availableYears, setAvailableYears] = useState<string[]>([]);
     const [sortBy, setSortBy] = useState<string>('data-desc');
+    const [selectedBoloForConvocatoria, setSelectedBoloForConvocatoria] = useState<Bolo | null>(null);
+    const [convocatoriaText, setConvocatoriaText] = useState('');
+
+    const generateConvocatoria = (bolo: Bolo) => {
+        const dateStr = new Date(bolo.data_bolo).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const text = `📣 *CONVOCATÒRIA BUIDANT LA BOTA* 📣
+
+📍 *Poble:* ${bolo.nom_poble}
+📅 *Data:* ${dateStr}
+⏰ *Hora:* ${(bolo.hora_inici || '').substring(0, 5)}
+👕 *Vestimenta:* ${bolo.vestimenta || 'Per confirmar'}
+📂 *Partitures:* ${bolo.partitures || 'Per confirmar'}
+🗺️ *Ubicació:* ${bolo.ubicacio_detallada || 'Per confirmar'}
+🏁 *Punt d'inici:* ${bolo.ubicacio_inici || 'Per confirmar'}
+
+📝 *Notes:* ${bolo.notes || 'Cap nota addicional'}
+
+_Es prega confirmació el més aviat possible!_ 🎺🥁`;
+
+        setConvocatoriaText(text);
+        setSelectedBoloForConvocatoria(bolo);
+    };
+
+    const copyConvocatoria = () => {
+        navigator.clipboard.writeText(convocatoriaText);
+        alert('Text copiat correctament! Ara el pots enganxar a WhatsApp.');
+    };
+
+    // Persistence and Scroll Restoration
+    useEffect(() => {
+        // Restore filters
+        const savedFilters = sessionStorage.getItem('bolos_filters');
+        if (savedFilters) {
+            try {
+                const parsed = JSON.parse(savedFilters);
+                setSearchTerm(parsed.searchTerm || '');
+                setFilterEstat(parsed.filterEstat || []);
+                setFilterTipusIngres(parsed.filterTipusIngres || []);
+                setFilterAny(parsed.filterAny || 'tots');
+                setFilterTipusActuacio(parsed.filterTipusActuacio || []);
+                setFilterCurrentMonth(parsed.filterCurrentMonth || false);
+                setSortBy(parsed.sortBy || 'data-desc');
+            } catch (e) {
+                console.error('Error restoring filters:', e);
+            }
+        }
+
+        // Restore scroll position after a short delay to allow content to render
+        const savedScroll = sessionStorage.getItem('bolos_scroll');
+        if (savedScroll) {
+            setTimeout(() => {
+                window.scrollTo(0, parseInt(savedScroll));
+            }, 100);
+        }
+
+        const handleScroll = () => {
+            sessionStorage.setItem('bolos_scroll', window.scrollY.toString());
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Save filters whenever they change
+    useEffect(() => {
+        const filters = {
+            searchTerm,
+            filterEstat,
+            filterTipusIngres,
+            filterAny,
+            filterTipusActuacio,
+            filterCurrentMonth,
+            sortBy
+        };
+        sessionStorage.setItem('bolos_filters', JSON.stringify(filters));
+    }, [searchTerm, filterEstat, filterTipusIngres, filterAny, filterTipusActuacio, filterCurrentMonth, sortBy]);
 
     useEffect(() => {
         fetchBolos();
@@ -166,21 +242,25 @@ export default function BolosPage() {
             if (!filterEstat.includes(bolo.estat)) return false;
         }
 
-        if (filterTipusIngres !== 'tots') {
-            if (bolo.tipus_ingres !== filterTipusIngres) return false;
+        if (filterTipusIngres.length > 0 && !filterTipusIngres.includes('tots')) {
+            if (!filterTipusIngres.includes(bolo.tipus_ingres)) return false;
         }
 
         if (filterCurrentMonth) {
-            const now = new Date();
-            const boloDate = new Date(bolo.data_bolo);
-            if (boloDate.getMonth() !== now.getMonth() || boloDate.getFullYear() !== now.getFullYear()) return false;
-        } else if (filterAny !== 'tots') {
+            // No hide, just highlight? User said "et porti al mes actual pero que no toculti els altres"
+            // So if filterCurrentMonth is ON, we don't return false here, we use it for scrolling logic elsewhere
+            // But if they "deixar marcada", maybe they want to see only those?
+            // "Osigui el que vull que faci aquest boto es que et porti al mes actual pero que no toculti elsa ltres, sino que et situi a sobre del mes actual."
+            // Okay, so filter logic remains same.
+        }
+
+        if (filterAny !== 'tots') {
             const year = new Date(bolo.data_bolo).getFullYear().toString();
             if (year !== filterAny) return false;
         }
 
-        if (filterTipusActuacio !== 'tots') {
-            if (bolo.tipus_actuacio !== filterTipusActuacio) return false;
+        if (filterTipusActuacio.length > 0 && !filterTipusActuacio.includes('tots')) {
+            if (!filterTipusActuacio.includes(bolo.tipus_actuacio || '')) return false;
         }
 
         return true;
@@ -203,6 +283,19 @@ export default function BolosPage() {
                 return new Date(b.data_bolo).getTime() - new Date(a.data_bolo).getTime();
         }
     });
+
+    // Scroll to current month when button is clicked or on load if active
+    useEffect(() => {
+        if (filterCurrentMonth && bolos.length > 0) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const element = document.getElementById(`month-${year}-${month}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }, [filterCurrentMonth, bolos]);
 
     const handleDelete = async (e: React.MouseEvent, id: string | number) => {
         e.preventDefault();
@@ -279,7 +372,7 @@ export default function BolosPage() {
                                         ? 'bg-primary text-white border-primary shadow-md'
                                         : 'bg-white text-gray-500 border-gray-300 hover:border-primary hover:text-primary shadow-sm'
                                         }`}
-                                    title="Mostra només els bolos del mes actual"
+                                    title="Situa't sobre els bolos del mes actual"
                                 >
                                     Mes Actual
                                 </button>
@@ -316,33 +409,33 @@ export default function BolosPage() {
                 <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                     {/* Tipus Ingrés Filter */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Tipus d'ingrés</label>
-                        <select
-                            value={filterTipusIngres}
-                            onChange={(e) => setFilterTipusIngres(e.target.value)}
-                        >
-                            <option value="tots">Tots els tipus</option>
-                            <option value="Efectiu">Efectiu</option>
-                            <option value="Factura">Factura</option>
-                            <option value="Altres">Altres</option>
-                        </select>
+                        <MultiSelectFilter
+                            label="Tipus d'ingrés"
+                            options={[
+                                { value: 'Efectiu', label: 'Efectiu' },
+                                { value: 'Factura', label: 'Factura' },
+                                { value: 'Altres', label: 'Altres' }
+                            ]}
+                            selected={filterTipusIngres}
+                            onChange={setFilterTipusIngres}
+                        />
                     </div>
 
                     {/* Tipus Actuació Filter */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Tipus d'actuació</label>
-                        <select
-                            value={filterTipusActuacio}
-                            onChange={(e) => setFilterTipusActuacio(e.target.value)}
-                        >
-                            <option value="tots">Tots els tipus</option>
-                            <option value="Festa Major">Festa Major</option>
-                            <option value="Cercavila">Cercavila</option>
-                            <option value="Correbars">Correbars</option>
-                            <option value="Casament">Casament</option>
-                            <option value="Privat">Privat</option>
-                            <option value="Altres">Altres</option>
-                        </select>
+                        <MultiSelectFilter
+                            label="Tipus d'actuació"
+                            options={[
+                                { value: 'Festa Major', label: 'Festa Major' },
+                                { value: 'Cercavila', label: 'Cercavila' },
+                                { value: 'Correbars', label: 'Correbars' },
+                                { value: 'Casament', label: 'Casament' },
+                                { value: 'Privat', label: 'Privat' },
+                                { value: 'Altres', label: 'Altres' }
+                            ]}
+                            selected={filterTipusActuacio}
+                            onChange={setFilterTipusActuacio}
+                        />
                     </div>
                 </div>
             </div>
@@ -374,7 +467,10 @@ export default function BolosPage() {
                         return (
                             <div key={bolo.id} className="space-y-4">
                                 {showSeparator && (
-                                    <div className="flex items-center gap-4 pt-8 pb-2 first:pt-0">
+                                    <div
+                                        id={`month-${date.getFullYear()}-${date.getMonth()}`}
+                                        className="flex items-center gap-4 pt-8 pb-2 first:pt-0 scroll-mt-20"
+                                    >
                                         <h2 className="text-sm font-black text-primary uppercase tracking-[0.2em] whitespace-nowrap">
                                             {date.toLocaleDateString('ca-ES', { month: 'long', year: 'numeric' })}
                                         </h2>
@@ -449,6 +545,18 @@ export default function BolosPage() {
                                                     {bolo.estat}
                                                 </span>
 
+                                                {/* Convo Button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        generateConvocatoria(bolo);
+                                                    }}
+                                                    className="p-2 text-gray-300 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                                    title="Sol·licitar Convocatòria"
+                                                >
+                                                    <span className="material-icons-outlined">chat</span>
+                                                </button>
+
                                                 {/* Delete Button */}
                                                 <button
                                                     onClick={(e) => handleDelete(e, bolo.id)}
@@ -466,6 +574,47 @@ export default function BolosPage() {
                     })
                 )}
             </div>
+            {/* Convocatoria Modal */}
+            {selectedBoloForConvocatoria && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+                        <div className="bg-green-600 p-6 flex justify-between items-center text-white">
+                            <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                                <span className="material-icons-outlined">chat</span>
+                                Sol·licitar Convocatòria
+                            </h2>
+                            <button onClick={() => setSelectedBoloForConvocatoria(null)} className="hover:bg-white/20 p-1 rounded-full transition-colors">
+                                <span className="material-icons-outlined text-2xl">close</span>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-gray-500 font-medium italic">
+                                Aquest és el model de convocatòria. Pots editar-lo aquí mateix abans de copiar-lo per WhatsApp.
+                            </p>
+                            <textarea
+                                className="w-full h-80 p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-mono text-sm focus:border-green-500 focus:outline-none transition-colors"
+                                value={convocatoriaText}
+                                onChange={(e) => setConvocatoriaText(e.target.value)}
+                            />
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setSelectedBoloForConvocatoria(null)}
+                                    className="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-600 font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all"
+                                >
+                                    Tancar
+                                </button>
+                                <button
+                                    onClick={copyConvocatoria}
+                                    className="flex-1 py-4 rounded-2xl bg-green-600 text-white font-black uppercase tracking-widest text-xs hover:bg-green-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-icons-outlined text-base">content_copy</span>
+                                    Copiar Text
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

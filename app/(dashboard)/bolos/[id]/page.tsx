@@ -2027,6 +2027,23 @@ export default function BoloDetailPage() {
                 )}
             </div>
             {/* Internal Comments Section */}
+            {/* Internal Comments Section */}
+            {bolo.notes && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800/40 overflow-hidden mt-6">
+                    <div className="px-6 py-4 border-b border-amber-200 dark:border-amber-800/40 bg-amber-100/50 dark:bg-amber-900/30">
+                        <h2 className="text-lg font-bold text-amber-900 dark:text-amber-200 flex items-center">
+                            <span className="material-icons-outlined mr-2">description</span>
+                            Notes Addicionals (del formulari)
+                        </h2>
+                    </div>
+                    <div className="p-6">
+                        <p className="text-amber-900 dark:text-amber-200 text-sm whitespace-pre-wrap font-medium leading-relaxed italic">
+                            {bolo.notes}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden mt-6">
                 <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer" onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}>
                     <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">

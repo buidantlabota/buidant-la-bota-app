@@ -181,6 +181,19 @@ export default function BillingPage() {
         }
     };
 
+    const [availableBolos, setAvailableBolos] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchAvailableBolos = async () => {
+            const { data } = await supabase
+                .from('bolos')
+                .select('id, nom_poble, data_bolo')
+                .order('data_bolo', { ascending: false });
+            setAvailableBolos(data || []);
+        };
+        fetchAvailableBolos();
+    }, []);
+
     const togglePaid = async (id: string, currentPaid: boolean) => {
         await supabase.from('invoice_records').update({ paid: !currentPaid }).eq('id', id);
         fetchRecords(); // Refresh to show update
@@ -360,14 +373,26 @@ export default function BillingPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">ID Bolo (Opcional)</label>
-                                <input
-                                    type="number"
-                                    className="w-full p-2 border rounded-lg"
-                                    placeholder="ID numèric..."
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Seleccionar Bolo (Opcional)</label>
+                                <select
+                                    className="w-full p-2 border rounded-lg bg-white"
                                     value={formData.bolo_id}
-                                    onChange={e => setFormData({ ...formData, bolo_id: e.target.value })}
-                                />
+                                    onChange={e => {
+                                        const selected = availableBolos.find(b => b.id === parseInt(e.target.value));
+                                        setFormData({
+                                            ...formData,
+                                            bolo_id: e.target.value,
+                                            // Auto-fill client if possible? No, client_name is free text here
+                                        });
+                                    }}
+                                >
+                                    <option value="">Cap bolo seleccionat</option>
+                                    {availableBolos.map(b => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.nom_poble} ({new Date(b.data_bolo).toLocaleDateString('ca-ES')})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div>
