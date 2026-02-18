@@ -28,19 +28,47 @@ export default function EconomiaPage() {
     const [bolos, setBolos] = useState<EconomiaBolo[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [showCurrentMonth, setShowCurrentMonth] = useState(false);
     const [stats, setStats] = useState({ ingressos: 0, despeses_musics: 0, pot: 0 });
 
     const fetchEconomia = async () => {
         setLoading(true);
-        // Date range for the selected year
-        const startDate = `${selectedYear}-01-01`;
-        const endDate = `${selectedYear}-12-31`;
+
+        const now = new Date();
+        let startDate, endDate;
+
+        if (showCurrentMonth) {
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+        } else {
+            startDate = `${selectedYear}-01-01`;
+            endDate = `${selectedYear}-12-31`;
+        }
 
         const { data, error } = await supabase
-            .from('view_economia_bolos')
-            .select('*')
+            .from('bolos')
+            .select(`
+                bolo_id:id,
+                nom_poble,
+                data_bolo,
+                import_total,
+                cost_total_musics,
+                num_musics,
+                pot_delta,
+                ajust_pot_manual,
+                pot_delta_final,
+                estat_cobrament,
+                tipus_ingres,
+                cobrat,
+                pagaments_musics_fets,
+                estat
+            `)
             .gte('data_bolo', startDate)
             .lte('data_bolo', endDate)
+            .not('estat', 'in', '("Cancel·lat", "Cancel·lats", "rebutjat", "rebutjats")')
             .order('data_bolo', { ascending: false });
 
         if (error) {
@@ -48,10 +76,10 @@ export default function EconomiaPage() {
         } else {
             setBolos(data || []);
 
-            // Calc stats locally from view data (or fetch from view_bolos_resum_any for precision)
-            const ing = (data || []).reduce((acc: number, b: EconomiaBolo) => acc + (b.import_total || 0), 0);
-            const cost = (data || []).reduce((acc: number, b: EconomiaBolo) => acc + (b.cost_total_musics || 0), 0);
-            const p = (data || []).reduce((acc: number, b: EconomiaBolo) => acc + (b.pot_delta_final || 0), 0);
+            // Calc stats locally from view data
+            const ing = (data || []).reduce((acc: number, b: any) => acc + (b.import_total || 0), 0);
+            const cost = (data || []).reduce((acc: number, b: any) => acc + (b.cost_total_musics || 0), 0);
+            const p = (data || []).reduce((acc: number, b: any) => acc + (b.pot_delta_final || 0), 0);
             setStats({ ingressos: ing, despeses_musics: cost, pot: p });
         }
         setLoading(false);
@@ -59,7 +87,7 @@ export default function EconomiaPage() {
 
     useEffect(() => {
         fetchEconomia();
-    }, [selectedYear]);
+    }, [selectedYear, showCurrentMonth]);
 
     const handleUpdate = async (id: number, field: string, value: any) => {
         // Optimistic update for UI responsiveness
@@ -72,11 +100,9 @@ export default function EconomiaPage() {
 
         if (error) {
             console.error('Error updating bolo:', error);
-            // Revert changes on error would be ideal, but for now we just log
             fetchEconomia(); // Re-fetch to sync
         } else {
             // Briefly wait for DB trigger to calc new pot/cost if import changed
-            // Then re-fetch to get calculated values
             setTimeout(() => {
                 fetchEconomia();
             }, 500);
@@ -121,23 +147,38 @@ export default function EconomiaPage() {
                     </h1>
                 </div>
 
-                {/* Year Selector */}
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {/* Month Toggle */}
                     <button
-                        onClick={() => setSelectedYear(prev => prev - 1)}
-                        className="p-2 rounded hover:bg-gray-100 text-text-primary"
+                        onClick={() => setShowCurrentMonth(!showCurrentMonth)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-sm border ${showCurrentMonth
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-text-secondary border-border hover:bg-gray-50'
+                            }`}
                     >
-                        <span className="material-icons-outlined">chevron_left</span>
+                        <span className="material-icons-outlined text-sm">calendar_month</span>
+                        <span>Mes Actual</span>
+                        {showCurrentMonth && <span className="material-icons-outlined text-sm ml-1">check_circle</span>}
                     </button>
-                    <span className="text-xl font-bold text-text-primary font-mono">
-                        {selectedYear}
-                    </span>
-                    <button
-                        onClick={() => setSelectedYear(prev => prev + 1)}
-                        className="p-2 rounded hover:bg-gray-100 text-text-primary"
-                    >
-                        <span className="material-icons-outlined">chevron_right</span>
-                    </button>
+
+                    {/* Year Selector */}
+                    <div className={`flex items-center space-x-2 transition-opacity ${showCurrentMonth ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                        <button
+                            onClick={() => setSelectedYear(prev => prev - 1)}
+                            className="p-2 rounded hover:bg-gray-100 text-text-primary"
+                        >
+                            <span className="material-icons-outlined">chevron_left</span>
+                        </button>
+                        <span className="text-xl font-bold text-text-primary font-mono">
+                            {selectedYear}
+                        </span>
+                        <button
+                            onClick={() => setSelectedYear(prev => prev + 1)}
+                            className="p-2 rounded hover:bg-gray-100 text-text-primary"
+                        >
+                            <span className="material-icons-outlined">chevron_right</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -187,7 +228,7 @@ export default function EconomiaPage() {
                                 </tr>
                             ) : bolos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className="p-8 text-center text-text-secondary">Cap bolo trobat per l'any {selectedYear}.</td>
+                                    <td colSpan={9} className="p-8 text-center text-text-secondary">Cap bolo trobat per {showCurrentMonth ? 'el mes actual' : `l'any ${selectedYear}`}.</td>
                                 </tr>
                             ) : (
                                 bolos.map((bolo) => (
@@ -262,7 +303,7 @@ export default function EconomiaPage() {
                                         </tr>
                                         {expandedBolo === bolo.bolo_id && (
                                             <tr className="bg-white">
-                                                <td colSpan={8} className="p-4 pl-12">
+                                                <td colSpan={9} className="p-4 pl-12">
                                                     <div className="bg-white rounded border border-border p-4 shadow-inner">
                                                         <h4 className="text-sm font-bold mb-2 text-text-primary">Músics Assignats</h4>
                                                         {loadingMusics ? (
@@ -306,12 +347,12 @@ export default function EconomiaPage() {
                                 <td className="p-4 text-right">-</td>
                                 <td className={`p-4 text-right font-mono ${stats.pot >= 0 ? 'text-primary' : 'text-red-500'}`}>{stats.pot.toFixed(2)}€</td>
                                 <td className="p-4"></td>
+                                <td className="p-4"></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
-

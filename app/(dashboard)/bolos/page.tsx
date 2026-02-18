@@ -123,6 +123,7 @@ export default function BolosPage() {
     const [filterTipusIngres, setFilterTipusIngres] = useState('tots');
     const [filterAny, setFilterAny] = useState('tots');
     const [filterTipusActuacio, setFilterTipusActuacio] = useState('tots');
+    const [filterCurrentMonth, setFilterCurrentMonth] = useState(false);
     const [availableYears, setAvailableYears] = useState<string[]>([]);
     const [sortBy, setSortBy] = useState<string>('data-desc');
 
@@ -169,7 +170,11 @@ export default function BolosPage() {
             if (bolo.tipus_ingres !== filterTipusIngres) return false;
         }
 
-        if (filterAny !== 'tots') {
+        if (filterCurrentMonth) {
+            const now = new Date();
+            const boloDate = new Date(bolo.data_bolo);
+            if (boloDate.getMonth() !== now.getMonth() || boloDate.getFullYear() !== now.getFullYear()) return false;
+        } else if (filterAny !== 'tots') {
             const year = new Date(bolo.data_bolo).getFullYear().toString();
             if (year !== filterAny) return false;
         }
@@ -253,19 +258,32 @@ export default function BolosPage() {
                         </div>
                     </div>
 
-                    {/* Any Filter */}
+                    {/* Any Filter & Month Toggle */}
                     <div className="grid grid-cols-2 md:grid-cols-1 gap-2 md:contents">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Any</label>
-                            <select
-                                value={filterAny}
-                                onChange={(e) => setFilterAny(e.target.value)}
-                            >
-                                <option value="tots">Tots</option>
-                                {availableYears.map(year => (
-                                    <option key={year} value={year}>{year}</option>
-                                ))}
-                            </select>
+                        <div className="flex flex-col">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Filtre Temporal</label>
+                            <div className="flex gap-2 h-[42px]">
+                                <select
+                                    className={`flex-1 ${filterCurrentMonth ? 'opacity-50 pointer-events-none' : ''}`}
+                                    value={filterAny}
+                                    onChange={(e) => setFilterAny(e.target.value)}
+                                >
+                                    <option value="tots">Tots els anys</option>
+                                    {availableYears.map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => setFilterCurrentMonth(!filterCurrentMonth)}
+                                    className={`px-4 rounded-xl font-bold text-xs transition-all border shrink-0 ${filterCurrentMonth
+                                        ? 'bg-primary text-white border-primary shadow-md'
+                                        : 'bg-white text-gray-500 border-gray-300 hover:border-primary hover:text-primary shadow-sm'
+                                        }`}
+                                    title="Mostra només els bolos del mes actual"
+                                >
+                                    Mes Actual
+                                </button>
+                            </div>
                         </div>
 
                         <div>

@@ -31,30 +31,49 @@ export function BoloKanban() {
 
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
+    const [showCurrentMonth, setShowCurrentMonth] = useState(false);
 
     useEffect(() => {
         fetchBolos();
-    }, []);
+    }, [selectedYear, showCurrentMonth]);
 
     const fetchBolos = async () => {
         setLoading(true);
-        const { data, error } = await supabase
+
+        const now = new Date();
+        let query = supabase
             .from('bolos')
             .select(`
                 *,
                 client:clients(nom)
-            `)
-            .order('data_bolo', { ascending: false }); // Sort descending (most recent first)
+            `);
+
+        if (showCurrentMonth) {
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+            query = query.gte('data_bolo', startDate).lte('data_bolo', endDate);
+        } else if (selectedYear !== 'all') {
+            const startDate = `${selectedYear}-01-01`;
+            const endDate = `${selectedYear}-12-31`;
+            query = query.gte('data_bolo', startDate).lte('data_bolo', endDate);
+        }
+
+        const { data, error } = await query.order('data_bolo', { ascending: false });
 
         if (!error && data) {
             setBolos(data);
 
-            // Extract years
-            const years = Array.from(new Set(data.map((b: any) => new Date(b.data_bolo).getFullYear()))).sort((a: any, b: any) => b - a) as number[];
-            setAvailableYears(years);
+            // Update available years only on initial load or non-month-filtered load to keep list consistent
+            if (!showCurrentMonth) {
+                const years = Array.from(new Set(data.map((b: any) => new Date(b.data_bolo).getFullYear()))).sort((a: any, b: any) => b - a) as number[];
+                setAvailableYears(years);
 
-            if (years.length > 0 && selectedYear === 'all') {
-                setSelectedYear(years[0]); // Default to current/latest year
+                if (years.length > 0 && selectedYear === 'all') {
+                    setSelectedYear(years[0]);
+                }
             }
         }
         setLoading(false);
@@ -169,9 +188,22 @@ export function BoloKanban() {
 
     return (
         <div className="space-y-4">
-            {/* Year Selector */}
-            <div className="flex justify-end px-4 sm:px-0">
-                <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+            {/* Year Selector & Month Toggle */}
+            <div className="flex flex-col sm:flex-row justify-end items-center gap-4 px-4 sm:px-0">
+                <button
+                    onClick={() => setShowCurrentMonth(!showCurrentMonth)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition-all border shrink-0 ${showCurrentMonth
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-primary hover:text-primary shadow-sm'
+                        }`}
+                    title="Mostra només els bolos del mes actual"
+                >
+                    <span className="material-icons-outlined text-sm">calendar_month</span>
+                    <span className="text-[10px] uppercase">Mes Actual</span>
+                    {showCurrentMonth && <span className="material-icons-outlined text-xs ml-1">check_circle</span>}
+                </button>
+
+                <div className={`bg-gray-100 p-1 rounded-lg inline-flex transition-opacity ${showCurrentMonth ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <button
                         onClick={() => setSelectedYear('all')}
                         className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${selectedYear === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
