@@ -126,6 +126,7 @@ export default function BolosPage() {
     const [filterCurrentMonth, setFilterCurrentMonth] = useState(false);
     const [availableYears, setAvailableYears] = useState<string[]>([]);
     const [sortBy, setSortBy] = useState<string>('data-desc');
+    const [actuacioOptions, setActuacioOptions] = useState<{ value: string, label: string }[]>([]);
     const [selectedBoloForConvocatoria, setSelectedBoloForConvocatoria] = useState<Bolo | null>(null);
     const [convocatoriaText, setConvocatoriaText] = useState('');
 
@@ -173,14 +174,6 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             }
         }
 
-        // Restore scroll position after a short delay to allow content to render
-        const savedScroll = sessionStorage.getItem('bolos_scroll');
-        if (savedScroll) {
-            setTimeout(() => {
-                window.scrollTo(0, parseInt(savedScroll));
-            }, 100);
-        }
-
         const handleScroll = () => {
             sessionStorage.setItem('bolos_scroll', window.scrollY.toString());
         };
@@ -188,6 +181,18 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // Restoration of scroll after loading
+    useEffect(() => {
+        if (!loading && bolos.length > 0) {
+            const savedScroll = sessionStorage.getItem('bolos_scroll');
+            if (savedScroll) {
+                setTimeout(() => {
+                    window.scrollTo({ top: parseInt(savedScroll), behavior: 'instant' });
+                }, 100);
+            }
+        }
+    }, [loading]);
 
     // Save filters whenever they change
     useEffect(() => {
@@ -222,6 +227,12 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             // Extract years
             const years = Array.from(new Set((data || []).map((b: Bolo) => new Date(b.data_bolo).getFullYear().toString()))).sort().reverse();
             setAvailableYears(years as string[]);
+
+            // Extract unique act types
+            const types = Array.from(new Set((data || []).map((b: Bolo) => b.tipus_actuacio).filter(t => !!t)));
+            const baseTypes = ['Festa Major', 'Cercavila', 'Concert', 'Correfoc', 'Privat', 'Casament'];
+            const allTypes = Array.from(new Set([...baseTypes, ...types as string[]])).sort();
+            setActuacioOptions(allTypes.map(t => ({ value: t, label: t })));
         }
         setLoading(false);
     };
@@ -334,80 +345,80 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             </div>
 
             {/* Filters Area */}
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                {/* Row 1: Search & Main Filters */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Search */}
-                    <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Cerca Poble o Client</label>
-                        <div className="relative">
-                            <span className="material-icons-outlined absolute left-3 top-2.5 text-gray-400">search</span>
+                    <div className="lg:col-span-4">
+                        <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-2 ml-1">Cerca Poble o Client</label>
+                        <div className="relative group">
+                            <span className="material-icons-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors">search</span>
                             <input
                                 type="text"
                                 placeholder="Cerca per municipi, poble o client..."
-                                className="pl-10"
+                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all font-medium text-sm"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                     </div>
 
-                    {/* Any Filter & Month Toggle */}
-                    <div className="grid grid-cols-2 md:grid-cols-1 gap-2 md:contents">
-                        <div className="flex flex-col">
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Filtre Temporal</label>
-                            <div className="flex gap-2 h-[42px]">
-                                <select
-                                    className={`flex-1 ${filterCurrentMonth ? 'opacity-50 pointer-events-none' : ''}`}
-                                    value={filterAny}
-                                    onChange={(e) => setFilterAny(e.target.value)}
-                                >
-                                    <option value="tots">Tots els anys</option>
-                                    {availableYears.map(year => (
-                                        <option key={year} value={year}>{year}</option>
-                                    ))}
-                                </select>
-                                <button
-                                    onClick={() => setFilterCurrentMonth(!filterCurrentMonth)}
-                                    className={`px-4 rounded-xl font-bold text-xs transition-all border shrink-0 ${filterCurrentMonth
-                                        ? 'bg-primary text-white border-primary shadow-md'
-                                        : 'bg-white text-gray-500 border-gray-300 hover:border-primary hover:text-primary shadow-sm'
-                                        }`}
-                                    title="Situa't sobre els bolos del mes actual"
-                                >
-                                    Mes Actual
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Ordenar per</label>
+                    {/* Temporary Filter (Year + Month Toggle) */}
+                    <div className="lg:col-span-4">
+                        <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-2 ml-1">Filtre Temporal</label>
+                        <div className="flex gap-2">
                             <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
+                                className={`flex-1 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all font-bold text-sm h-[44px] ${filterCurrentMonth ? 'opacity-40 pointer-events-none' : ''}`}
+                                value={filterAny}
+                                onChange={(e) => setFilterAny(e.target.value)}
                             >
-                                <option value="data-desc">Data (més recent)</option>
-                                <option value="data-asc">Data (antic primer)</option>
-                                <option value="poble-asc">Poble (A-Z)</option>
-                                <option value="poble-desc">Poble (Z-A)</option>
-                                <option value="preu-desc">Preu (més car)</option>
-                                <option value="preu-asc">Preu (més barat)</option>
-                                <option value="tipus-asc">Tipus actuació</option>
+                                <option value="tots">Tots els anys</option>
+                                {availableYears.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
                             </select>
+                            <button
+                                onClick={() => setFilterCurrentMonth(!filterCurrentMonth)}
+                                className={`px-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border shrink-0 h-[44px] ${filterCurrentMonth
+                                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                                    : 'bg-white text-gray-500 border-gray-200 hover:border-primary hover:text-primary'
+                                    }`}
+                                title="Situa't sobre els bolos del mes actual"
+                            >
+                                Mes Actual
+                            </button>
                         </div>
+                    </div>
 
-                        <div>
-                            <MultiSelectFilter
-                                label="Estat"
-                                options={STATUS_OPTIONS}
-                                selected={filterEstat}
-                                onChange={setFilterEstat}
-                            />
-                        </div>
+                    {/* Sorting */}
+                    <div className="lg:col-span-4">
+                        <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-2 ml-1">Ordenar per</label>
+                        <select
+                            className="w-full bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all font-bold text-sm h-[44px]"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                        >
+                            <option value="data-desc">🗓️ Data (més recent)</option>
+                            <option value="data-asc">🗓️ Data (antic primer)</option>
+                            <option value="poble-asc">🏘️ Poble (A-Z)</option>
+                            <option value="poble-desc">🏘️ Poble (Z-A)</option>
+                            <option value="preu-desc">💰 Preu (més car)</option>
+                            <option value="preu-asc">💰 Preu (més barat)</option>
+                            <option value="tipus-asc">🏷️ Tipus actuació</option>
+                        </select>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-                    {/* Tipus Ingrés Filter */}
+                {/* Row 2: Multi-select Tags */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                    <div>
+                        <MultiSelectFilter
+                            label="Estat"
+                            options={STATUS_OPTIONS}
+                            selected={filterEstat}
+                            onChange={setFilterEstat}
+                        />
+                    </div>
                     <div>
                         <MultiSelectFilter
                             label="Tipus d'ingrés"
@@ -420,19 +431,10 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
                             onChange={setFilterTipusIngres}
                         />
                     </div>
-
-                    {/* Tipus Actuació Filter */}
                     <div>
                         <MultiSelectFilter
                             label="Tipus d'actuació"
-                            options={[
-                                { value: 'Festa Major', label: 'Festa Major' },
-                                { value: 'Cercavila', label: 'Cercavila' },
-                                { value: 'Correbars', label: 'Correbars' },
-                                { value: 'Casament', label: 'Casament' },
-                                { value: 'Privat', label: 'Privat' },
-                                { value: 'Altres', label: 'Altres' }
-                            ]}
+                            options={actuacioOptions}
                             selected={filterTipusActuacio}
                             onChange={setFilterTipusActuacio}
                         />
@@ -497,23 +499,29 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
                                                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors truncate">
                                                             {bolo.titol || bolo.nom_poble}
                                                         </h3>
-                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                                                            {/* Població - Always show if titol exists, or just show it anyway for context */}
-                                                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                                                <span className="material-icons-outlined text-base">location_on</span>
-                                                                <span className="font-medium">{bolo.nom_poble}</span>
+                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+                                                            {/* Població */}
+                                                            <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
+                                                                <span className="material-icons-outlined text-sm">location_on</span>
+                                                                <span className="font-bold">{bolo.nom_poble}</span>
                                                             </div>
 
                                                             {bolo.client?.nom && (
-                                                                <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                                                    <span className="material-icons-outlined text-base">business</span>
-                                                                    <span className="font-medium truncate max-w-[150px]">{bolo.client.nom}</span>
+                                                                <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
+                                                                    <span className="material-icons-outlined text-sm">business</span>
+                                                                    <span className="font-bold truncate max-w-[150px]">{bolo.client.nom}</span>
                                                                 </div>
                                                             )}
                                                             {bolo.concepte && (
-                                                                <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                                                    <span className="material-icons-outlined text-base">info</span>
-                                                                    <span className="truncate italic">"{bolo.concepte}"</span>
+                                                                <div className="flex items-center gap-1.5 text-xs text-gray-600 italic">
+                                                                    <span className="material-icons-outlined text-sm">info</span>
+                                                                    <span className="truncate">"{bolo.concepte}"</span>
+                                                                </div>
+                                                            )}
+                                                            {bolo.notes && (
+                                                                <div className="flex items-center gap-1.5 text-[10px] text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 w-full sm:w-auto mt-1 sm:mt-0 shadow-sm font-medium">
+                                                                    <span className="material-icons-outlined text-xs">notes</span>
+                                                                    <span className="truncate max-w-[250px]">{bolo.notes}</span>
                                                                 </div>
                                                             )}
                                                         </div>

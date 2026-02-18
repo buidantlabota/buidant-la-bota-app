@@ -19,6 +19,8 @@ export default function NewBoloPage() {
         tipus_ingres: 'Efectiu',
         notes: '',
         tipus_actuacio: '',
+        is_custom_tipus: false,
+        custom_tipus: '',
         concepte: '',
         durada: '',
         menjar_esmorzar: false,
@@ -26,6 +28,19 @@ export default function NewBoloPage() {
         menjar_sopar: false,
         menjar_barra_lliure: false,
     });
+
+    const [existingTypes, setExistingTypes] = useState<string[]>(['Festa Major', 'Cercavila', 'Concert', 'Correfoc', 'Privat', 'Casament']);
+
+    useEffect(() => {
+        const fetchTypes = async () => {
+            const { data } = await supabase.from('bolos').select('tipus_actuacio');
+            if (data) {
+                const types = Array.from(new Set(data.map(b => b.tipus_actuacio).filter(t => !!t)));
+                setExistingTypes(prev => Array.from(new Set([...prev, ...types as string[]])).sort());
+            }
+        };
+        fetchTypes();
+    }, []);
 
     const [municipi, setMunicipi] = useState<{
         municipi_id?: string | null;
@@ -64,7 +79,7 @@ export default function NewBoloPage() {
                     notes: formData.notes || null,
                     estat: 'Nova',
                     cobrat: false,
-                    tipus_actuacio: formData.tipus_actuacio || null,
+                    tipus_actuacio: formData.is_custom_tipus ? formData.custom_tipus : (formData.tipus_actuacio || null),
                     concepte: formData.concepte || null,
                     durada: formData.durada ? parseInt(formData.durada) : null,
                     // Nous camps del sistema de municipis
@@ -157,25 +172,46 @@ export default function NewBoloPage() {
                             </div>
                         </div>
 
-                        {/* Tipus Actuació */}
-                        <div className="space-y-1.5">
-                            <label className="block text-sm font-bold text-gray-600 uppercase tracking-wider">
-                                Tipus d'actuació
-                            </label>
-                            <select
-                                value={formData.tipus_actuacio}
-                                onChange={e => setFormData({ ...formData, tipus_actuacio: e.target.value })}
-                                required
-                            >
-                                <option value="">Selecciona tipus</option>
-                                <option value="Festa Major">Festa Major</option>
-                                <option value="Cercavila">Cercavila</option>
-                                <option value="Concert">Concert</option>
-                                <option value="Correfoc">Correfoc</option>
-                                <option value="Privat">Privat</option>
-                                <option value="Casament">Casament</option>
-                                <option value="Altres">Altres</option>
-                            </select>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="block text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                    Tipus d'actuació
+                                </label>
+                                <select
+                                    value={formData.is_custom_tipus ? 'CUSTOM' : formData.tipus_actuacio}
+                                    onChange={e => {
+                                        if (e.target.value === 'CUSTOM') {
+                                            setFormData({ ...formData, is_custom_tipus: true, tipus_actuacio: '' });
+                                        } else {
+                                            setFormData({ ...formData, is_custom_tipus: false, tipus_actuacio: e.target.value });
+                                        }
+                                    }}
+                                    required
+                                >
+                                    <option value="">Selecciona tipus</option>
+                                    {existingTypes.map(t => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                    <option value="CUSTOM" className="font-bold text-primary italic">+ Afegir nou tipus...</option>
+                                </select>
+                            </div>
+
+                            {formData.is_custom_tipus && (
+                                <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-200">
+                                    <label className="block text-xs font-black text-primary uppercase tracking-widest">
+                                        Nom del nou tipus d'actuació
+                                    </label>
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        required
+                                        value={formData.custom_tipus}
+                                        onChange={e => setFormData({ ...formData, custom_tipus: e.target.value })}
+                                        placeholder="Escriu el nou tipus (ex: Pasacalle, Rua...)"
+                                        className="w-full border-primary/30 ring-primary/10"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Concepte */}

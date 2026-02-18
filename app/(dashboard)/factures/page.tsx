@@ -27,7 +27,7 @@ export default function BillingPage() {
     const [records, setRecords] = useState<InvoiceRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState<'all' | 'factura' | 'pressupost'>('all');
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedYear, setSelectedYear] = useState<number | 'tots'>(new Date().getFullYear());
     const [showModal, setShowModal] = useState(false);
 
     // Form state
@@ -50,15 +50,15 @@ export default function BillingPage() {
 
         try {
             // 1. Fetch records simple
-            const start = `${selectedYear}-01-01`;
-            const end = `${selectedYear}-12-31`;
+            let query = supabase.from('invoice_records').select('*');
 
-            const { data: rawData, error } = await supabase
-                .from('invoice_records')
-                .select('*')
-                .gte('creation_date', start)
-                .lte('creation_date', end)
-                .order('creation_date', { ascending: false });
+            if (selectedYear !== 'tots') {
+                const start = `${selectedYear}-01-01`;
+                const end = `${selectedYear}-12-31`;
+                query = query.gte('creation_date', start).lte('creation_date', end);
+            }
+
+            const { data: rawData, error } = await query.order('creation_date', { ascending: false });
 
             if (error) throw error;
 
@@ -236,9 +236,36 @@ export default function BillingPage() {
                     <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                         {/* Year Selector */}
                         <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm sm:w-auto w-full justify-between sm:justify-start">
-                            <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-1 text-gray-400 hover:text-black transition-colors"><span className="material-icons-outlined text-lg">chevron_left</span></button>
-                            <span className="font-mono font-bold mx-3 text-lg">{selectedYear}</span>
-                            <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 text-gray-400 hover:text-black transition-colors"><span className="material-icons-outlined text-lg">chevron_right</span></button>
+                            <button
+                                onClick={() => {
+                                    if (selectedYear === 'tots') setSelectedYear(new Date().getFullYear());
+                                    else setSelectedYear(prev => (prev as number) - 1);
+                                }}
+                                className="p-1 text-gray-400 hover:text-black transition-colors"
+                            >
+                                <span className="material-icons-outlined text-lg">chevron_left</span>
+                            </button>
+
+                            <select
+                                className="bg-transparent border-none font-mono font-bold text-lg focus:ring-0 cursor-pointer px-2"
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value === 'tots' ? 'tots' : parseInt(e.target.value))}
+                            >
+                                <option value="tots">Tots els anys</option>
+                                {[2024, 2025, 2026, 2027].map(y => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
+
+                            <button
+                                onClick={() => {
+                                    if (selectedYear === 'tots') setSelectedYear(new Date().getFullYear());
+                                    else setSelectedYear(prev => (prev as number) + 1);
+                                }}
+                                className="p-1 text-gray-400 hover:text-black transition-colors"
+                            >
+                                <span className="material-icons-outlined text-lg">chevron_right</span>
+                            </button>
                         </div>
 
                         <div className="flex gap-2 w-full sm:w-auto">
