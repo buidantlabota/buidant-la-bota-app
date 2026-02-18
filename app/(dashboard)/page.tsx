@@ -128,7 +128,7 @@ export default function Dashboard() {
           .filter((a: any) => a.bolos?.pot_delta_final === null && a.data_pagament >= cutoffDate)
           .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-        const potReal = potBase + totalManualBalance + closedBolosPot + currentAdvances;
+        const potReal = potBase + totalManualBalance + closedBolosPot - currentAdvances;
 
         const aCobrar = (allBolos || [])
           .filter((b: any) => {
@@ -450,52 +450,59 @@ export default function Dashboard() {
       </section>
 
       {/* KPI Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Pot Final Projectat (Forecast) */}
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Bolos Count Widget */}
+        <div className="bg-gradient-to-br from-primary to-orange-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-icons-outlined text-9xl">calculate</span>
+            <span className="material-icons-outlined text-9xl">festival</span>
           </div>
-          <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Pot Projectat</p>
-          <div className="text-4xl font-extrabold tracking-tight">
-            {loading ? '...' : <PrivacyMask value={finances.projectat} className="" />}
+          <p className="text-white/70 text-xs font-black uppercase tracking-widest mb-2">Actuacions {selectedYear}</p>
+          <div className="text-6xl font-black tracking-tighter">
+            {loading ? '...' : animatedBolos}
           </div>
-          <p className="text-gray-500 text-xs mt-2 italic">Previsió incloent pendents de cobrar i pagar</p>
-          <Link href="/previsio-economica" className="absolute inset-0" aria-label="Veure Pot"></Link>
+          <p className="text-white/40 text-[10px] mt-4 font-bold uppercase tracking-widest">Confirmades i Tancades</p>
+          <Link href="/bolos" className="absolute inset-0" aria-label="Veure Bolos"></Link>
         </div>
 
         {/* Pot Real (Diners en Caixa) */}
-        <div className="bg-gradient-to-br from-primary to-red-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300 border border-white/5">
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-icons-outlined text-9xl">payments</span>
           </div>
-          <p className="text-white/70 text-sm font-bold uppercase tracking-wider mb-1">Diners en Caixa</p>
-          <div className="text-4xl font-extrabold tracking-tight">
+          <p className="text-white/50 text-xs font-black uppercase tracking-[0.2em] mb-2">Diners en Caixa (Pot Reial)</p>
+          <div className="text-6xl font-black tracking-tighter">
             {loading ? '...' : <PrivacyMask value={finances.potReal} className="" />}
           </div>
+          <p className="text-white/30 text-[10px] mt-4 italic">Saldo actual lliure de deutes immediats</p>
           <Link href="/pot" className="absolute inset-0" aria-label="Veure Pot"></Link>
         </div>
+      </section>
 
-        {/* A cobrar */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-emerald-100 shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
-          <div className="absolute top-4 right-4 p-2 bg-emerald-50 rounded-lg text-emerald-600">
-            <span className="material-icons-outlined">trending_up</span>
-          </div>
-          <p className="text-emerald-600 text-sm font-bold uppercase tracking-wider mb-2">Pendent d'entrada</p>
-          <div className="text-3xl font-bold text-emerald-700">
-            {loading ? '...' : <PrivacyMask value={finances.aCobrar} className="" />}
-          </div>
+      {/* Kanban Summary Stats - The missing summary */}
+      <section className="bg-card-bg rounded-3xl border border-border p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="material-icons-outlined text-primary">analytics</span>
+          <h3 className="text-lg font-bold text-text-primary uppercase tracking-tight">Resum del Tauler d'Estats</h3>
         </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {Object.entries(boloCounts).map(([label, count]) => {
+            let color = "bg-gray-100 text-gray-600";
+            let icon = "circle";
+            if (label === 'Nova') { color = "bg-red-50 text-red-600 border-red-100"; icon = "fiber_new"; }
+            if (label === 'Pendent de confirmació') { color = "bg-orange-50 text-orange-600 border-orange-100"; icon = "pending"; }
+            if (label === 'Confirmada') { color = "bg-emerald-50 text-emerald-600 border-emerald-100"; icon = "check_circle"; }
+            if (label === 'Pendents de cobrar') { color = "bg-yellow-50 text-yellow-700 border-yellow-200"; icon = "payments"; }
+            if (label === 'Per pagar') { color = "bg-lime-50 text-lime-700 border-lime-200"; icon = "group_work"; }
+            if (label === 'Tancades') { color = "bg-gray-800 text-white"; icon = "archive"; }
 
-        {/* A pagar */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-red-100 shadow-sm relative overflow-hidden group hover:border-red-500/50 transition-colors">
-          <div className="absolute top-4 right-4 p-2 bg-red-50 rounded-lg text-red-600">
-            <span className="material-icons-outlined">trending_down</span>
-          </div>
-          <p className="text-red-600 text-sm font-bold uppercase tracking-wider mb-2">Pendent de sortida</p>
-          <div className="text-3xl font-bold text-red-700">
-            {loading ? '...' : <PrivacyMask value={finances.aPagar} className="" />}
-          </div>
+            return (
+              <div key={label} className={`p-4 rounded-2xl border ${color} transition-all hover:scale-105 flex flex-col items-center justify-center text-center gap-1`}>
+                <span className="material-icons-outlined text-xl mb-1">{icon}</span>
+                <span className="text-2xl font-black">{count}</span>
+                <span className="text-[9px] font-black uppercase tracking-tighter opacity-70 leading-tight">{label}</span>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -537,72 +544,68 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Annual Stats Section */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Bolos Count Widget */}
-        <div className="bg-gradient-to-br from-primary to-red-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-10">
-            <span className="material-icons-outlined text-9xl">music_note</span>
-          </div>
-          <p className="text-white/70 text-sm font-bold uppercase tracking-wider mb-1">Bolos {selectedYear}</p>
-          <p className="text-5xl font-black tracking-tight">{loading ? '...' : animatedBolos}</p>
-          <p className="text-white/60 text-xs mt-2">Total d'actuacions confirmades</p>
+      {/* Pending Requests Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
+            <span className="material-icons-outlined text-primary">pending_actions</span>
+            Sol·licituds que necessiten acció
+          </h3>
+          <Link href="/bolos" className="text-sm font-bold text-primary hover:underline">Veure tot</Link>
         </div>
 
-        {/* Top 5 Populations */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-icons-outlined text-primary">location_on</span>
-            <h3 className="text-lg font-bold text-text-primary">Top 5 Poblacions {selectedYear}</h3>
-          </div>
-          {loading ? (
-            <p className="text-text-secondary text-sm">Carregant...</p>
-          ) : topPopulations.length > 0 ? (
-            <div className="space-y-2">
-              {topPopulations.map((pop, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-lg font-black ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-orange-600' : 'text-gray-500'}`}>
-                      #{idx + 1}
-                    </span>
-                    <span className="font-semibold text-text-primary">{pop.nom}</span>
+        <div className="grid gap-4">
+          {pendingRequests.length > 0 ? (
+            pendingRequests.map(bolo => (
+              <div key={bolo.id} className="bg-card-bg p-4 rounded-xl border border-border hover:shadow-md transition-shadow flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-yellow-100 p-3 rounded-full text-yellow-700">
+                    <span className="material-icons-outlined">notifications_active</span>
                   </div>
-                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{pop.count}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-text-secondary text-sm">No hi ha dades disponibles</p>
-          )}
-        </div>
-
-        {/* Top 5 Assistants - Now showing ALL with scroll */}
-        <div className="bg-card-bg rounded-2xl p-6 border border-border shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-icons-outlined text-blue-600">emoji_events</span>
-            <h3 className="text-lg font-bold text-text-primary">Assistència Músics {selectedYear}</h3>
-          </div>
-          {loading ? (
-            <p className="text-text-secondary text-sm">Carregant...</p>
-          ) : topAssistants.length > 0 ? (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              {topAssistants.map((assistant, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-lg font-black ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-orange-600' : 'text-gray-500'}`}>
-                      #{idx + 1}
-                    </span>
-                    <span className="font-semibold text-text-primary">{assistant.nom}</span>
+                  <div>
+                    <p className="font-bold text-lg text-text-primary">
+                      {bolo.titol || bolo.poblacio}
+                      <span className="ml-2 py-0.5 px-2 bg-gray-100 rounded text-[10px] text-gray-500 font-black tracking-tight uppercase">
+                        {bolo.poblacio}
+                      </span>
+                    </p>
+                    <p className="text-sm text-text-secondary flex items-center gap-2">
+                      {bolo.data ? formatDate(bolo.data) : 'Sense data'}
+                      {bolo.hora_inici && (
+                        <span className="flex items-center text-xs bg-gray-100 rounded px-1 text-gray-600">
+                          <span className="material-icons-outlined text-[10px] mr-1">schedule</span>
+                          {bolo.hora_inici.substring(0, 5)}h
+                        </span>
+                      )}
+                    </p>
                   </div>
-                  <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{assistant.count}</span>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    {bolo.data && (
+                      <p className="text-xs font-bold text-primary uppercase tracking-wider">
+                        Atenció necessària
+                      </p>
+                    )}
+                  </div>
+                  <Link href={`/bolos/${bolo.id}`} className="p-2 text-gray-400 hover:text-primary transition-colors">
+                    <span className="material-icons-outlined">arrow_forward_ios</span>
+                  </Link>
+                </div>
+              </div>
+            ))
           ) : (
-            <p className="text-text-secondary text-sm">No hi ha dades disponibles</p>
+            <div className="text-center py-12 bg-card-bg rounded-xl border border-dashed border-gray-300">
+              <div className="mb-3">
+                <span className="material-icons-outlined text-4xl text-gray-300">task_alt</span>
+              </div>
+              <p className="text-gray-500 font-medium">No hi ha sol·licituds pendents.</p>
+              <p className="text-gray-400 text-sm mt-1">Tot està al dia!</p>
+            </div>
           )}
         </div>
       </section>
+
 
     </div>
   );

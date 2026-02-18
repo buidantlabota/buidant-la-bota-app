@@ -101,6 +101,7 @@ function InternalDashboardLayout({
 
     const navItems: NavItem[] = [
         { name: 'Resum', path: '/', icon: 'home' },
+        { name: 'Estadístiques', path: '/estadistiques', icon: 'query_stats' },
         { name: 'Calendari', path: '/calendar', icon: 'calendar_month' },
         {
             name: 'Actuacions',
