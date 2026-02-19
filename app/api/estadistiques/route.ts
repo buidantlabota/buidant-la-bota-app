@@ -1,15 +1,82 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+// ── In-memory cache (per worker, lives ~60s) ──────────────
+const CACHE_TTL_MS = 60_000; // 60 seconds
+const cache = new Map<string, { ts: number; data: any }>();
+
+const CONFIRMED = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat'];
+const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats'];
+
+// ── Aggregation helpers ───────────────────────────────────
+function aggregate(bolos: any[]) {
+    const confirmed = bolos.filter(b => CONFIRMED.includes(b.estat));
+    const rejected = bolos.filter(b => REJECTED.includes(b.estat));
+
+    const totalIncome = confirmed.reduce((s, b) => s + (b.import_total || 0), 0);
+    const cashIncome = confirmed.filter(b => b.tipus_ingres === 'Efectiu').reduce((s, b) => s + (b.import_total || 0), 0);
+    const invoiceIncome = confirmed.filter(b => b.tipus_ingres === 'Factura').reduce((s, b) => s + (b.import_total || 0), 0);
+    const totalExpenses = confirmed.reduce((s, b) => s + (b.cost_total_musics || 0), 0);
+    const netProfit = confirmed.reduce((s, b) => s + (b.pot_delta_final || 0), 0);
+    const sorted = confirmed.map(b => b.import_total || 0).sort((a, b) => a - b);
+    const medianPrice = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
+
+    // Monthly map
+    const monthlyMap: Record<string, { month: string; income: number; count: number }> = {};
+    confirmed.forEach(b => {
+        const d = new Date(b.data_bolo);
+        const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+        if (!monthlyMap[key]) monthlyMap[key] = { month: key, income: 0, count: 0 };
+        monthlyMap[key].income += (b.import_total || 0);
+        monthlyMap[key].count += 1;
+    });
+
+    // Town map
+    const townMap: Record<string, { name: string; income: number; count: number }> = {};
+    confirmed.forEach(b => {
+        const p = b.nom_poble || 'Desconegut';
+        if (!townMap[p]) townMap[p] = { name: p, income: 0, count: 0 };
+        townMap[p].income += (b.import_total || 0);
+        townMap[p].count += 1;
+    });
+
+    // Type map
+    const typeMap: Record<string, number> = {};
+    confirmed.forEach(b => {
+        const t = b.tipus_actuacio || 'Altres';
+        typeMap[t] = (typeMap[t] || 0) + 1;
+    });
+
+    // Price buckets
+    const priceBuckets = [
+        { range: '< 300€', count: confirmed.filter(b => b.import_total < 300).length },
+        { range: '300-600€', count: confirmed.filter(b => b.import_total >= 300 && b.import_total < 600).length },
+        { range: '600-1000€', count: confirmed.filter(b => b.import_total >= 600 && b.import_total < 1000).length },
+        { range: '> 1000€', count: confirmed.filter(b => b.import_total >= 1000).length },
+    ];
+
+    return {
+        confirmed, rejected,
+        totalIncome, cashIncome, invoiceIncome, totalExpenses, netProfit, medianPrice,
+        monthly: Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month)),
+        towns: Object.values(townMap).sort((a, b) => b.income - a.income).slice(0, 10),
+        allTowns: townMap,
+        types: Object.entries(typeMap).map(([name, count]) => ({ name, value: count })),
+        priceBuckets,
+        count: bolos.length,
+        confirmedCount: confirmed.length,
+        rejectedCount: rejected.length,
+        pendingCount: bolos.length - confirmed.length - rejected.length,
+    };
+}
+
+// ── GET handler ───────────────────────────────────────────
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const supabase = await createClient();
 
-    // Check auth
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        return NextResponse.json({ error: 'No autoritzat' }, { status: 401 });
-    }
+    if (authError || !user) return NextResponse.json({ error: 'No autoritzat' }, { status: 401 });
 
     // Parse filters
     const years = searchParams.get('years')?.split(',').filter(Boolean) || [];
@@ -21,216 +88,152 @@ export async function GET(request: Request) {
     const statuses = statusParam === 'tots' ? [] : statusParam.split(',').filter(Boolean);
     const types = searchParams.get('types')?.split(',').filter(Boolean) || [];
 
+    // Cache key
+    const cacheKey = searchParams.toString();
+    const cached = cache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+        return NextResponse.json(cached.data, {
+            headers: { 'X-Cache': 'HIT', 'Cache-Control': 'private, max-age=60' }
+        });
+    }
+
     try {
-        // Base query for bolos
-        let query = supabase.from('bolos').select(`
-            id, 
-            data_bolo, 
-            nom_poble, 
-            import_total, 
-            tipus_ingres, 
-            estat, 
-            tipus_actuacio,
-            cost_total_musics,
-            ajust_pot_manual,
-            pot_delta_final
-        `);
+        // ── Bolos query (only needed columns) ─────────────
+        let query = supabase.from('bolos').select(
+            'id, data_bolo, nom_poble, import_total, tipus_ingres, estat, tipus_actuacio, cost_total_musics, ajust_pot_manual, pot_delta_final'
+        );
 
-        // Apply filters
+        // Date filter (DB-side)
         if (years.length > 0) {
-            const startYear = Math.min(...years.map(y => parseInt(y)));
-            const endYear = Math.max(...years.map(y => parseInt(y)));
-            query = query.gte('data_bolo', `${startYear}-01-01`).lte('data_bolo', `${endYear}-12-31`);
+            const start = Math.min(...years.map(y => parseInt(y)));
+            const end = Math.max(...years.map(y => parseInt(y)));
+            query = query.gte('data_bolo', `${start}-01-01`).lte('data_bolo', `${end}-12-31`);
         }
 
-        if (towns.length > 0) {
-            query = query.in('nom_poble', towns);
-        }
-
-        if (minPrice !== null) {
-            query = query.gte('import_total', minPrice);
-        }
-
-        if (maxPrice !== null) {
-            query = query.lte('import_total', maxPrice);
-        }
-
-        if (paymentType !== 'tots') {
-            query = query.eq('tipus_ingres', paymentType);
-        }
+        if (towns.length > 0) query = query.in('nom_poble', towns);
+        if (minPrice !== null) query = query.gte('import_total', minPrice);
+        if (maxPrice !== null) query = query.lte('import_total', maxPrice);
+        if (paymentType !== 'tots') query = query.eq('tipus_ingres', paymentType);
+        if (types.length > 0) query = query.in('tipus_actuacio', types);
 
         if (statuses.length > 0) {
-            // Handle category aliases if single value matching them
             if (statuses.length === 1) {
                 const s = statuses[0];
-                if (s === 'acceptat') {
-                    query = query.in('estat', ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat']);
-                } else if (s === 'rebutjat') {
-                    query = query.in('estat', ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats']);
-                } else if (s === 'pendent') {
-                    query = query.in('estat', ['Nova', 'Pendent de confirmació', 'Sol·licitat']);
-                } else {
-                    query = query.in('estat', statuses);
-                }
+                if (s === 'acceptat') query = query.in('estat', CONFIRMED);
+                else if (s === 'rebutjat') query = query.in('estat', REJECTED);
+                else if (s === 'pendent') query = query.in('estat', ['Nova', 'Pendent de confirmació', 'Sol·licitat']);
+                else query = query.in('estat', statuses);
             } else {
                 query = query.in('estat', statuses);
             }
-        }
-
-        if (types.length > 0) {
-            query = query.in('tipus_actuacio', types);
         }
 
         const { data: bolos, error: bolosError } = await query;
         if (bolosError) throw bolosError;
 
         if (!bolos || bolos.length === 0) {
-            return NextResponse.json({
+            const empty = {
                 kpis: { totalIncome: 0, count: 0, confirmedCount: 0, rejectedCount: 0, pendingCount: 0, avgPrice: 0, medianPrice: 0, acceptanceRate: 0, rejectionRate: 0, cashIncome: 0, invoiceIncome: 0, totalExpenses: 0, netProfit: 0 },
-                charts: { monthly: [], towns: [], payments: [], prices: [], types: [] },
+                charts: { monthly: [], towns: [], payments: [], prices: [], types: [], map: [] },
                 rankings: { elevenGala: [], topSections: [] }
-            });
+            };
+            return NextResponse.json(empty);
         }
 
-        // JS filter for years if they were non-contiguous
+        // JS year filter (for non-contiguous years)
         let filteredBolos = bolos;
         if (years.length > 0) {
-            filteredBolos = bolos.filter((b: any) => {
-                const y = new Date(b.data_bolo).getFullYear().toString();
-                return years.includes(y);
-            });
+            filteredBolos = bolos.filter((b: any) => years.includes(new Date(b.data_bolo).getFullYear().toString()));
         }
 
-        const confirmedStates = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat'];
-        const rejectedStates = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats'];
-
-        const confirmedBolos = filteredBolos.filter(b => confirmedStates.includes(b.estat));
-        const rejectedBolos = filteredBolos.filter(b => rejectedStates.includes(b.estat));
-
-        // KPIs calculation
-        const totalIncome = confirmedBolos.reduce((acc, b) => acc + (b.import_total || 0), 0);
-        const cashIncome = confirmedBolos.filter(b => b.tipus_ingres === 'Efectiu').reduce((acc, b) => acc + (b.import_total || 0), 0);
-        const invoiceIncome = confirmedBolos.filter(b => b.tipus_ingres === 'Factura').reduce((acc, b) => acc + (b.import_total || 0), 0);
-        const totalExpenses = confirmedBolos.reduce((acc, b) => acc + (b.cost_total_musics || 0), 0);
-        const netProfit = confirmedBolos.reduce((acc, b) => acc + (b.pot_delta_final || 0), 0);
-
-        const sortedPrices = confirmedBolos.map(b => b.import_total || 0).sort((a, b) => a - b);
-        const medianPrice = sortedPrices.length > 0 ? sortedPrices[Math.floor(sortedPrices.length / 2)] : 0;
+        const agg = aggregate(filteredBolos);
 
         const kpis = {
-            totalIncome,
-            count: filteredBolos.length,
-            confirmedCount: confirmedBolos.length,
-            rejectedCount: rejectedBolos.length,
-            pendingCount: filteredBolos.length - confirmedBolos.length - rejectedBolos.length,
-            avgPrice: confirmedBolos.length > 0 ? totalIncome / confirmedBolos.length : 0,
-            medianPrice,
-            acceptanceRate: filteredBolos.length > 0 ? (confirmedBolos.length / filteredBolos.length) * 100 : 0,
-            rejectionRate: filteredBolos.length > 0 ? (rejectedBolos.length / filteredBolos.length) * 100 : 0,
-            cashIncome,
-            invoiceIncome,
-            totalExpenses,
-            netProfit
+            totalIncome: agg.totalIncome,
+            count: agg.count,
+            confirmedCount: agg.confirmedCount,
+            rejectedCount: agg.rejectedCount,
+            pendingCount: agg.pendingCount,
+            avgPrice: agg.confirmedCount > 0 ? agg.totalIncome / agg.confirmedCount : 0,
+            medianPrice: agg.medianPrice,
+            acceptanceRate: agg.count > 0 ? (agg.confirmedCount / agg.count) * 100 : 0,
+            rejectionRate: agg.count > 0 ? (agg.rejectedCount / agg.count) * 100 : 0,
+            cashIncome: agg.cashIncome,
+            invoiceIncome: agg.invoiceIncome,
+            totalExpenses: agg.totalExpenses,
+            netProfit: agg.netProfit,
         };
 
-        // Charts
-        const monthlyMap: Record<string, { month: string, income: number, count: number }> = {};
-        confirmedBolos.forEach(b => {
-            const date = new Date(b.data_bolo);
-            const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-            if (!monthlyMap[key]) monthlyMap[key] = { month: key, income: 0, count: 0 };
-            monthlyMap[key].income += (b.import_total || 0);
-            monthlyMap[key].count += 1;
-        });
-        const monthlyData = Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month));
+        // ── Rankings: músics (in parallel with coord lookup) ──
+        const boloIds = agg.confirmed.map((b: any) => b.id);
 
-        const priceBuckets = [
-            { range: '< 300€', count: confirmedBolos.filter(b => b.import_total < 300).length },
-            { range: '300-600€', count: confirmedBolos.filter(b => b.import_total >= 300 && b.import_total < 600).length },
-            { range: '600-1000€', count: confirmedBolos.filter(b => b.import_total >= 600 && b.import_total < 1000).length },
-            { range: '> 1000€', count: confirmedBolos.filter(b => b.import_total >= 1000).length },
-        ];
+        const [attendanceRes, coordsRes] = await Promise.all([
+            boloIds.length > 0
+                ? supabase.from('bolo_musics')
+                    .select('music_id, musics(nom, instruments, tipus)')
+                    .in('bolo_id', boloIds)
+                    .eq('estat', 'confirmat')
+                : Promise.resolve({ data: [] }),
 
-        const townMap: Record<string, { name: string, income: number, count: number }> = {};
-        confirmedBolos.forEach(b => {
-            if (!townMap[b.nom_poble]) townMap[b.nom_poble] = { name: b.nom_poble, income: 0, count: 0 };
-            townMap[b.nom_poble].income += (b.import_total || 0);
-            townMap[b.nom_poble].count += 1;
-        });
-        const townData = Object.values(townMap).sort((a, b) => b.income - a.income).slice(0, 10);
+            supabase.from('municipis')
+                .select('nom, lat, lng')
+                .in('nom', Object.keys(agg.allTowns)),
+        ]);
 
-        const typeMap: Record<string, number> = {};
-        confirmedBolos.forEach(b => {
-            const t = b.tipus_actuacio || 'Altres';
-            typeMap[t] = (typeMap[t] || 0) + 1;
-        });
-        const typeData = Object.entries(typeMap).map(([name, count]) => ({ name, value: count }));
-
-        // Rankings
-        const boloIds = confirmedBolos.map(b => b.id);
-        const { data: attendanceData } = await supabase
-            .from('bolo_musics')
-            .select('music_id, musics(nom, instruments, tipus)')
-            .in('bolo_id', boloIds)
-            .eq('estat', 'confirmat');
-
-        const musicianMap: Record<string, { name: string, count: number, instrument: string, type: string }> = {};
-        (attendanceData || []).forEach((row: any) => {
+        // Musician rankings
+        const musicianMap: Record<string, { name: string; count: number; instrument: string; type: string }> = {};
+        (attendanceRes.data || []).forEach((row: any) => {
             const mid = row.music_id;
             const m = row.musics;
             if (!musicianMap[mid]) musicianMap[mid] = { name: m?.nom || 'Desconegut', count: 0, instrument: m?.instruments || '', type: m?.tipus || '' };
             musicianMap[mid].count += 1;
         });
-
         const elevenGala = Object.values(musicianMap)
             .sort((a, b) => b.count - a.count)
             .slice(0, 11)
-            .map(m => ({ ...m, percentage: confirmedBolos.length > 0 ? (m.count / confirmedBolos.length) * 100 : 0 }));
+            .map(m => ({ ...m, percentage: agg.confirmedCount > 0 ? (m.count / agg.confirmedCount) * 100 : 0 }));
 
         const sectionMap: Record<string, number> = {};
-        (attendanceData || []).forEach((row: any) => {
+        (attendanceRes.data || []).forEach((row: any) => {
             const inst = row.musics?.instruments || 'Altres';
-            const firstInst = inst.split(',')[0].trim();
-            sectionMap[firstInst] = (sectionMap[firstInst] || 0) + 1;
+            const firstIn = inst.split(',')[0].trim();
+            sectionMap[firstIn] = (sectionMap[firstIn] || 0) + 1;
         });
-        const topSections = Object.entries(sectionMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+        const topSections = Object.entries(sectionMap)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
 
-        // Map Data
-        const mapTownNames = Array.from(new Set(confirmedBolos.map(b => b.nom_poble)));
-        const { data: coordsData } = await supabase
-            .from('municipis')
-            .select('nom, lat, lng')
-            .in('nom', mapTownNames);
+        // Map data
+        const coordsMap = new Map<string, { lat: number; lng: number }>();
+        (coordsRes.data || []).forEach((c: any) => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
 
-        const coordsMap = new Map();
-        (coordsData || []).forEach(c => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
-
-        const mapData = Object.values(townMap).map(t => {
+        const mapData = Object.values(agg.allTowns).map(t => {
             const coords = coordsMap.get(t.name);
-            if (!coords || !coords.lat || !coords.lng) return null;
-            return {
-                municipi: t.name,
-                lat: coords.lat,
-                lng: coords.lng,
-                total_bolos: t.count,
-                total_ingressos: t.income
-            };
+            if (!coords?.lat || !coords?.lng) return null;
+            return { municipi: t.name, lat: coords.lat, lng: coords.lng, total_bolos: t.count, total_ingressos: t.income };
         }).filter(Boolean);
 
-        return NextResponse.json({
+        const result = {
             kpis,
             charts: {
-                monthly: monthlyData,
-                towns: townData,
+                monthly: agg.monthly,
+                towns: agg.towns,
                 payments: [
-                    { name: 'Facturat', value: invoiceIncome },
-                    { name: 'Efectiu', value: cashIncome }
+                    { name: 'Facturat', value: agg.invoiceIncome },
+                    { name: 'Efectiu', value: agg.cashIncome },
                 ],
-                prices: priceBuckets,
-                types: typeData,
-                map: mapData
+                prices: agg.priceBuckets,
+                types: agg.types,
+                map: mapData,
             },
-            rankings: { elevenGala, topSections }
+            rankings: { elevenGala, topSections },
+        };
+
+        // Store in cache
+        cache.set(cacheKey, { ts: Date.now(), data: result });
+
+        return NextResponse.json(result, {
+            headers: { 'X-Cache': 'MISS', 'Cache-Control': 'private, max-age=60' }
         });
 
     } catch (error: any) {
