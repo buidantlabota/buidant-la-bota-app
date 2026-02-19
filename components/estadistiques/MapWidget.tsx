@@ -113,29 +113,51 @@ function MapResizer() {
     return null;
 }
 
-// ── Color and Radius by value ──────────────────────────────
-function getMarkerStyle(val: number, mode: string) {
+// ── Color and Style by value ──────────────────────────────
+function getMarkerStyle(val: number, mode: string, zoom: number) {
     if (mode === 'heat') return { radius: 10, color: '#000' };
 
-    // Fixed small radius to avoid overlapping, size increases only slightly for high density
-    const radius = 8;
+    // Dynamic radius: larger when zoomed out to stay visible, 
+    // but not too large when zoomed in to avoid overlap.
+    const baseRadius = zoom <= 7 ? 6 : zoom <= 9 ? 8 : 10;
+    const radius = baseRadius;
 
     if (mode === 'bolos') {
-        // Legend colors: 1 (greenish), 2-3 (yellow), 4-6 (orange), 7-9 (red), 10+ (dark red)
-        if (val >= 10) return { radius, color: '#7c1c1c' };
+        if (val >= 10) return { radius: radius + 2, color: '#7c1c1c', isPremium: true };
         if (val >= 7) return { radius, color: '#ef4444' };
         if (val >= 4) return { radius, color: '#f97316' };
         if (val >= 2) return { radius, color: '#fbbf24' };
         return { radius, color: '#10b981' };
     } else {
-        // For Euros: use blue gradient scale
-        if (val >= 5000) return { radius, color: '#1e3a8a' };
+        if (val >= 5000) return { radius: radius + 2, color: '#1e3a8a', isPremium: val >= 7000 };
         if (val >= 2000) return { radius, color: '#2563eb' };
         if (val >= 1000) return { radius, color: '#60a5fa' };
         if (val >= 500) return { radius, color: '#93c5fd' };
         return { radius, color: '#dbeafe' };
     }
 }
+
+// ── Custom Boot Icon for 10+ bolos ───────────────────────
+const createBootIcon = (color: string, size: number) => {
+    return L.divIcon({
+        html: `<div style="
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: ${color}; 
+            width: ${size}px; 
+            height: ${size}px; 
+            border-radius: 50%; 
+            border: 2px solid white; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: ${size * 0.6}px;
+            cursor: pointer;
+        ">🥾</div>`,
+        className: '',
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+    });
+};
 
 // ── Main component ────────────────────────────────────────
 export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProps) {
@@ -213,15 +235,34 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
 
                     {mode === 'heat' ? (
                         <HeatmapLayer points={heatPoints} />
-                    ) : useClusters ? (
+                    ) : (
                         <MarkerClusterGroup
                             chunkedLoading
-                            maxClusterRadius={50}
+                            maxClusterRadius={useClusters ? 50 : 0}
                             showCoverageOnHover={false}
+                            key={useClusters ? 'clustered' : 'not-clustered'}
                         >
                             {data.map((item, idx) => {
                                 const val = mode === 'bolos' ? item.total_bolos : item.total_ingressos;
-                                const style = getMarkerStyle(val, mode);
+                                const style = getMarkerStyle(val, mode, zoom);
+
+                                if (style.isPremium) {
+                                    return (
+                                        <L.Marker
+                                            key={`${item.municipi}-${idx}-${mode}`}
+                                            position={[item.lat, item.lng]}
+                                            icon={createBootIcon(style.color, style.radius * 2.5)}
+                                        >
+                                            <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky={false}>
+                                                <MarkerTooltip item={item} />
+                                            </Tooltip>
+                                            <Popup>
+                                                <MarkerPopup item={item} />
+                                            </Popup>
+                                        </L.Marker>
+                                    );
+                                }
+
                                 return (
                                     <CircleMarker
                                         key={`${item.municipi}-${idx}-${mode}`}
@@ -239,26 +280,6 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                 );
                             })}
                         </MarkerClusterGroup>
-                    ) : (
-                        data.map((item, idx) => {
-                            const val = mode === 'bolos' ? item.total_bolos : item.total_ingressos;
-                            const style = getMarkerStyle(val, mode);
-                            return (
-                                <CircleMarker
-                                    key={`${item.municipi}-${idx}-${mode}-nc`}
-                                    center={[item.lat, item.lng]}
-                                    radius={style.radius}
-                                    pathOptions={{ fillColor: style.color, fillOpacity: 0.85, color: 'white', weight: 2 }}
-                                >
-                                    <Tooltip direction="top" offset={[0, -5]} opacity={1} sticky={false}>
-                                        <MarkerTooltip item={item} />
-                                    </Tooltip>
-                                    <Popup>
-                                        <MarkerPopup item={item} />
-                                    </Popup>
-                                </CircleMarker>
-                            );
-                        })
                     )}
                 </MapContainer>
 
@@ -287,10 +308,12 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                 { label: '2-3 bolos', color: '#fbbf24' },
                                 { label: '4-6 bolos', color: '#f97316' },
                                 { label: '7-9 bolos', color: '#ef4444' },
-                                { label: '10+ bolos', color: '#7c1c1c' },
+                                { label: '10+ bolos', color: '#7c1c1c', icon: '🥾' },
                             ].map(item => (
                                 <div key={item.label} className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full shrink-0 border border-white shadow-sm" style={{ backgroundColor: item.color }} />
+                                    <div className="w-4 h-4 rounded-full shrink-0 border border-white shadow-sm flex items-center justify-center text-[8px]" style={{ backgroundColor: item.color }}>
+                                        {item.icon}
+                                    </div>
                                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">{item.label}</span>
                                 </div>
                             )) : [
@@ -298,7 +321,7 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                 { label: '500-1k€', color: '#93c5fd' },
                                 { label: '1k-2k€', color: '#60a5fa' },
                                 { label: '2k-5k€', color: '#2563eb' },
-                                { label: '5k+ €', color: '#1e3a8a' },
+                                { label: '5k+ €', color: '#1e3a8a', icon: '🥾' },
                             ].map(item => (
                                 <div key={item.label} className="flex items-center gap-3">
                                     <div className="w-3 h-3 rounded-full shrink-0 border border-white shadow-sm" style={{ backgroundColor: item.color }} />
