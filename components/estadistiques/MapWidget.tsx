@@ -164,10 +164,8 @@ const createBootIcon = (color: string, size: number) => {
     });
 };
 
-// ── Main component ────────────────────────────────────────
-export default function MapWidget({ data, initialMode = 'bolos', initialTimeline = 'realitzats' }: MapWidgetProps) {
+export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProps) {
     const [mode, setMode] = useState<'bolos' | 'ingressos' | 'heat'>(initialMode);
-    const [timeline, setTimeline] = useState<'realitzats' | 'confirmats' | 'all'>(initialTimeline);
     const [zoom, setZoom] = useState(8);
     const cataloniaCenter: [number, number] = [41.7, 1.8];
 
@@ -179,12 +177,6 @@ export default function MapWidget({ data, initialMode = 'bolos', initialTimeline
         [data, maxBolos]);
 
     const handleZoom = useCallback((z: number) => setZoom(z), []);
-
-    const TIMELINE_OPTIONS = [
-        { value: 'realitzats', label: 'Ja realitzats', sub: 'Confirmats + passats' },
-        { value: 'confirmats', label: 'Confirmats', sub: 'Incloent futurs' },
-        { value: 'all', label: 'Tots', sub: 'Incloent sol·licitats/rebutjats' },
-    ];
 
     return (
         <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col transition-all duration-500">
@@ -207,17 +199,6 @@ export default function MapWidget({ data, initialMode = 'bolos', initialTimeline
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === key ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
                                     }`}>
                                 <Icon size={12} />{label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Timeline selector */}
-                    <div className="bg-gray-100/50 p-1.5 rounded-2xl flex gap-1">
-                        {TIMELINE_OPTIONS.map((option) => (
-                            <button key={option.value} onClick={() => setTimeline(option.value)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeline === option.value ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                                    }`}>
-                                {option.label}
                             </button>
                         ))}
                     </div>
