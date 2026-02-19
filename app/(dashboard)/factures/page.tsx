@@ -29,8 +29,8 @@ export default function BillingPage() {
     const [typeFilter, setTypeFilter] = useState<'all' | 'factura' | 'pressupost'>('all');
     const [selectedYear, setSelectedYear] = useState<number | 'tots'>(new Date().getFullYear());
     const [showModal, setShowModal] = useState(false);
-    const [sortBy, setSortBy] = useState<'creation_date' | 'invoice_number' | 'total_amount'>('creation_date');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [sortBy, setSortBy] = useState<'creation_date' | 'invoice_number' | 'total_amount'>('invoice_number');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     // Form state
     const [formData, setFormData] = useState({
