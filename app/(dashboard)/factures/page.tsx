@@ -29,6 +29,8 @@ export default function BillingPage() {
     const [typeFilter, setTypeFilter] = useState<'all' | 'factura' | 'pressupost'>('all');
     const [selectedYear, setSelectedYear] = useState<number | 'tots'>(new Date().getFullYear());
     const [showModal, setShowModal] = useState(false);
+    const [sortBy, setSortBy] = useState<'creation_date' | 'invoice_number' | 'total_amount'>('creation_date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     // Form state
     const [formData, setFormData] = useState({
@@ -216,11 +218,23 @@ export default function BillingPage() {
         fetchRecords(); // Refresh to show update
     };
 
-    // Filters
-    const filteredRecords = records.filter(r => {
-        if (typeFilter === 'all') return true;
-        return r.type === typeFilter;
-    });
+    // Filters & Sorting
+    const filteredRecords = records
+        .filter(r => {
+            if (typeFilter === 'all') return true;
+            return r.type === typeFilter;
+        })
+        .sort((a, b) => {
+            let comparison = 0;
+            if (sortBy === 'creation_date') {
+                comparison = new Date(a.creation_date).getTime() - new Date(b.creation_date).getTime();
+            } else if (sortBy === 'invoice_number') {
+                comparison = a.invoice_number.localeCompare(b.invoice_number);
+            } else if (sortBy === 'total_amount') {
+                comparison = a.total_amount - b.total_amount;
+            }
+            return sortOrder === 'asc' ? comparison : -comparison;
+        });
 
     const totalInvoices = records.filter((r: any) => r.type === 'factura').reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
     const totalQuotes = records.filter((r: any) => r.type === 'pressupost').reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
@@ -269,10 +283,32 @@ export default function BillingPage() {
                         </div>
 
                         <div className="flex gap-2 w-full sm:w-auto">
-                            <button onClick={fetchRecords} className="flex-1 sm:flex-none p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-500 hover:text-black transition-colors flex items-center justify-center">
+                            {/* Sort Controls */}
+                            <div className="flex bg-white border border-gray-200 rounded-lg shadow-sm p-1">
+                                <select
+                                    className="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer px-2"
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value as any)}
+                                >
+                                    <option value="creation_date">Data</option>
+                                    <option value="invoice_number">Número</option>
+                                    <option value="total_amount">Import</option>
+                                </select>
+                                <button
+                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                    className="p-1 text-gray-400 hover:text-black transition-colors border-l border-gray-100 flex items-center"
+                                    title={sortOrder === 'asc' ? 'Ascendent' : 'Descendent'}
+                                >
+                                    <span className="material-icons-outlined text-sm">
+                                        {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <button onClick={fetchRecords} className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-500 hover:text-black transition-colors flex items-center justify-center">
                                 <span className="material-icons-outlined">refresh</span>
                             </button>
-                            <button onClick={() => setShowModal(true)} className="flex-[3] sm:flex-none px-4 py-2 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm">
+                            <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors shadow-sm text-sm">
                                 + Nou Manual
                             </button>
                         </div>
