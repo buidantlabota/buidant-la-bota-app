@@ -118,11 +118,12 @@ function getMarkerStyle(val: number, mode: string, zoom: number) {
     if (mode === 'heat') return { radius: 10, color: '#000' };
 
     // Progressive radius: 
-    // - Low zoom (Catalonia view, z7-8): markers large enough to see (size 10-12)
+    // - Very Low zoom (Catalonia panoramic, z <= 8): markers MUST be prominent
     // - Medium zoom (z9-10): size 12-14
     // - High zoom (z11+): size 16-20 for clear detail
-    let radius = 10; // Default base
-    if (zoom <= 8) radius = 10;
+    let radius = 10;
+    if (zoom <= 7) radius = 12; // Force larger on far zoom
+    else if (zoom <= 8) radius = 11;
     else if (zoom <= 10) radius = 14;
     else radius = 18;
 
@@ -131,13 +132,13 @@ function getMarkerStyle(val: number, mode: string, zoom: number) {
         if (val >= 7) return { radius, color: '#ef4444' };
         if (val >= 4) return { radius, color: '#f97316' };
         if (val >= 2) return { radius, color: '#fbbf24' };
-        return { radius: radius - 2, color: '#10b981' };
+        return { radius: radius - 1, color: '#10b981' };
     } else {
         if (val >= 5000) return { radius: radius + 4, color: '#1e3a8a', isPremium: val >= 7000 };
         if (val >= 2000) return { radius, color: '#2563eb' };
         if (val >= 1000) return { radius, color: '#60a5fa' };
         if (val >= 500) return { radius, color: '#93c5fd' };
-        return { radius: radius - 2, color: '#dbeafe' };
+        return { radius: radius - 1, color: '#dbeafe' };
     }
 }
 
@@ -242,9 +243,10 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                     ) : (
                         <MarkerClusterGroup
                             chunkedLoading
-                            maxClusterRadius={useClusters ? 30 : 0}
+                            // Disable clustering when zoomed out (z < 10) to see all points over Catalonia
+                            maxClusterRadius={useClusters && zoom >= 10 ? 30 : 0}
                             showCoverageOnHover={false}
-                            key={useClusters ? 'clustered' : 'not-clustered'}
+                            key={useClusters && zoom >= 10 ? 'clustered' : 'not-clustered'}
                         >
                             {data.map((item, idx) => {
                                 const val = mode === 'bolos' ? item.total_bolos : item.total_ingressos;
@@ -272,7 +274,7 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                         key={`${item.municipi}-${idx}-${mode}`}
                                         center={[item.lat, item.lng]}
                                         radius={style.radius}
-                                        pathOptions={{ fillColor: style.color, fillOpacity: 0.85, color: 'white', weight: 2 }}
+                                        pathOptions={{ fillColor: style.color, fillOpacity: 0.85, color: 'white', weight: 3 }}
                                     >
                                         <Tooltip direction="top" offset={[0, -5]} opacity={1} sticky={false}>
                                             <MarkerTooltip item={item} />
