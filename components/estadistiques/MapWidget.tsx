@@ -113,34 +113,27 @@ function MapResizer() {
     return null;
 }
 
-// ── Radius by value + zoom ────────────────────────────────
-function getRadius(val: number, maxVal: number, zoom: number): number {
-    const base = zoom <= 7 ? 6 : zoom <= 9 ? 9 : 12;
-    if (maxVal === 0) return base;
-    const scaled = (val / maxVal) * (zoom <= 7 ? 22 : 35);
-    return Math.max(base, Math.min(scaled + base, zoom <= 7 ? 28 : 50));
-}
+// ── Color and Radius by value ──────────────────────────────
+function getMarkerStyle(val: number, mode: string) {
+    if (mode === 'heat') return { radius: 10, color: '#000' };
 
-// ── Opacity by zoom (denser areas less opaque at far zoom) ─
-function getOpacity(total_bolos: number, zoom: number): number {
-    if (zoom >= 10) return 0.85;
-    if (zoom >= 8) return 0.7;
-    return 0.55;
-}
+    // Fixed small radius to avoid overlapping, size increases only slightly for high density
+    const radius = 8;
 
-// ── Color by value ────────────────────────────────────────
-function getColor(val: number, max: number, mode: string): string {
-    const ratio = max > 0 ? val / max : 0;
     if (mode === 'bolos') {
-        if (ratio > 0.7) return '#7c1c1c';
-        if (ratio > 0.4) return '#b91c1c';
-        if (ratio > 0.2) return '#ef4444';
-        return '#fca5a5';
+        // Legend colors: 1 (greenish), 2-3 (yellow), 4-6 (orange), 7-9 (red), 10+ (dark red)
+        if (val >= 10) return { radius, color: '#7c1c1c' };
+        if (val >= 7) return { radius, color: '#ef4444' };
+        if (val >= 4) return { radius, color: '#f97316' };
+        if (val >= 2) return { radius, color: '#fbbf24' };
+        return { radius, color: '#10b981' };
     } else {
-        if (ratio > 0.7) return '#1e3a8a';
-        if (ratio > 0.4) return '#2563eb';
-        if (ratio > 0.2) return '#60a5fa';
-        return '#bfdbfe';
+        // For Euros: use blue gradient scale
+        if (val >= 5000) return { radius, color: '#1e3a8a' };
+        if (val >= 2000) return { radius, color: '#2563eb' };
+        if (val >= 1000) return { radius, color: '#60a5fa' };
+        if (val >= 500) return { radius, color: '#93c5fd' };
+        return { radius, color: '#dbeafe' };
     }
 }
 
@@ -228,16 +221,13 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                         >
                             {data.map((item, idx) => {
                                 const val = mode === 'bolos' ? item.total_bolos : item.total_ingressos;
-                                const maxVal = mode === 'bolos' ? maxBolos : maxIngressos;
-                                const radius = getRadius(val, maxVal, zoom);
-                                const color = getColor(val, maxVal, mode);
-                                const opacity = getOpacity(item.total_bolos, zoom);
+                                const style = getMarkerStyle(val, mode);
                                 return (
                                     <CircleMarker
                                         key={`${item.municipi}-${idx}-${mode}`}
                                         center={[item.lat, item.lng]}
-                                        radius={radius}
-                                        pathOptions={{ fillColor: color, fillOpacity: opacity, color: 'white', weight: 1.5 }}
+                                        radius={style.radius}
+                                        pathOptions={{ fillColor: style.color, fillOpacity: 0.85, color: 'white', weight: 2 }}
                                     >
                                         <Tooltip direction="top" offset={[0, -5]} opacity={1} sticky={false}>
                                             <MarkerTooltip item={item} />
@@ -252,16 +242,13 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                     ) : (
                         data.map((item, idx) => {
                             const val = mode === 'bolos' ? item.total_bolos : item.total_ingressos;
-                            const maxVal = mode === 'bolos' ? maxBolos : maxIngressos;
-                            const radius = getRadius(val, maxVal, zoom);
-                            const color = getColor(val, maxVal, mode);
-                            const opacity = getOpacity(item.total_bolos, zoom);
+                            const style = getMarkerStyle(val, mode);
                             return (
                                 <CircleMarker
                                     key={`${item.municipi}-${idx}-${mode}-nc`}
                                     center={[item.lat, item.lng]}
-                                    radius={radius}
-                                    pathOptions={{ fillColor: color, fillOpacity: opacity, color: 'white', weight: 1.5 }}
+                                    radius={style.radius}
+                                    pathOptions={{ fillColor: style.color, fillOpacity: 0.85, color: 'white', weight: 2 }}
                                 >
                                     <Tooltip direction="top" offset={[0, -5]} opacity={1} sticky={false}>
                                         <MarkerTooltip item={item} />
@@ -275,8 +262,8 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                     )}
                 </MapContainer>
 
-                {/* Legend/Info Overlay for Heatmap */}
-                {mode === 'heat' && (
+                {/* Legend/Info Overlay for Heatmap or Circles */}
+                {mode === 'heat' ? (
                     <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-gray-100 shadow-xl max-w-[200px] animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="flex items-center gap-2 mb-3">
                             <Flame size={14} className="text-orange-500" />
@@ -286,6 +273,38 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                         <div className="flex justify-between text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
                             <span>Baixa</span>
                             <span>Crítica</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-gray-100 shadow-xl min-w-[180px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                            <MapIcon size={14} className="text-primary" />
+                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-700">Llegenda {mode === 'bolos' ? 'Bolos' : 'Import'}</span>
+                        </div>
+                        <div className="space-y-2.5">
+                            {mode === 'bolos' ? [
+                                { label: '1 bolo', color: '#10b981' },
+                                { label: '2-3 bolos', color: '#fbbf24' },
+                                { label: '4-6 bolos', color: '#f97316' },
+                                { label: '7-9 bolos', color: '#ef4444' },
+                                { label: '10+ bolos', color: '#7c1c1c' },
+                            ].map(item => (
+                                <div key={item.label} className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full shrink-0 border border-white shadow-sm" style={{ backgroundColor: item.color }} />
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">{item.label}</span>
+                                </div>
+                            )) : [
+                                { label: '< 500€', color: '#dbeafe' },
+                                { label: '500-1k€', color: '#93c5fd' },
+                                { label: '1k-2k€', color: '#60a5fa' },
+                                { label: '2k-5k€', color: '#2563eb' },
+                                { label: '5k+ €', color: '#1e3a8a' },
+                            ].map(item => (
+                                <div key={item.label} className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full shrink-0 border border-white shadow-sm" style={{ backgroundColor: item.color }} />
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">{item.label}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
