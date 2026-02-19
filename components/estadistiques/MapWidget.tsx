@@ -117,23 +117,27 @@ function MapResizer() {
 function getMarkerStyle(val: number, mode: string, zoom: number) {
     if (mode === 'heat') return { radius: 10, color: '#000' };
 
-    // Dynamic radius: larger when zoomed out to stay visible, 
-    // but not too large when zoomed in to avoid overlap.
-    const baseRadius = zoom <= 7 ? 6 : zoom <= 9 ? 8 : 10;
-    const radius = baseRadius;
+    // Progressive radius: 
+    // - Low zoom (Catalonia view, z7-8): markers large enough to see (size 10-12)
+    // - Medium zoom (z9-10): size 12-14
+    // - High zoom (z11+): size 16-20 for clear detail
+    let radius = 10; // Default base
+    if (zoom <= 8) radius = 10;
+    else if (zoom <= 10) radius = 14;
+    else radius = 18;
 
     if (mode === 'bolos') {
-        if (val >= 10) return { radius: radius + 2, color: '#7c1c1c', isPremium: true };
+        if (val >= 10) return { radius: radius + 4, color: '#7c1c1c', isPremium: true };
         if (val >= 7) return { radius, color: '#ef4444' };
         if (val >= 4) return { radius, color: '#f97316' };
         if (val >= 2) return { radius, color: '#fbbf24' };
-        return { radius, color: '#10b981' };
+        return { radius: radius - 2, color: '#10b981' };
     } else {
-        if (val >= 5000) return { radius: radius + 2, color: '#1e3a8a', isPremium: val >= 7000 };
+        if (val >= 5000) return { radius: radius + 4, color: '#1e3a8a', isPremium: val >= 7000 };
         if (val >= 2000) return { radius, color: '#2563eb' };
         if (val >= 1000) return { radius, color: '#60a5fa' };
         if (val >= 500) return { radius, color: '#93c5fd' };
-        return { radius, color: '#dbeafe' };
+        return { radius: radius - 2, color: '#dbeafe' };
     }
 }
 
@@ -238,7 +242,7 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                     ) : (
                         <MarkerClusterGroup
                             chunkedLoading
-                            maxClusterRadius={useClusters ? 50 : 0}
+                            maxClusterRadius={useClusters ? 30 : 0}
                             showCoverageOnHover={false}
                             key={useClusters ? 'clustered' : 'not-clustered'}
                         >
