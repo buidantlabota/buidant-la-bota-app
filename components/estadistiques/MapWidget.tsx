@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Popup, useMap, useMapEvents, Marker } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -248,7 +248,7 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
 
                                 if (style.isPremium) {
                                     return (
-                                        <L.Marker
+                                        <Marker
                                             key={`${item.municipi}-${idx}-${mode}`}
                                             position={[item.lat, item.lng]}
                                             icon={createBootIcon(style.color, style.radius * 2.5)}
@@ -259,7 +259,7 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                             <Popup>
                                                 <MarkerPopup item={item} />
                                             </Popup>
-                                        </L.Marker>
+                                        </Marker>
                                     );
                                 }
 
