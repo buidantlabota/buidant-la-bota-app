@@ -28,6 +28,12 @@ import {
 import { ElevenGala, TopBySection } from '@/components/estadistiques/Rankings';
 import { FunnelSollicituds } from '@/components/estadistiques/Funnels';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
+
+const MapWidget = dynamic(() => import('@/components/estadistiques/MapWidget'), {
+    ssr: false,
+    loading: () => <div className="h-[500px] w-full bg-gray-100 animate-pulse rounded-[2.5rem] flex items-center justify-center text-gray-400 font-bold uppercase tracking-widest">Carregant Mapa...</div>
+});
 
 export default function EstadistiquesPage() {
     const supabase = createClient();
@@ -217,6 +223,11 @@ export default function EstadistiquesPage() {
                                         />
                                     </div>
                                 </div>
+                            </section>
+
+                            {/* Map Section */}
+                            <section className="grid grid-cols-1 gap-8">
+                                <MapWidget data={stats?.charts?.map || []} />
                             </section>
 
                             {/* Rankings - Full width boxes */}

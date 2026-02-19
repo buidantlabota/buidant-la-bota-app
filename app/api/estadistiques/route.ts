@@ -195,6 +195,28 @@ export async function GET(request: Request) {
         });
         const topSections = Object.entries(sectionMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
+        // Map Data
+        const mapTownNames = Array.from(new Set(confirmedBolos.map(b => b.nom_poble)));
+        const { data: coordsData } = await supabase
+            .from('municipis')
+            .select('nom, lat, lng')
+            .in('nom', mapTownNames);
+
+        const coordsMap = new Map();
+        (coordsData || []).forEach(c => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
+
+        const mapData = Object.values(townMap).map(t => {
+            const coords = coordsMap.get(t.name);
+            if (!coords || !coords.lat || !coords.lng) return null;
+            return {
+                municipi: t.name,
+                lat: coords.lat,
+                lng: coords.lng,
+                total_bolos: t.count,
+                total_ingressos: t.income
+            };
+        }).filter(Boolean);
+
         return NextResponse.json({
             kpis,
             charts: {
@@ -205,7 +227,8 @@ export async function GET(request: Request) {
                     { name: 'Efectiu', value: cashIncome }
                 ],
                 prices: priceBuckets,
-                types: typeData
+                types: typeData,
+                map: mapData
             },
             rankings: { elevenGala, topSections }
         });
