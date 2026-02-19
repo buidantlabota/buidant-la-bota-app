@@ -25,7 +25,7 @@ import {
     PaymentDistributionChart,
     PriceRangesChart
 } from '@/components/estadistiques/Charts';
-import { ElevenGala, TopBySection } from '@/components/estadistiques/Rankings';
+import { ElevenGala } from '@/components/estadistiques/Rankings';
 import { FunnelSollicituds } from '@/components/estadistiques/Funnels';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -235,8 +235,7 @@ export default function EstadistiquesPage() {
                                 <ElevenGala musicians={stats?.rankings?.elevenGala || []} />
                             </section>
 
-                            <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                <TopBySection sections={stats?.rankings?.topSections || []} />
+                            <section className="grid grid-cols-1 gap-8">
                                 <FunnelSollicituds data={{
                                     total: stats?.kpis?.count || 0,
                                     accepted: stats?.kpis?.confirmedCount || 0,

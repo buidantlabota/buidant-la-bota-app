@@ -20,14 +20,19 @@ const MultiSelectFilter = ({
     label,
     options,
     selected,
-    onChange
+    onChange,
+    allowAdd,
+    onAddOption
 }: {
     label: string,
     options: { value: string, label: string }[],
     selected: string[],
-    onChange: (values: string[]) => void
+    onChange: (values: string[]) => void,
+    allowAdd?: boolean,
+    onAddOption?: (value: string) => void
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [newType, setNewType] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -53,6 +58,14 @@ const MultiSelectFilter = ({
         setIsOpen(false);
     };
 
+    const handleAddNew = () => {
+        const trimmed = newType.trim();
+        if (!trimmed) return;
+        onAddOption?.(trimmed);
+        onChange([...selected, trimmed]);
+        setNewType('');
+    };
+
     return (
         <div className="relative w-full" ref={containerRef}>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{label}</label>
@@ -67,7 +80,7 @@ const MultiSelectFilter = ({
                     ) : (
                         <span className="truncate block font-medium">
                             {selected.length === 1
-                                ? options.find(o => o.value === selected[0])?.label
+                                ? (options.find(o => o.value === selected[0])?.label || selected[0])
                                 : `${selected.length} seleccionats`}
                         </span>
                     )}
@@ -86,7 +99,7 @@ const MultiSelectFilter = ({
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 w-full min-w-[200px] mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-1 max-h-60 overflow-y-auto">
+                <div className="absolute z-50 w-full min-w-[200px] mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-1 max-h-72 overflow-y-auto">
                     <div
                         className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between border-b border-gray-100"
                         onClick={() => { onChange([]); setIsOpen(false); }}
@@ -106,11 +119,34 @@ const MultiSelectFilter = ({
                             {selected.includes(option.value) && <Check size={16} className="text-blue-600" />}
                         </div>
                     ))}
+                    {allowAdd && (
+                        <div className="border-t border-gray-100 p-2 mt-1">
+                            <div className="flex gap-1">
+                                <input
+                                    type="text"
+                                    value={newType}
+                                    onChange={e => setNewType(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNew(); } }}
+                                    placeholder="Nou tipus..."
+                                    className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    onClick={e => e.stopPropagation()}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); handleAddNew(); }}
+                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded font-bold hover:bg-blue-700 transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
     );
 };
+
 
 export default function BolosPage() {
     const supabase = createClient();
@@ -437,6 +473,13 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
                             options={actuacioOptions}
                             selected={filterTipusActuacio}
                             onChange={setFilterTipusActuacio}
+                            allowAdd
+                            onAddOption={(newType) => {
+                                setActuacioOptions(prev => {
+                                    if (prev.find(o => o.value === newType)) return prev;
+                                    return [...prev, { value: newType, label: newType }].sort((a, b) => a.label.localeCompare(b.label));
+                                });
+                            }}
                         />
                     </div>
                 </div>

@@ -28,10 +28,17 @@ export const getHTMLTemplate = (data: TemplateData) => {
     const primaryColor = '#5a0000'; // Dark red/maroon
     const secondaryColor = '#000000';
 
-    // Helper to calculate musicians count if not explicitly provided
-    const numMusics = (data as any).instrumentsCount
-        ? Object.values((data as any).instrumentsCount).reduce((a: any, b: any) => a + b, 0)
-        : (data.bolo as any).num_musics || ' - ';
+    // Format duration from minutes to human-readable
+    const formatDurada = (durada: number | string | undefined) => {
+        if (!durada) return '';
+        const mins = typeof durada === 'string' ? parseInt(durada) : durada;
+        if (isNaN(mins)) return String(durada);
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        if (h === 0) return `${m} min`;
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m}min`;
+    };
 
     // Helper for Smart Title Case: "Sant Feliu Sasserra" (handling particles)
     const formatText = (str: string) => {
@@ -290,11 +297,7 @@ export const getHTMLTemplate = (data: TemplateData) => {
                 </tr>
                 <tr>
                     <td class="label">Durada de l'actuació:</td>
-                    <td>${data.bolo.durada ? data.bolo.durada + 'h' : ''}</td>
-                </tr>
-                <tr>
-                    <td class="label">Nombre de músics:</td>
-                    <td>${numMusics}</td>
+                    <td>${formatDurada(data.bolo.durada)}</td>
                 </tr>
             </table>
 
