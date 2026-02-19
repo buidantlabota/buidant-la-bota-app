@@ -87,6 +87,7 @@ export async function GET(request: Request) {
     const statusParam = searchParams.get('status') || 'tots';
     const statuses = statusParam === 'tots' ? [] : statusParam.split(',').filter(Boolean);
     const types = searchParams.get('types')?.split(',').filter(Boolean) || [];
+    const timeline = searchParams.get('timeline') || 'realitzats';
 
     // Cache key
     const cacheKey = searchParams.toString();
@@ -131,7 +132,24 @@ export async function GET(request: Request) {
         const { data: bolos, error: bolosError } = await query;
         if (bolosError) throw bolosError;
 
-        if (!bolos || bolos.length === 0) {
+        // ── JS filtering for timeline & date (complex logic) ──
+        let filteredByTimeline = bolos || [];
+        const now = new Date().toISOString().split('T')[0]; // Current date
+
+        if (timeline === 'realitzats') {
+            // Confirmats que ja han passat (o son avui)
+            filteredByTimeline = filteredByTimeline.filter((b: any) =>
+                CONFIRMED.includes(b.estat) && b.data_bolo <= now
+            );
+        } else if (timeline === 'confirmats') {
+            // Tots els confirmats (passats i futurs)
+            filteredByTimeline = filteredByTimeline.filter((b: any) =>
+                CONFIRMED.includes(b.estat)
+            );
+        }
+        // If 'all', no extra filter (already filtered by status if any, else everything)
+
+        if (!filteredByTimeline || filteredByTimeline.length === 0) {
             const empty = {
                 kpis: { totalIncome: 0, count: 0, confirmedCount: 0, rejectedCount: 0, pendingCount: 0, avgPrice: 0, medianPrice: 0, acceptanceRate: 0, rejectionRate: 0, cashIncome: 0, invoiceIncome: 0, totalExpenses: 0, netProfit: 0 },
                 charts: { monthly: [], towns: [], payments: [], prices: [], types: [], map: [] },
@@ -141,9 +159,9 @@ export async function GET(request: Request) {
         }
 
         // JS year filter (for non-contiguous years)
-        let filteredBolos = bolos;
+        let filteredBolos = filteredByTimeline;
         if (years.length > 0) {
-            filteredBolos = bolos.filter((b: any) => years.includes(new Date(b.data_bolo).getFullYear().toString()));
+            filteredBolos = filteredByTimeline.filter((b: any) => years.includes(new Date(b.data_bolo).getFullYear().toString()));
         }
 
         const agg = aggregate(filteredBolos);

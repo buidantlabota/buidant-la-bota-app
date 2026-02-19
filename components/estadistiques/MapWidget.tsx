@@ -165,10 +165,10 @@ const createBootIcon = (color: string, size: number) => {
 };
 
 // ── Main component ────────────────────────────────────────
-export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProps) {
+export default function MapWidget({ data, initialMode = 'bolos', initialTimeline = 'realitzats' }: MapWidgetProps) {
     const [mode, setMode] = useState<'bolos' | 'ingressos' | 'heat'>(initialMode);
+    const [timeline, setTimeline] = useState<'realitzats' | 'confirmats' | 'all'>(initialTimeline);
     const [zoom, setZoom] = useState(8);
-    const [useClusters, setUseClusters] = useState(true);
     const cataloniaCenter: [number, number] = [41.7, 1.8];
 
     const maxBolos = useMemo(() => Math.max(...data.map(d => d.total_bolos), 1), [data]);
@@ -179,6 +179,12 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
         [data, maxBolos]);
 
     const handleZoom = useCallback((z: number) => setZoom(z), []);
+
+    const TIMELINE_OPTIONS = [
+        { value: 'realitzats', label: 'Ja realitzats', sub: 'Confirmats + passats' },
+        { value: 'confirmats', label: 'Confirmats', sub: 'Incloent futurs' },
+        { value: 'all', label: 'Tots', sub: 'Incloent sol·licitats/rebutjats' },
+    ];
 
     return (
         <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col transition-all duration-500">
@@ -205,20 +211,16 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                         ))}
                     </div>
 
-                    {/* Cluster toggle (only in circle modes) */}
-                    {mode !== 'heat' && (
-                        <button
-                            onClick={() => setUseClusters(c => !c)}
-                            title={useClusters ? 'Desactivar agrupació' : 'Activar agrupació'}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${useClusters
-                                ? 'bg-primary/10 text-primary border-primary/20'
-                                : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                                }`}
-                        >
-                            <ZoomIn size={12} />
-                            {useClusters ? 'Clústers ON' : 'Clústers OFF'}
-                        </button>
-                    )}
+                    {/* Timeline selector */}
+                    <div className="bg-gray-100/50 p-1.5 rounded-2xl flex gap-1">
+                        {TIMELINE_OPTIONS.map((option) => (
+                            <button key={option.value} onClick={() => setTimeline(option.value)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeline === option.value ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                                    }`}>
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -244,9 +246,9 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                         <MarkerClusterGroup
                             chunkedLoading
                             // Disable clustering when zoomed out (z < 10) to see all points over Catalonia
-                            maxClusterRadius={useClusters && zoom >= 10 ? 30 : 0}
+                            maxClusterRadius={zoom >= 10 ? 30 : 0}
                             showCoverageOnHover={false}
-                            key={useClusters && zoom >= 10 ? 'clustered' : 'not-clustered'}
+                            key={zoom >= 10 ? 'clustered' : 'not-clustered'}
                         >
                             {data.map((item, idx) => {
                                 const val = mode === 'bolos' ? item.total_bolos : item.total_ingressos;

@@ -119,6 +119,7 @@ export default function EstadistiquesPage() {
             if (currentFilters.types?.length) params.append('types', currentFilters.types.join(','));
             if (currentFilters.status?.length) params.append('status', currentFilters.status.join(','));
             if (currentFilters.paymentType !== 'tots') params.append('paymentType', currentFilters.paymentType);
+            if (currentFilters.timeline) params.append('timeline', currentFilters.timeline);
             if (currentFilters.minPrice) params.append('minPrice', currentFilters.minPrice);
             if (currentFilters.maxPrice) params.append('maxPrice', currentFilters.maxPrice);
 

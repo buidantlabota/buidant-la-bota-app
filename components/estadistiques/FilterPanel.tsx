@@ -42,6 +42,7 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
         types: [] as string[],
         status: [] as string[],
         paymentType: 'tots',
+        timeline: 'realitzats',
         minPrice: '',
         maxPrice: ''
     });
@@ -73,6 +74,7 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
             types: [],
             status: [],
             paymentType: 'tots',
+            timeline: 'realitzats',
             minPrice: '',
             maxPrice: ''
         });
@@ -141,6 +143,12 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
         </button>
     );
 
+    const TIMELINE_OPTIONS = [
+        { value: 'realitzats', label: 'Ja realitzats', sub: 'Confirmats + passats' },
+        { value: 'confirmats', label: 'Tots els confirmats', sub: 'Incloent futurs' },
+        { value: 'all', label: 'Absolutament tots', sub: 'Incloent cancel·lats' },
+    ];
+
     return (
         <div className="w-full bg-white/50 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 px-4 md:px-10 py-4">
             <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-4">
@@ -155,6 +163,22 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                    <Dropdown id="timeline" label="Enfocament" icon={Activity} count={filters.timeline !== 'realitzats' ? 1 : 0}>
+                        {TIMELINE_OPTIONS.map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setFilters(prev => ({ ...prev, timeline: opt.value }))}
+                                className={`flex flex-col px-3 py-2.5 rounded-xl text-left transition-all ${filters.timeline === opt.value
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <span className="text-[11px] font-black uppercase tracking-wider">{opt.label}</span>
+                                <span className="text-[9px] font-bold text-gray-400 opacity-70 italic">{opt.sub}</span>
+                            </button>
+                        ))}
+                    </Dropdown>
+
                     <Dropdown id="years" label="Anys" icon={Calendar} count={filters.years.length}>
                         {availableData.years.map(year => (
                             <Option
