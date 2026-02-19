@@ -274,24 +274,24 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
 
                 {/* Legend/Info Overlay for Heatmap or Circles */}
                 {mode === 'heat' ? (
-                    <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-gray-100 shadow-xl max-w-[200px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="absolute bottom-4 left-4 right-4 md:left-auto md:bottom-6 md:right-6 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-gray-100 shadow-xl md:max-w-[200px] animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="flex items-center gap-2 mb-3">
                             <Flame size={14} className="text-orange-500" />
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-700">Densitat de Treball</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 font-sans">Densitat de Treball</span>
                         </div>
                         <div className="h-2 w-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-orange-500 to-red-500 rounded-full mb-2" />
-                        <div className="flex justify-between text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
+                        <div className="flex justify-between text-[8px] font-bold text-gray-400 uppercase tracking-tighter font-sans">
                             <span>Baixa</span>
                             <span>Crítica</span>
                         </div>
                     </div>
                 ) : (
-                    <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-gray-100 shadow-xl min-w-[180px] animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                    <div className="absolute bottom-4 left-4 right-4 md:left-auto md:top-auto md:bottom-6 md:right-6 z-[1000] bg-white/90 backdrop-blur-md p-4 md:p-5 rounded-3xl border border-gray-100 shadow-xl md:min-w-[180px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center gap-2 mb-3 md:mb-4 border-b border-gray-100 pb-2">
                             <MapIcon size={14} className="text-primary" />
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-700">Llegenda {mode === 'bolos' ? 'Bolos' : 'Import'}</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-700 font-sans">Llegenda {mode === 'bolos' ? 'Bolos' : 'Import'}</span>
                         </div>
-                        <div className="space-y-2.5">
+                        <div className="flex flex-wrap md:flex-col gap-x-4 gap-y-2.5">
                             {mode === 'bolos' ? [
                                 { label: '1 bolo', color: '#10b981' },
                                 { label: '2-3 bolos', color: '#fbbf24' },
@@ -299,11 +299,11 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                 { label: '7-9 bolos', color: '#ef4444' },
                                 { label: '10+ bolos', color: '#7c1c1c', icon: '🥾' },
                             ].map(item => (
-                                <div key={item.label} className="flex items-center gap-3">
-                                    <div className="w-4 h-4 rounded-full shrink-0 border border-white shadow-sm flex items-center justify-center text-[8px]" style={{ backgroundColor: item.color }}>
+                                <div key={item.label} className="flex items-center gap-2 md:gap-3">
+                                    <div className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full shrink-0 border border-white shadow-sm flex items-center justify-center text-[7px] md:text-[8px]" style={{ backgroundColor: item.color }}>
                                         {item.icon}
                                     </div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">{item.label}</span>
+                                    <span className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-tighter font-sans">{item.label}</span>
                                 </div>
                             )) : [
                                 { label: '< 500€', color: '#dbeafe' },
@@ -312,9 +312,11 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
                                 { label: '2k-5k€', color: '#2563eb' },
                                 { label: '5k+ €', color: '#1e3a8a', icon: '🥾' },
                             ].map(item => (
-                                <div key={item.label} className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full shrink-0 border border-white shadow-sm" style={{ backgroundColor: item.color }} />
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">{item.label}</span>
+                                <div key={item.label} className="flex items-center gap-2 md:gap-3">
+                                    <div className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full shrink-0 border border-white shadow-sm flex items-center justify-center text-[7px] md:text-[8px]" style={{ backgroundColor: item.color }}>
+                                        {item.icon}
+                                    </div>
+                                    <span className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-tighter font-sans">{item.label}</span>
                                 </div>
                             ))}
                         </div>
