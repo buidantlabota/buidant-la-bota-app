@@ -196,7 +196,7 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
         summary,
         description,
         location: bolo.ubicacio_detallada || bolo.nom_poble,
-        colorId: '11', // Tomato (Red)
+        colorId: '6', // Tangerine (Orange)
         start: {
             dateTime: getLocalISO(startDateObj),
             timeZone: 'Europe/Madrid',
