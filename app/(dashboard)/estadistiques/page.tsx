@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, memo, ReactNode } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
-    BarChart3, TrendingUp, Euro, CreditCard, Activity, Star, ArrowUpRight, GitCompare
+    BarChart3, TrendingUp, Euro, CreditCard, Activity, Star, ArrowUpRight, GitCompare, Info
 } from 'lucide-react';
 import { PrivacyMask } from '@/components/PrivacyMask';
 import FilterPanel from '@/components/estadistiques/FilterPanel';
@@ -245,11 +245,32 @@ export default function EstadistiquesPage() {
                             {/* ═══ NORMAL MODE ═══ */}
                             {mode === 'normal' && (
                                 <>
+                                    {/* Warning for legacy data */}
+                                    {filters.years.some((y: string) => parseInt(y) < 2026) && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex items-start gap-4 shadow-sm"
+                                        >
+                                            <div className="p-2 bg-amber-100 text-amber-600 rounded-xl shrink-0">
+                                                <Info size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-amber-900 uppercase tracking-tight">Avís sobre dades històriques</p>
+                                                <p className="text-xs font-medium text-amber-700 mt-1 leading-relaxed">
+                                                    S'han seleccionat anys previs al 2026. Tingueu en compte que les estadístiques econòmiques d'aquest període
+                                                    poden ser incompletes o contenir errors, ja que l'aplicació es trobava en una fase inicial de desenvolupament
+                                                    i el registre de dades no estava normalitzat.
+                                                </p>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
                                     <ChartSection stats={stats} />
 
-                                    {/* Map */}
+                                    {/* Map (Independent) */}
                                     <section className="grid grid-cols-1 gap-8">
-                                        <MapWidget data={mapData} />
+                                        <MapWidget availableYears={metaData.years} />
                                     </section>
 
                                     {/* Rankings */}

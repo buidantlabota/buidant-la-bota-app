@@ -37,10 +37,10 @@ export default function PressupostosPage() {
     const fetchInitialData = async () => {
         setLoading(true);
         const [bolosRes, clientsRes, quotesRes, invoicesRes] = await Promise.all([
-            supabase.from('bolos').select('*').order('data_bolo', { ascending: false }),
+            supabase.from('bolos').select('*').gte('data_bolo', '2026-01-01').order('data_bolo', { ascending: false }),
             supabase.from('clients').select('*').order('nom'),
             supabase.from('quote_records').select('bolo_id'),
-            supabase.from('invoice_records').select('bolo_id')
+            supabase.from('invoice_records').select('bolo_id, type')
         ]);
 
         const b = bolosRes.data || [];
@@ -48,8 +48,14 @@ export default function PressupostosPage() {
         setClients(clientsRes.data || []);
 
         // Track which bolos already have documents
-        const qIds = new Set<number>((quotesRes.data || []).filter((q: any) => q.bolo_id).map((q: any) => q.bolo_id));
-        const iIds = new Set<number>((invoicesRes.data || []).filter((i: any) => i.bolo_id).map((i: any) => i.bolo_id));
+        // Check legacy quote_records + unified invoice_records with type 'pressupost'
+        const qIds = new Set<number>([
+            ...(quotesRes.data || []).filter((q: any) => q.bolo_id).map((q: any) => q.bolo_id),
+            ...(invoicesRes.data || []).filter((i: any) => i.bolo_id && i.type === 'pressupost').map((i: any) => i.bolo_id)
+        ]);
+
+        const iIds = new Set<number>((invoicesRes.data || []).filter((i: any) => i.bolo_id && (i.type === 'factura' || !i.type)).map((i: any) => i.bolo_id));
+
         setBolosWithQuotes(qIds);
         setBolosWithInvoices(iIds);
 
@@ -101,8 +107,7 @@ export default function PressupostosPage() {
             .from('bolo_musics')
             .select('musics(instruments)')
             .eq('bolo_id', selectedBolo.id)
-            .neq('estat', 'no')
-            .neq('estat', 'baixa');
+            .eq('estat', 'si');
 
         const counts: Record<string, number> = {};
         instrData?.forEach((row: any) => {
@@ -180,8 +185,22 @@ export default function PressupostosPage() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${manualNumber.replace('/', '-')}_${(selectedBolo?.nom_poble || 'Buidantlabota').replace(/\s+/g, '_')}_Buidantlabota.pdf`;
-            document.body.appendChild(a);
+
+            // Filename formats:
+            // Budgets: ANY_MES_DIA_LLOC_PRESSUPOSTBUIDANTLABOTA
+            // Invoices: NUMERO-FACTURA_LLOC_FACTURABUIDANTLABOTA
+            let finalFileName = "";
+            const lloc = (selectedBolo?.nom_poble || 'Buidantlabota').replace(/\s+/g, '_');
+            const dataBolo = selectedBolo?.data_bolo ? selectedBolo.data_bolo.replace(/-/g, '_') : format(new Date(), 'yyyy_MM_dd');
+
+            if (modalOpen === 'pressupost') {
+                finalFileName = `${dataBolo}_${lloc}_PRESSUPOSTBUIDANTLABOTA.pdf`;
+            } else {
+                const num = manualNumber.replace('/', '-');
+                finalFileName = `${num}_${lloc}_FACTURABUIDANTLABOTA.pdf`;
+            }
+
+            a.download = finalFileName;
             a.click();
             window.URL.revokeObjectURL(url);
 
@@ -548,13 +567,22 @@ export default function PressupostosPage() {
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="flex-1">
-                                        <label className="block text-[10px] font-black uppercase tracking-widest text-primary mb-2">Número Document</label>
-                                        <input
-                                            type="text"
-                                            value={manualNumber}
-                                            onChange={(e) => setManualNumber(e.target.value)}
-                                            className="w-full p-3 bg-white border border-gray-200 rounded-2xl font-bold text-gray-900 focus:ring-2 focus:ring-primary shadow-sm"
-                                        />
+                                        {modalOpen === 'factura' ? (
+                                            <>
+                                                <label className="block text-[10px] font-black uppercase tracking-widest text-primary mb-2">Número Factura</label>
+                                                <input
+                                                    type="text"
+                                                    value={manualNumber}
+                                                    onChange={(e) => setManualNumber(e.target.value)}
+                                                    className="w-full p-3 bg-white border border-gray-200 rounded-2xl font-bold text-gray-900 focus:ring-2 focus:ring-primary shadow-sm"
+                                                />
+                                            </>
+                                        ) : (
+                                            <div className="h-full flex flex-col justify-center">
+                                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Tipus</label>
+                                                <div className="text-sm font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-2 rounded-xl">Pressupost Proposta</div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex-1">
                                         <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Total Document</label>

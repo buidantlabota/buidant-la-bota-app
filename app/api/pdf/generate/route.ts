@@ -161,7 +161,18 @@ export async function POST(request: Request) {
         // Prepare storage info
         const bucket = data.type === 'factura' ? 'factures' : 'pressupostos';
         const dateFolder = format(new Date(), 'yyyy-MM');
-        const fileName = `${data.number.replace('/', '-')}_${Date.now()}.pdf`;
+
+        let fileName = "";
+        const lloc = (data.bolo?.nom_poble || 'Buidantlabota').replace(/\s+/g, '_');
+        const dataBolo = data.bolo?.data ? data.bolo.data.replace(/-/g, '_') : format(new Date(), 'yyyy_MM_dd');
+
+        if (data.type === 'factura') {
+            const num = data.number.replace(/\//g, '_'); // Using underscore for filename as suggested
+            fileName = `${num}_${lloc}_FACTURABUIDANTLABOTA.pdf`;
+        } else {
+            fileName = `${dataBolo}_${lloc}_PRESSUPOSTBUIDANTLABOTA.pdf`;
+        }
+
         const storagePath = `${dateFolder}/${fileName}`;
 
         let recordId: string | undefined;
@@ -214,7 +225,7 @@ export async function POST(request: Request) {
         return new NextResponse(pdfBuffer as any, {
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${data.type}_${data.number.replace('/', '-')}.pdf"`,
+                'Content-Disposition': `attachment; filename="${fileName}"`,
             },
         });
 

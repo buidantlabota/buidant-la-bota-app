@@ -5,7 +5,7 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { BarChart3, Euro, Flame, Map as MapIcon, ZoomIn, Info } from 'lucide-react';
+import { BarChart3, Euro, Flame, Map as MapIcon, ChevronDown } from 'lucide-react';
 
 // Fix Leaflet default icons
 const DefaultIcon = L.icon({
@@ -25,7 +25,7 @@ interface MapData {
 }
 
 interface MapWidgetProps {
-    data: MapData[];
+    availableYears: string[];
     initialMode?: 'bolos' | 'ingressos' | 'heat';
 }
 
@@ -164,13 +164,36 @@ const createBootIcon = (color: string, size: number) => {
     });
 };
 
-export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProps) {
+export default function MapWidget({ availableYears, initialMode = 'bolos' }: MapWidgetProps) {
     const [mode, setMode] = useState<'bolos' | 'ingressos' | 'heat'>(initialMode);
+    const [data, setData] = useState<MapData[]>([]);
+    const [selectedYear, setSelectedYear] = useState<string>('all');
+    const [loadingMap, setLoadingMap] = useState(false);
     const [zoom, setZoom] = useState(8);
     const cataloniaCenter: [number, number] = [41.7, 1.8];
 
-    const maxBolos = useMemo(() => Math.max(...data.map(d => d.total_bolos), 1), [data]);
-    const maxIngressos = useMemo(() => Math.max(...data.map(d => d.total_ingressos), 1), [data]);
+    // Independent fetch for the map
+    useEffect(() => {
+        const fetchMapData = async () => {
+            setLoadingMap(true);
+            try {
+                const params = new URLSearchParams();
+                if (selectedYear !== 'all') params.append('years', selectedYear);
+                // We reuse the stats API but only care about the map part
+                const res = await fetch(`/api/estadistiques?${params}`);
+                const result = await res.json();
+                setData(result.charts?.map || []);
+            } catch (e) {
+                console.error("Error fetching map data:", e);
+            } finally {
+                setLoadingMap(false);
+            }
+        };
+        fetchMapData();
+    }, [selectedYear]);
+
+    const maxBolos = useMemo(() => data.length > 0 ? Math.max(...data.map(d => d.total_bolos), 1) : 1, [data]);
+    const maxIngressos = useMemo(() => data.length > 0 ? Math.max(...data.map(d => d.total_ingressos), 1) : 1, [data]);
 
     const heatPoints = useMemo(() =>
         data.map(d => [d.lat, d.lng, Math.min(1, d.total_bolos / (maxBolos * 0.7))] as [number, number, number]),
@@ -179,24 +202,48 @@ export default function MapWidget({ data, initialMode = 'bolos' }: MapWidgetProp
     const handleZoom = useCallback((z: number) => setZoom(z), []);
 
     return (
-        <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col transition-all duration-500">
+        <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col transition-all duration-500 relative">
+            {/* Loading Overlay for Map */}
+            {loadingMap && (
+                <div className="absolute inset-0 z-[2000] bg-white/40 backdrop-blur-[2px] flex items-center justify-center rounded-[3rem]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent shadow-lg" />
+                </div>
+            )}
+
             {/* Header */}
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                     <h3 className="text-2xl font-black text-gray-900 tracking-tight">Geolocalització d'Actuacions</h3>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Impacte territorial a Catalunya</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                    {/* Independent Year Selector */}
+                    <div className="relative group">
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                            className="appearance-none bg-gray-50 border border-gray-100 text-[10px] font-black uppercase tracking-widest py-2 pl-4 pr-10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-primary shadow-sm cursor-pointer hover:bg-gray-100 transition-all text-gray-600"
+                        >
+                            <option value="all">Tots els anys</option>
+                            {availableYears.map(year => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-primary">
+                            <ChevronDown size={14} />
+                        </div>
+                    </div>
+
                     {/* Mode selector */}
-                    <div className="bg-gray-100/50 p-1.5 rounded-2xl flex gap-1">
+                    <div className="bg-gray-50 p-1.5 rounded-2xl flex gap-1 border border-gray-100 shadow-sm">
                         {([
                             { key: 'bolos', icon: BarChart3, label: 'Bolos' },
                             { key: 'ingressos', icon: Euro, label: 'Import' },
                             { key: 'heat', icon: Flame, label: 'Calor' },
                         ] as const).map(({ key, icon: Icon, label }) => (
                             <button key={key} onClick={() => setMode(key)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === key ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === key ? 'bg-primary text-white shadow-md scale-105' : 'text-gray-400 hover:text-gray-600'
                                     }`}>
                                 <Icon size={12} />{label}
                             </button>

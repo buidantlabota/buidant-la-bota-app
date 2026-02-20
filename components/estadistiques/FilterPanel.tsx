@@ -37,7 +37,7 @@ const STATUS_OPTIONS = [
 
 export default function FilterPanel({ onFilterChange, availableData }: FilterPanelProps) {
     const [filters, setFilters] = useState({
-        years: [] as string[],
+        years: [new Date().getFullYear().toString()] as string[],
         towns: [] as string[],
         types: [] as string[],
         status: [] as string[],

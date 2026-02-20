@@ -6,27 +6,32 @@ export function formatPlantilla(counts?: Record<string, number>) {
     if (!counts || Object.keys(counts).length === 0) return "per confirmar";
 
     const parts: string[] = [];
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
     // Grouping
     const percussio = counts['percussió'] || counts['percussio'] || 0;
     const trompetes = counts['trompeta'] || 0;
-    const saxos = (counts['saxo alt'] || 0) + (counts['saxo'] || 0);
-    const saxoTenor = counts['saxo tenor'] || 0;
+    const saxos = (counts['saxo alt'] || 0) + (counts['saxo tenor'] || 0) + (counts['saxo'] || 0);
     const trombó = counts['trombó'] || counts['trombo'] || 0;
     const tuba = counts['tuba'] || counts['sousàfon'] || counts['sousafon'] || 0;
+    const fiscorn = counts['fiscorn'] || 0;
 
     if (percussio) parts.push(percussio > 1 ? `${percussio} percussionistes` : `${percussio} percussionista`);
     if (trompetes) parts.push(trompetes > 1 ? `${trompetes} trompetes` : `${trompetes} trompeta`);
     if (saxos) parts.push(saxos > 1 ? `${saxos} saxos` : `${saxos} saxo`);
-    if (saxoTenor) parts.push(saxoTenor > 1 ? `${saxoTenor} saxos tenors` : `${saxoTenor} saxo tenor`);
     if (trombó) parts.push(trombó > 1 ? `${trombó} trombons` : `${trombó} trombó`);
+    if (fiscorn) parts.push(fiscorn > 1 ? `${fiscorn} fiscorns` : `${fiscorn} fiscorn`);
     if (tuba) parts.push(tuba > 1 ? `${tuba} tubes` : `${tuba} tuba`);
 
-    if (parts.length === 0) return "la formació habitual";
-    if (parts.length === 1) return parts[0];
+    let instrumentsStr = "";
+    if (parts.length === 0) instrumentsStr = "la formació habitual";
+    else if (parts.length === 1) instrumentsStr = parts[0];
+    else {
+        const last = parts.pop();
+        instrumentsStr = parts.join(', ') + ' i ' + last;
+    }
 
-    const last = parts.pop();
-    return parts.join(', ') + ' i ' + last;
+    return `${total} músics (${instrumentsStr})`;
 }
 
 const smartTitleCase = (str: string) => {
@@ -65,9 +70,7 @@ export function generateDescriptionText(tipus: string, bolo: Bolo, client: Clien
 \nL'actuació va esdevenir el ${diaSetmana} dia ${dia} de ${mes}, de les ${horaInici} a les ${horaFi}h.
 \nLa plantilla va ser composta per ${plantilla}.`;
     } else {
-        const nMusics = bolo.num_musics || 10;
         return `Actuació musical de la xaranga Buidant La Bota a ${poble}, a la ${concepte}, el dia ${dia} de ${mes} de ${any}, a les ${horaInici} hores.
-\nL'actuació es realitzarà amb una formació de ${nMusics} músics.
 \nOferim un repertori divers i que s'adapta a les característiques de l'actuació, des de pasdobles, cançons actuals, "hits" històrics o inclús músiques populars de la festa on anem.
 \nEn cas que l'actuació es programés en un horari que impliqués la necessitat de dietes pels membres del grup, sol·licitem amablement que se'ns proporcioni. En aquest sentit agrairíem que se'ns informés tan bon punt es tingui decidida la planificació per tal d'organitzar-nos la jornada com a grup.
 \nEl pagament es pot realitzar en efectiu, el mateix dia de l’actuació, o per transferència bancària.`;

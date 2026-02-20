@@ -116,7 +116,7 @@ export default function Dashboard() {
           .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const currentAdvances = (allAdvances || [])
-          .filter((a: any) => a.bolos?.pot_delta_final === null && a.data_pagament >= cutoffDate)
+          .filter((a: any) => !['Tancades', 'Tancat'].includes(a.bolos?.estat) && a.data_pagament >= cutoffDate)
           .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
         const potReal = potBase + totalManualBalance + closedBolosPot - currentAdvances;

@@ -725,8 +725,22 @@ export default function BoloDetailPage() {
 
             // 1. Generar instantàniament al client
             const doc = await generateClientPDF(payload);
-            const fileName = `${previewType}_${manualNumber.replace('/', '-')}.pdf`;
-            doc.save(fileName);
+
+            // Filename formats:
+            // Budgets: ANY_MES_DIA_LLOC_PRESSUPOSTBUIDANTLABOTA
+            // Invoices: NUMERO-FACTURA_LLOC_FACTURABUIDANTLABOTA
+            let finalFileName = "";
+            const lloc = (bolo.nom_poble || 'Buidantlabota').replace(/\s+/g, '_');
+            const dataBolo = bolo.data_bolo ? bolo.data_bolo.replace(/-/g, '_') : format(new Date(), 'yyyy_MM_dd');
+
+            if (previewType === 'pressupost') {
+                finalFileName = `${dataBolo}_${lloc}_PRESSUPOSTBUIDANTLABOTA.pdf`;
+            } else {
+                const num = manualNumber.replace(/\//g, '_');
+                finalFileName = `${num}_${lloc}_FACTURABUIDANTLABOTA.pdf`;
+            }
+
+            doc.save(finalFileName);
             // 2. Registrar a la DB directament (Client-side)
             const today = new Date();
             console.log("PROCESSANT REGISTRE A DB...", { manualNumber, client: selectedClient.id, bolo: bolo.id });
@@ -795,8 +809,7 @@ export default function BoloDetailPage() {
             .from('bolo_musics')
             .select('musics(instruments)')
             .eq('bolo_id', boloId)
-            .neq('estat', 'no')
-            .neq('estat', 'baixa');
+            .eq('estat', 'si');
 
         if (error || !data) return { total: 0, counts: {} as Record<string, number> };
 
@@ -2131,15 +2144,25 @@ export default function BoloDetailPage() {
                             <div className="space-y-4 sm:space-y-6">
                                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
                                     <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Detalls del Document</h4>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Núm. Document</label>
-                                        <input
-                                            type="text"
-                                            value={manualNumber}
-                                            onChange={(e) => setManualNumber(e.target.value)}
-                                            className="w-full p-2.5 border border-gray-200 rounded-lg font-mono font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm"
-                                        />
-                                    </div>
+                                    {previewType === 'factura' && (
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Núm. Factura</label>
+                                            <input
+                                                type="text"
+                                                value={manualNumber}
+                                                onChange={(e) => setManualNumber(e.target.value)}
+                                                className="w-full p-2.5 border border-gray-200 rounded-lg font-mono font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                                            />
+                                        </div>
+                                    )}
+                                    {previewType === 'pressupost' && (
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Tipus Document</label>
+                                            <div className="w-full p-2.5 border border-gray-100 bg-gray-100/50 rounded-lg font-bold text-gray-400 text-xs uppercase tracking-widest">
+                                                Pressupost Proposta
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
