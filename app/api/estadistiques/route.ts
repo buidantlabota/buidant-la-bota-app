@@ -5,8 +5,14 @@ import { createClient } from '@/utils/supabase/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const CONFIRMED = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat', 'confirmada', 'confirmat', 'Tancada'];
-const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats'];
+// Llista exhaustiva d'estats que considerem "vàlids" per comptar al rànquing
+const CONFIRMED = [
+    'Confirmada', 'Confirmat', 'confirmada', 'confirmat',
+    'Pendents de cobrar', 'Pendent de cobrar', 'Per pagar',
+    'Tancades', 'Tancat', 'Tancada', 'tancat', 'tancada',
+    'Facturada', 'Facturat', 'Cobrada', 'Cobrat', 'Pagat', 'Pagada'
+];
+const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats', 'REBUTJADA', 'REBUTJADES', 'REBUTJAT'];
 
 // ── Aggregation helpers ───────────────────────────────────
 function aggregate(bolos: any[]) {
@@ -134,7 +140,7 @@ export async function GET(request: Request) {
                 const { data, error } = await supabase.from('bolo_musics')
                     .select('music_id, musics(nom, instruments, tipus)')
                     .in('bolo_id', chunk)
-                    .eq('estat', 'confirmat')
+                    .ilike('estat', 'confirmat')
                     .limit(10000);
                 if (data) attendanceData = [...attendanceData, ...data];
                 if (error) console.error("Error in attendance chunk:", error);
