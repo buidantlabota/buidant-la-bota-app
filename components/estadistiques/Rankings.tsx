@@ -37,15 +37,39 @@ export const ElevenGala = ({ initialMusicians, availableYears }: ElevenGalaProps
 
             setLoading(true);
             try {
-                const params = new URLSearchParams();
-                params.append('years', selectedYears.join(','));
-                params.append('timeline', 'realitzats');
+                const allMusicians: { [key: string]: Musician } = {};
 
-                const res = await fetch(`/api/estadistiques?${params}`);
-                const data = await res.json();
-                if (data.rankings?.elevenGala) {
-                    setMusicians(data.rankings.elevenGala);
+                for (const year of selectedYears) {
+                    const params = new URLSearchParams();
+                    params.append('years', year);
+                    params.append('timeline', 'realitzats');
+
+                    const res = await fetch(`/api/estadistiques?${params}`);
+                    const data = await res.json();
+
+                    if (data.rankings?.elevenGala) {
+                        data.rankings.elevenGala.forEach((m: Musician) => {
+                            if (allMusicians[m.name]) {
+                                allMusicians[m.name].count += m.count;
+                            } else {
+                                allMusicians[m.name] = { ...m };
+                            }
+                        });
+                    }
                 }
+
+                // Convert aggregated object back to array and sort
+                const aggregatedMusicians = Object.values(allMusicians).sort((a, b) => b.count - a.count);
+
+                // Recalculate percentages based on the new aggregated counts
+                const maxCount = aggregatedMusicians.length > 0 ? aggregatedMusicians[0].count : 1;
+                const musiciansWithPercentages = aggregatedMusicians.map(m => ({
+                    ...m,
+                    percentage: (m.count / maxCount) * 100
+                }));
+
+                setMusicians(musiciansWithPercentages);
+
             } catch (e) {
                 console.error('Error fetching gala rankings:', e);
             } finally {
