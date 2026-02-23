@@ -76,16 +76,6 @@ export function BoloKanban({ externalYear }: { externalYear?: number | 'all' }) 
             if (!showCurrentMonth) {
                 const years = Array.from(new Set(data.map((b: any) => new Date(b.data_bolo).getFullYear()))).sort((a: any, b: any) => b - a) as number[];
                 setAvailableYears(years);
-
-                const currentYear = new Date().getFullYear();
-                if (selectedYear === 'all') {
-                    // Default to current year if it exists in data, otherwise first year, otherwise keep all
-                    if (years.includes(currentYear)) {
-                        setSelectedYear(currentYear);
-                    } else if (years.length > 0) {
-                        setSelectedYear(years[0]);
-                    }
-                }
             }
         }
         setLoading(false);
