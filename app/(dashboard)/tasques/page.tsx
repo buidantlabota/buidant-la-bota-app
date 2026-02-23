@@ -32,8 +32,8 @@ function TasquesContent() {
     const fetchAvailableYears = async () => {
         const { data } = await supabase.from('bolos').select('data_bolo');
         if (data) {
-            const years = Array.from(new Set(data.map(b => new Date(b.data_bolo).getFullYear()))).sort((a, b) => b - a);
-            setAvailableYears(years);
+            const years = Array.from(new Set((data as any[]).map(b => b.data_bolo ? new Date(b.data_bolo).getFullYear() : null).filter(y => y !== null))) as number[];
+            setAvailableYears(years.sort((a, b) => b - a));
         }
     };
 
@@ -52,14 +52,15 @@ function TasquesContent() {
             if (error) throw error;
 
             // Filter by year in JS to handle both creation date and associated bolo date
-            const filteredData = (data || []).filter(note => {
+            const notesFromDB = (data || []) as any[];
+            const filteredData = notesFromDB.filter(note => {
                 if (selectedYear === 'all') return true;
 
                 const noteYear = new Date(note.created_at).getFullYear();
                 const boloYear = note.bolos?.data_bolo ? new Date(note.bolos.data_bolo).getFullYear() : null;
 
                 return boloYear === selectedYear || (boloYear === null && noteYear === selectedYear);
-            });
+            }) as Note[];
 
             setNotes(filteredData);
         } catch (error) {

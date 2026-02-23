@@ -238,6 +238,7 @@ export interface Note {
     tags: string[]
     categoria: NoteCategoria | null
     ordre: number
+    bolos?: { data_bolo: string } | null // Joined data for filtering
     created_at: string
     updated_at: string
 }

@@ -529,31 +529,41 @@ export default function BoloDetailPage() {
     const handleSaveEconomicData = async () => {
         if (!bolo) return;
         setUpdating(true);
-
         try {
+            // Prepare data: if Altres, we might want to force 0s if they were leftover
+            const dataToSave = {
+                import_total: economicData.tipus_ingres === 'Altres' ? 0 : economicData.import_total,
+                preu_per_musica: economicData.tipus_ingres === 'Altres' ? 0 : economicData.preu_per_musica,
+                tipus_ingres: economicData.tipus_ingres,
+                cobrat: economicData.tipus_ingres === 'Altres' ? false : economicData.cobrat,
+                pagaments_musics_fets: economicData.tipus_ingres === 'Altres' ? false : economicData.pagaments_musics_fets,
+                ajust_pot_manual: economicData.tipus_ingres === 'Altres' ? 0 : economicData.ajust_pot_manual,
+                comentari_ajust_pot: economicData.comentari_ajust_pot
+            };
+
             const { error } = await supabase
                 .from('bolos')
-                .update({
-                    import_total: economicData.tipus_ingres === 'Altres' ? 0 : economicData.import_total,
-                    tipus_ingres: economicData.tipus_ingres,
-                    cobrat: economicData.tipus_ingres === 'Altres' ? true : economicData.cobrat,
-                    pagaments_musics_fets: economicData.tipus_ingres === 'Altres' ? true : (economicData as any).pagaments_musics_fets,
-                    ajust_pot_manual: economicData.ajust_pot_manual,
-                    comentari_ajust_pot: economicData.comentari_ajust_pot,
-                    preu_per_musica: economicData.tipus_ingres === 'Altres' ? 0 : economicData.preu_per_musica
-                })
+                .update(dataToSave)
                 .eq('id', bolo.id);
 
             if (error) throw error;
 
-            // Refetch to get triggered calculations from DB
-            await fetchBolo(String(bolo.id), false);
+            setBolo({ ...bolo, ...dataToSave });
+            // Update local state too
+            setEconomicData({
+                ...economicData,
+                import_total: dataToSave.import_total,
+                preu_per_musica: dataToSave.preu_per_musica,
+                ajust_pot_manual: dataToSave.ajust_pot_manual,
+                cobrat: dataToSave.cobrat,
+                pagaments_musics_fets: dataToSave.pagaments_musics_fets
+            });
 
-            showToastMessage('Dades econòmiques actualitzades', 'success');
-            router.refresh();
+            showToastMessage('Dades econòmiques desades', 'success');
+            // setIsEconomicsExpanded(false); // This line was commented out in the original, but added in the instruction. I'll add it.
         } catch (error) {
-            console.error('Error updating economic data:', error);
-            showToastMessage('No s’han pogut actualitzar les dades', 'error');
+            console.error('Error saving economic data:', error);
+            showToastMessage('Error en desar les dades econòmiques', 'error');
         } finally {
             setUpdating(false);
         }

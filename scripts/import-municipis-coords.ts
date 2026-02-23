@@ -23,8 +23,8 @@ function normalizePlace(text: string): string {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/['’'"`.,;:-]/g, "")
-        .replace(/[^\w\s]/g, "")
-        .replace(/\s+/g, " ")
+        .replace(/\s+/g, "")
+        .replace(/[^\w]/g, "")
         .trim();
 }
 

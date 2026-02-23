@@ -12,8 +12,8 @@ export function normalizePlace(text: string): string {
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "") // Elimina accents (diacritics)
-        .replace(/['’'"`.,;:-]/g, "") // Elimina puntuacio especifica per mantenir l'exemple lhospitalet
-        .replace(/[^\w\s]/g, "") // Elimina qualsevol altre caracter especial no-paraula (com puntuació restant)
-        .replace(/\s+/g, " ") // Col·lapsa múltiples espais en un de sol
+        .replace(/['’'"`.,;:-]/g, "") // Elimina puntuacio específica
+        .replace(/\s+/g, "") // Elimina TOTS els espais per evitar "puig-reig" vs "puig reig"
+        .replace(/[^\w]/g, "") // Elimina qualsevol altre caràcter especial restant
         .trim();
 }

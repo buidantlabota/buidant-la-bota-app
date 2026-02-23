@@ -23,11 +23,15 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Function to normalize text (remove accents, lowercase, trim)
 function normalize(text) {
+    if (!text) return "";
     return text
         .toLowerCase()
-        .trim()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, ''); // Remove diacritics
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/['’'"`.,;:-]/g, "")
+        .replace(/\s+/g, "")
+        .replace(/[^\w]/g, "")
+        .trim();
 }
 
 async function importMunicipis() {

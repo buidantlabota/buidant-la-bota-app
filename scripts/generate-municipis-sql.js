@@ -8,11 +8,15 @@ const csvContent = fs.readFileSync(csvPath, 'latin1');
 
 // Normalize function
 function normalize(text) {
+    if (!text) return "";
     return text
         .toLowerCase()
-        .trim()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/['’'"`.,;:-]/g, "")
+        .replace(/\s+/g, "")
+        .replace(/[^\w]/g, "")
+        .trim();
 }
 
 // Escape single quotes for SQL
