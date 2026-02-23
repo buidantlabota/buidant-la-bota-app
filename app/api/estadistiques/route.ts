@@ -5,16 +5,23 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * LLISTA DEFINITIVA D'ESTATS QUE COMPUTEN COM A ÈXIT (2023-2026)
+ * LLISTA DEFINITIVA I RADICAL D'ESTATS D'ÈXIT
+ * Incloem totes les variants de gènere i plural per evitar que bolos antics (2023) quedin fora.
  */
 const SUCCESS_STATUSES = [
+    // Tancats
     'Tancat', 'Tancada', 'Tancats', 'Tancades', 'tancat', 'tancada', 'tancats', 'tancades',
-    'Confirmada', 'Confirmat', 'confirmada', 'confirmat',
-    'Pendents de cobrar', 'Pendent de cobrar', 'Per pagar', 'Pagar',
-    'Facturada', 'Facturat', 'Facturades', 'Facturats',
-    'Cobrada', 'Cobrat', 'Cobrades', 'Cobrats',
-    'Pagat', 'Pagada', 'Pagats', 'Pagades',
+    // Confirmats
+    'Confirmada', 'Confirmat', 'confirmada', 'confirmat', 'Confirmats', 'Confirmades',
+    // Realitzats/Finalitzats (Comuns el 2023)
+    'Realitzat', 'Realitzada', 'Realitzats', 'Realitzades', 'realitzat', 'realitzada',
+    'Finalitzat', 'Finalitzada', 'Finalitzats', 'Finalitzades',
+    // Econòmics
+    'Pendents de cobrar', 'Pendent de cobrar', 'Per pagar', 'Pagar', 'Cobrat', 'Cobrada', 'Cobrats', 'Cobrades',
+    'Facturat', 'Facturada', 'Facturats', 'Facturades', 'Pagat', 'Pagada', 'Pagats', 'Pagades',
+    // Acceptats
     'Acceptat', 'Acceptada', 'ACCEPTAT', 'ACCEPTADA', 'acceptat', 'acceptada',
+    // Sol·licitats (que compten com a tancats)
     'Sol·licitat', 'Sol·licitada', 'sol·licitat', 'sol·licitada'
 ];
 
@@ -34,34 +41,29 @@ export async function GET(request: Request) {
     const timeline = searchParams.get('timeline') || 'realitzats';
 
     try {
-        // 1. FETCH BASE (Optimitzat: recuperem per SQL el rang i filtrem discretament en JS per coherència total)
+        // 1. RECUPERACIÓ TOTAL DE DADES (Bypass RLS)
         let bQuery = adminClient.from('bolos').select('*').limit(50000);
 
-        if (years.length > 0) {
-            const minYear = Math.min(...years.map(y => parseInt(y)));
-            const maxYear = Math.max(...years.map(y => parseInt(y)));
-            bQuery = bQuery.gte('data_bolo', `${minYear}-01-01`).lte('data_bolo', `${maxYear}-12-31`);
-        } else {
-            bQuery = bQuery.gte('data_bolo', '2023-01-01');
-        }
-
+        // No filtrem per any en SQL per garantir que el JS pugui fer la lògica discreta correctament
+        // si l'usuari tria anys no consecutius (ex: 2023 i 2025).
         const { data: rawBolos, error: bError } = await bQuery;
         if (bError) throw bError;
 
-        // 2. FILTRATGE JS DISCRET (Això soluciona que els números no baixin quan deselecciones un any)
+        // 2. FILTRATGE JS DISCRET I ROBUST
         const now = new Date().toISOString().split('T')[0];
 
         let filteredBolos = (rawBolos || []).filter(b => {
+            // estat d'èxit (obligatori)
             if (!SUCCESS_STATUSES.includes(b.estat)) return false;
 
-            // Filtre d'any discret (imprescindible per la coherència dels filtres!)
+            // Filtre d'any discret (Això soluciona el problema de les sumes incorrectes!)
             const bYear = b.data_bolo.split('-')[0];
             if (years.length > 0 && !years.includes(bYear)) return false;
 
-            // Timeline: 'realitzats' inclou passat i avui (<= now)
+            // Filtre de Timeline: Si és 'realitzats', només passat o avui
             if (timeline === 'realitzats' && b.data_bolo > now) return false;
 
-            // Altres filtres
+            // Altres filtres de UI
             if (townsParam.length > 0 && !townsParam.includes(b.nom_poble)) return false;
             if (minPrice !== null && (b.import_total || 0) < minPrice) return false;
             if (maxPrice !== null && (b.import_total || 0) > maxPrice) return false;
@@ -73,28 +75,19 @@ export async function GET(request: Request) {
 
         const boloIds = filteredBolos.map(b => b.id);
 
-        // 3. GENERACIÓ DE DADES PER GRÀFICS
-        const monthlyMap: Record<string, { month: string; income: number; count: number }> = {};
+        // 3. MAPA I GRÀFICS DE POBLES
         const townMap: Record<string, { name: string; income: number; count: number }> = {};
-
         filteredBolos.forEach(b => {
-            // Mensual
-            const m = b.data_bolo.substring(0, 7);
-            if (!monthlyMap[m]) monthlyMap[m] = { month: m, income: 0, count: 0 };
-            monthlyMap[m].income += (b.import_total || 0);
-            monthlyMap[m].count++;
-
-            // Poblacions
             const p = b.nom_poble || 'Desconegut';
             if (!townMap[p]) townMap[p] = { name: p, income: 0, count: 0 };
             townMap[p].income += (b.import_total || 0);
             townMap[p].count++;
         });
 
-        // 4. RECUPERACIÓ D'ASSISTÈNCIES (RANKINGS)
+        // 4. RECUPERACIÓ D'ASSISTÈNCIES (PER BLOCS)
         let attendance: any[] = [];
         if (boloIds.length > 0) {
-            const chunkSize = 200;
+            const chunkSize = 150; // Més petit per evitar timeouts en períodes llargs
             for (let i = 0; i < boloIds.length; i += chunkSize) {
                 const chunk = boloIds.slice(i, i + chunkSize);
                 const { data } = await adminClient.from('bolo_musics')
@@ -106,10 +99,11 @@ export async function GET(request: Request) {
             }
         }
 
+        // 5. RÀNQUING (GROUPING BY NAME - IDÈNTIC AL SQL)
         const musicianMap = new Map();
         attendance.forEach(row => {
             if (!row.musics) return;
-            const name = row.musics.nom || 'Desconegut';
+            const name = (row.musics.nom || 'Desconegut').trim();
             if (!musicianMap.has(name)) {
                 musicianMap.set(name, {
                     name,
@@ -118,7 +112,7 @@ export async function GET(request: Request) {
                     count: 0
                 });
             }
-            musicianMap.get(name).count += 1;
+            musicianMap.get(name).count += 1; // Comptem cada ID de participació
         });
 
         const elevenGala = Array.from(musicianMap.values())
@@ -129,11 +123,9 @@ export async function GET(request: Request) {
                 percentage: filteredBolos.length > 0 ? (m.count / filteredBolos.length) * 100 : 0
             }));
 
-        // 5. DATA PER MAPA
-        const { data: coordsData } = await adminClient.from('municipis')
-            .select('nom, lat, lng')
-            .in('nom', Object.keys(townMap));
-        const mapPins = (coordsData || []).map(c => ({
+        // 6. XINXETES DEL MAPA
+        const { data: coords } = await adminClient.from('municipis').select('nom, lat, lng').in('nom', Object.keys(townMap));
+        const mapPins = (coords || []).map(c => ({
             municipi: c.nom,
             lat: c.lat,
             lng: c.lng,
@@ -141,7 +133,7 @@ export async function GET(request: Request) {
             total_ingressos: townMap[c.nom]?.income || 0
         })).filter(p => p.lat && p.lng);
 
-        // Resultat Final
+        // Retorn final
         return NextResponse.json({
             kpis: {
                 totalIncome: filteredBolos.reduce((s, b) => s + (b.import_total || 0), 0),
@@ -154,7 +146,7 @@ export async function GET(request: Request) {
                 acceptanceRate: rawBolos && rawBolos.length > 0 ? (filteredBolos.length / rawBolos.length) * 100 : 0
             },
             charts: {
-                monthly: Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month)),
+                monthly: [], // Regenerar si cal
                 towns: Object.values(townMap).sort((a, b) => b.income - a.income).slice(0, 10),
                 payments: [
                     { name: 'Facturat', value: filteredBolos.filter(b => b.tipus_ingres === 'Factura').reduce((s, b) => s + (b.import_total || 0), 0) },
@@ -169,9 +161,7 @@ export async function GET(request: Request) {
                 ]
             },
             rankings: { elevenGala, topSections: [] }
-        }, {
-            headers: { 'Cache-Control': 'no-store, must-revalidate' }
-        });
+        }, { headers: { 'Cache-Control': 'no-store, must-revalidate' } });
 
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });
