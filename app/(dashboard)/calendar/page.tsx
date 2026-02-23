@@ -216,7 +216,8 @@ export default function CalendarPage() {
             .forEach(mIdx => {
                 const monthBolos = monthGroups[mIdx];
                 const monthName = monthNames[mIdx].toUpperCase();
-                text += `${monthName} ${monthBolos.length}\n`;
+                const confirmedCount = monthBolos.filter(b => CONFIRMED_STATUSES.includes(b.estat)).length;
+                text += `${monthName} ${confirmedCount}\n`;
 
                 monthBolos.forEach(b => {
                     const [, mStr, dStr] = b.data_bolo.split('-');
