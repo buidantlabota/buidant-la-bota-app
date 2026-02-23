@@ -45,8 +45,10 @@ const CONFIRMED_STATUSES = [
     'Facturat', 'Facturada', 'Acceptat', 'Acceptada',
 ];
 
+// Client de Supabase fora del component per evitar re-creació a cada render
+const supabase = createClient();
+
 export default function CalendarPage() {
-    const supabase = createClient();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [yearBolos, setYearBolos] = useState<Bolo[]>([]);
