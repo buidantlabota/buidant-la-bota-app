@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-// Forçat dinàmic i sense cache per garantir dades 100% reals a cada refresc
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * CONFIGURACIÓ CENTRAL D'ESTATS (SUCCESS_STATUSES)
- * Llista exhaustiva per incloure totes les variants trobades a la BD (2023-2026).
+ * LLISTA COMPLETA D'ESTATS D'ÈXIT
+ * Unifiquem totes les variants possibles per garantir que cap bolo (2023-2026) quedi fora.
  */
 const SUCCESS_STATUSES = [
     'Tancat', 'Tancada', 'Tancats', 'Tancades', 'tancat', 'tancada', 'tancats', 'tancades',
@@ -16,8 +15,8 @@ const SUCCESS_STATUSES = [
     'Facturada', 'Facturat', 'Facturades', 'Facturats',
     'Cobrada', 'Cobrat', 'Cobrades', 'Cobrats',
     'Pagat', 'Pagada', 'Pagats', 'Pagades',
-    'Acceptat', 'Acceptada', 'ACCEPTAT', 'ACCEPTADA',
-    'Sol·licitat', 'Sol·licitada'
+    'Acceptat', 'Acceptada', 'ACCEPTAT', 'ACCEPTADA', 'acceptat', 'acceptada',
+    'Sol·licitat', 'Sol·licitada', 'sol·licitat', 'sol·licitada'
 ];
 
 export async function GET(request: Request) {
@@ -38,30 +37,36 @@ export async function GET(request: Request) {
     const isDebug = searchParams.get('debug') === 'true';
 
     try {
-        // 1. RECUPERACIÓ DE BOLOS
-        let bQuery = adminClient.from('bolos').select(
-            'id, data_bolo, nom_poble, import_total, tipus_ingres, estat, tipus_actuacio, cost_total_musics, pot_delta_final'
-        ).limit(50000);
+        // 1. OBTENIR TOTS ELS BOLOS QUE COMPLETEN ELS FILTRES
+        let bQuery = adminClient.from('bolos').select('id, data_bolo, estat, nom_poble, import_total, tipus_ingres, tipus_actuacio, cost_total_musics, pot_delta_final').limit(50000);
 
+        // Filtre d'anys (si n'hi ha)
         if (years.length > 0) {
-            const start = Math.min(...years.map(y => parseInt(y)));
-            const end = Math.max(...years.map(y => parseInt(y)));
-            bQuery = bQuery.gte('data_bolo', `${start}-01-01`).lte('data_bolo', `${end}-12-31`);
+            const startYear = Math.min(...years.map(y => parseInt(y)));
+            const endYear = Math.max(...years.map(y => parseInt(y)));
+            bQuery = bQuery.gte('data_bolo', `${startYear}-01-01`).lte('data_bolo', `${endYear}-12-31`);
+        } else {
+            // Per defecte, si no hi ha d'anys, agafem des de l'històric (2023)
+            bQuery = bQuery.gte('data_bolo', '2023-01-01');
         }
 
-        const { data: allBolos, error: bolosError } = await bQuery;
-        if (bolosError) throw bolosError;
+        const { data: rawBolos, error: bError } = await bQuery;
+        if (bError) throw bError;
 
-        // 2. FILTRATGE DE TIMELINE
-        const nowStr = new Date().toISOString().split('T')[0];
-        let filteredBolos = (allBolos || []).filter(b => {
-            const isSuccess = SUCCESS_STATUSES.includes(b.estat);
-            if (!isSuccess) return false;
-            if (timeline === 'realitzats') return b.data_bolo <= nowStr;
+        // 2. FILTRATGE JS (MOLT ROBUST)
+        const now = new Date().toISOString().split('T')[0];
+        let filteredBolos = (rawBolos || []).filter(b => {
+            // Estats que sumen
+            const isConfirmed = SUCCESS_STATUSES.includes(b.estat);
+            if (!isConfirmed) return false;
+
+            // Filtre de Timeline (Per defecte 'realitzats' = passat + avui)
+            if (timeline === 'realitzats') return b.data_bolo <= now;
+            // 'confirmats' inclou passat, present i futur
             return true;
         });
 
-        // Filtres addicionals de UI
+        // Aplicar filtres de UI
         if (towns.length > 0) filteredBolos = filteredBolos.filter(b => towns.includes(b.nom_poble));
         if (minPrice !== null) filteredBolos = filteredBolos.filter(b => (b.import_total || 0) >= minPrice);
         if (maxPrice !== null) filteredBolos = filteredBolos.filter(b => (b.import_total || 0) <= maxPrice);
@@ -70,8 +75,8 @@ export async function GET(request: Request) {
 
         const boloIds = filteredBolos.map(b => b.id);
 
-        // 3. RECUPERACIÓ D'ASSISTÈNCIES (Participacions)
-        let attendanceData: any[] = [];
+        // 3. RECUPERAR ASSISTÈNCIES (Processament per blocs)
+        let attendance: any[] = [];
         if (boloIds.length > 0) {
             const chunkSize = 200;
             for (let i = 0; i < boloIds.length; i += chunkSize) {
@@ -81,96 +86,81 @@ export async function GET(request: Request) {
                     .in('bolo_id', chunk)
                     .ilike('estat', 'confirmat')
                     .limit(20000);
-                if (data) attendanceData = [...attendanceData, ...data];
+                if (data) attendance = [...attendance, ...data];
             }
         }
 
-        // 4. CÀLCUL DEL RÀNQUING (L'Onze de Gala)
-        // ALERTA: Per petició de l'usuari, comptem participacions TOTALS (bm.id), 
-        // no restringim a un sol bolo per músic si hi hagués duplicats.
-        const musicianMap = new Map<string, { name: string; instrument: string; type: string; count: number }>();
+        // 4. GENERAR RÀNQUING (Grouping by name for maximum compatibility with user SQL)
+        // Usarem un mapa per nom per sumar tots els que es diguin igual (si calgués)
+        const musicianMap = new Map<string, { nom: string; instrument: string; tipus: string; count: number }>();
 
-        attendanceData.forEach(row => {
-            if (!row.music_id || !row.musics) return;
-            const mid = row.music_id;
-            if (!musicianMap.has(mid)) {
-                musicianMap.set(mid, {
-                    name: row.musics.nom || '?',
+        attendance.forEach(row => {
+            if (!row.musics) return;
+            const name = row.musics.nom || 'Desconegut';
+            if (!musicianMap.has(name)) {
+                musicianMap.set(name, {
+                    nom: name,
                     instrument: row.musics.instruments || '',
-                    type: row.musics.tipus || 'titular',
+                    tipus: row.musics.tipus || 'titular',
                     count: 0
                 });
             }
-            musicianMap.get(mid)!.count += 1; // Sumem cada entrada bm.id
+            musicianMap.get(name)!.count += 1;
         });
 
-        const elevenGala = Array.from(musicianMap.entries())
-            .map(([id, data]) => ({
-                id,
-                name: data.name,
-                instrument: data.instrument,
-                type: data.type,
-                count: data.count,
-                percentage: filteredBolos.length > 0 ? (data.count / filteredBolos.length) * 100 : 0
-            }))
+        const elevenGala = Array.from(musicianMap.values())
             .sort((a, b) => b.count - a.count)
-            .slice(0, 11);
+            .slice(0, 11)
+            .map(m => ({
+                name: m.nom,
+                count: m.count,
+                instrument: m.instrument,
+                type: m.tipus,
+                percentage: filteredBolos.length > 0 ? (m.count / filteredBolos.length) * 100 : 0
+            }));
 
-        // 5. SECCIONS I KPIs
-        const sectionMap: Record<string, number> = {};
-        attendanceData.forEach(row => {
-            const inst = row.musics?.instruments || 'Altres';
-            const first = inst.split(',')[0].trim();
-            sectionMap[first] = (sectionMap[first] || 0) + 1;
-        });
-        const topSections = Object.entries(sectionMap)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count);
-
+        // 5. KPIs I ALTRES DADES
         const totalIncome = filteredBolos.reduce((s, b) => s + (b.import_total || 0), 0);
         const netProfit = filteredBolos.reduce((s, b) => s + (b.pot_delta_final || 0), 0);
         const totalExpenses = filteredBolos.reduce((s, b) => s + (b.cost_total_musics || 0), 0);
-        const cashIncome = filteredBolos.filter(b => b.tipus_ingres === 'Efectiu').reduce((s, b) => s + (b.import_total || 0), 0);
-        const invoiceIncome = filteredBolos.filter(b => b.tipus_ingres === 'Factura').reduce((s, b) => s + (b.import_total || 0), 0);
 
-        // Monthly
+        // Monthly chart
         const monthlyMap: Record<string, { month: string; income: number; count: number }> = {};
         filteredBolos.forEach(b => {
-            const d = b.data_bolo.substring(0, 7);
-            if (!monthlyMap[d]) monthlyMap[d] = { month: d, income: 0, count: 0 };
-            monthlyMap[d].income += (b.import_total || 0);
-            monthlyMap[d].count++;
+            const m = b.data_bolo.substring(0, 7);
+            if (!monthlyMap[m]) monthlyMap[m] = { month: m, income: 0, count: 0 };
+            monthlyMap[m].income += (b.import_total || 0);
+            monthlyMap[m].count++;
         });
 
         return NextResponse.json({
-            debug: isDebug ? { filtered_bolos: filteredBolos.length, attendance_rows: attendanceData.length } : undefined,
             kpis: {
                 totalIncome,
                 count: filteredBolos.length,
                 confirmedCount: filteredBolos.length,
-                pendingCount: (allBolos?.length || 0) - filteredBolos.length,
+                pendingCount: (rawBolos?.length || 0) - filteredBolos.length,
                 avgPrice: filteredBolos.length > 0 ? totalIncome / filteredBolos.length : 0,
                 netProfit,
                 totalExpenses,
-                cashIncome,
-                invoiceIncome,
-                acceptanceRate: allBolos && allBolos.length > 0 ? (filteredBolos.length / allBolos.length) * 100 : 100
+                acceptanceRate: rawBolos && rawBolos.length > 0 ? (filteredBolos.length / rawBolos.length) * 100 : 100
             },
             charts: {
                 monthly: Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month)),
-                payments: [
-                    { name: 'Facturat', value: invoiceIncome },
-                    { name: 'Efectiu', value: cashIncome }
-                ],
                 towns: [],
+                payments: [
+                    { name: 'Facturat', value: filteredBolos.filter(b => b.tipus_ingres === 'Factura').reduce((s, b) => s + (b.import_total || 0), 0) },
+                    { name: 'Efectiu', value: filteredBolos.filter(b => b.tipus_ingres === 'Efectiu').reduce((s, b) => s + (b.import_total || 0), 0) },
+                ],
+                prices: [],
                 types: []
             },
-            rankings: { elevenGala, topSections }
+            rankings: { elevenGala, topSections: [] }
         }, {
             headers: { 'Cache-Control': 'no-store, must-revalidate' }
         });
 
     } catch (e: any) {
+        console.error('Stats Nuclear Error:', e);
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
 }
