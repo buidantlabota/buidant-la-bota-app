@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
-// ── In-memory cache (per worker, lives ~60s) ──────────────
-const CACHE_TTL_MS = 60_000; // 60 seconds
-const cache = new Map<string, { ts: number; data: any }>();
-
 const CONFIRMED = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat'];
 const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats'];
 
@@ -21,7 +17,6 @@ function aggregate(bolos: any[]) {
     const sorted = confirmed.map(b => b.import_total || 0).sort((a, b) => a - b);
     const medianPrice = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
 
-    // Monthly map
     const monthlyMap: Record<string, { month: string; income: number; count: number }> = {};
     confirmed.forEach(b => {
         const d = new Date(b.data_bolo);
@@ -31,7 +26,6 @@ function aggregate(bolos: any[]) {
         monthlyMap[key].count += 1;
     });
 
-    // Town map
     const townMap: Record<string, { name: string; income: number; count: number }> = {};
     confirmed.forEach(b => {
         const p = b.nom_poble || 'Desconegut';
@@ -40,14 +34,12 @@ function aggregate(bolos: any[]) {
         townMap[p].count += 1;
     });
 
-    // Type map
     const typeMap: Record<string, number> = {};
     confirmed.forEach(b => {
         const t = b.tipus_actuacio || 'Altres';
         typeMap[t] = (typeMap[t] || 0) + 1;
     });
 
-    // Price buckets
     const priceBuckets = [
         { range: '< 300€', count: confirmed.filter(b => b.import_total < 300).length },
         { range: '300-600€', count: confirmed.filter(b => b.import_total >= 300 && b.import_total < 600).length },
@@ -78,7 +70,6 @@ export async function GET(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'No autoritzat' }, { status: 401 });
 
-    // Parse filters
     const years = searchParams.get('years')?.split(',').filter(Boolean) || [];
     const towns = searchParams.get('towns')?.split(',').filter(Boolean) || [];
     const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : null;
@@ -89,132 +80,86 @@ export async function GET(request: Request) {
     const types = searchParams.get('types')?.split(',').filter(Boolean) || [];
     const timeline = searchParams.get('timeline') || 'realitzats';
 
-    // Cache key
-    const cacheKey = searchParams.toString();
-    const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-        return NextResponse.json(cached.data, {
-            headers: { 'X-Cache': 'HIT', 'Cache-Control': 'private, max-age=60' }
-        });
-    }
-
     try {
-        // ── Bolos query (only needed columns) ─────────────
-        let query = supabase.from('bolos').select(
+        // 1. Fetch Bolos
+        let bQuery = supabase.from('bolos').select(
             'id, data_bolo, nom_poble, import_total, tipus_ingres, estat, tipus_actuacio, cost_total_musics, ajust_pot_manual, pot_delta_final'
-        ).limit(20000);
+        ).limit(50000);
 
-        // Date filter (DB-side)
         if (years.length > 0) {
             const start = Math.min(...years.map(y => parseInt(y)));
             const end = Math.max(...years.map(y => parseInt(y)));
-            query = query.gte('data_bolo', `${start}-01-01`).lte('data_bolo', `${end}-12-31`);
+            bQuery = bQuery.gte('data_bolo', `${start}-01-01`).lte('data_bolo', `${end}-12-31`);
+        }
+        if (towns.length > 0) bQuery = bQuery.in('nom_poble', towns);
+        if (minPrice !== null) bQuery = bQuery.gte('import_total', minPrice);
+        if (maxPrice !== null) bQuery = bQuery.lte('import_total', maxPrice);
+        if (paymentType !== 'tots') bQuery = bQuery.eq('tipus_ingres', paymentType);
+        if (types.length > 0) bQuery = bQuery.in('tipus_actuacio', types);
+
+        const { data: rawBolos, error: bolosError } = await bQuery;
+        if (bolosError) throw bolosError;
+
+        // 2. Timeline Filter
+        const now = new Date().toISOString().split('T')[0];
+        let bolos = rawBolos || [];
+        if (timeline === 'realitzats') {
+            bolos = bolos.filter((b: any) => CONFIRMED.includes(b.estat) && b.data_bolo <= now);
+        } else if (timeline === 'confirmats') {
+            bolos = bolos.filter((b: any) => CONFIRMED.includes(b.estat));
         }
 
-        if (towns.length > 0) query = query.in('nom_poble', towns);
-        if (minPrice !== null) query = query.gte('import_total', minPrice);
-        if (maxPrice !== null) query = query.lte('import_total', maxPrice);
-        if (paymentType !== 'tots') query = query.eq('tipus_ingres', paymentType);
-        if (types.length > 0) query = query.in('tipus_actuacio', types);
-
+        // JS status filter if provided
         if (statuses.length > 0) {
-            if (statuses.length === 1) {
-                const s = statuses[0];
-                if (s === 'acceptat') query = query.in('estat', CONFIRMED);
-                else if (s === 'rebutjat') query = query.in('estat', REJECTED);
-                else if (s === 'pendent') query = query.in('estat', ['Nova', 'Pendent de confirmació', 'Sol·licitat']);
-                else query = query.in('estat', statuses);
-            } else {
-                query = query.in('estat', statuses);
+            const s = statuses[0];
+            if (s === 'acceptat') bolos = bolos.filter(b => CONFIRMED.includes(b.estat));
+            else if (s === 'rebutjat') bolos = bolos.filter(b => REJECTED.includes(b.estat));
+            else if (s === 'pendent') bolos = bolos.filter(b => ['Nova', 'Pendent de confirmació', 'Sol·licitat'].includes(b.estat));
+        }
+
+        const agg = aggregate(bolos);
+        const boloIds = agg.confirmed.map((b: any) => b.id);
+
+        // 3. Fetch Musician Attendance (Optimized chunking to avoid URL limit)
+        let attendanceData: any[] = [];
+        if (boloIds.length > 0) {
+            // We use a join if possible, or fetch in chunks. Let's try join on estat first.
+            // But Supabase JS join might be tricky. Let's just fetch ALL confirmed attendances for confirmed bolos
+            // To be really safe, we fetch in chunks of 200 IDs
+            const chunkSize = 200;
+            for (let i = 0; i < boloIds.length; i += chunkSize) {
+                const chunk = boloIds.slice(i, i + chunkSize);
+                const { data } = await supabase.from('bolo_musics')
+                    .select('music_id, musics(nom, instruments, tipus)')
+                    .in('bolo_id', chunk)
+                    .eq('estat', 'confirmat')
+                    .limit(10000);
+                if (data) attendanceData = [...attendanceData, ...data];
             }
         }
 
-        const { data: bolos, error: bolosError } = await query;
-        if (bolosError) throw bolosError;
+        // 4. Fetch Towns Coords
+        const { data: coordsData } = await supabase.from('municipis')
+            .select('nom, lat, lng')
+            .in('nom', Object.keys(agg.allTowns))
+            .limit(10000);
 
-        // ── JS filtering for timeline & date (complex logic) ──
-        let filteredByTimeline = bolos || [];
-        const now = new Date().toISOString().split('T')[0]; // Current date
-
-        if (timeline === 'realitzats') {
-            // Confirmats que ja han passat (o son avui)
-            filteredByTimeline = filteredByTimeline.filter((b: any) =>
-                CONFIRMED.includes(b.estat) && b.data_bolo <= now
-            );
-        } else if (timeline === 'confirmats') {
-            // Tots els confirmats (passats i futurs)
-            filteredByTimeline = filteredByTimeline.filter((b: any) =>
-                CONFIRMED.includes(b.estat)
-            );
-        }
-        // If 'all', no extra filter (already filtered by status if any, else everything)
-
-        if (!filteredByTimeline || filteredByTimeline.length === 0) {
-            const empty = {
-                kpis: { totalIncome: 0, count: 0, confirmedCount: 0, rejectedCount: 0, pendingCount: 0, avgPrice: 0, medianPrice: 0, acceptanceRate: 0, rejectionRate: 0, cashIncome: 0, invoiceIncome: 0, totalExpenses: 0, netProfit: 0 },
-                charts: { monthly: [], towns: [], payments: [], prices: [], types: [], map: [] },
-                rankings: { elevenGala: [], topSections: [] }
-            };
-            return NextResponse.json(empty);
-        }
-
-        // JS year filter (for non-contiguous years)
-        let filteredBolos = filteredByTimeline;
-        if (years.length > 0) {
-            filteredBolos = filteredByTimeline.filter((b: any) => years.includes(new Date(b.data_bolo).getFullYear().toString()));
-        }
-
-        const agg = aggregate(filteredBolos);
-
-        const kpis = {
-            totalIncome: agg.totalIncome,
-            count: agg.count,
-            confirmedCount: agg.confirmedCount,
-            rejectedCount: agg.rejectedCount,
-            pendingCount: agg.pendingCount,
-            avgPrice: agg.confirmedCount > 0 ? agg.totalIncome / agg.confirmedCount : 0,
-            medianPrice: agg.medianPrice,
-            acceptanceRate: agg.count > 0 ? (agg.confirmedCount / agg.count) * 100 : 0,
-            rejectionRate: agg.count > 0 ? (agg.rejectedCount / agg.count) * 100 : 0,
-            cashIncome: agg.cashIncome,
-            invoiceIncome: agg.invoiceIncome,
-            totalExpenses: agg.totalExpenses,
-            netProfit: agg.netProfit,
-        };
-
-        // ── Rankings: músics (in parallel with coord lookup) ──
-        const boloIds = agg.confirmed.map((b: any) => b.id);
-
-        const [attendanceRes, coordsRes] = await Promise.all([
-            boloIds.length > 0
-                ? supabase.from('bolo_musics')
-                    .select('music_id, musics(nom, instruments, tipus)')
-                    .in('bolo_id', boloIds)
-                    .eq('estat', 'confirmat')
-                    .limit(20000)
-                : Promise.resolve({ data: [] }),
-
-            supabase.from('municipis')
-                .select('nom, lat, lng')
-                .in('nom', Object.keys(agg.allTowns))
-                .limit(20000),
-        ]);
-
-        // Musician rankings
+        // -- RANKINGS --
         const musicianMap: Record<string, { name: string; count: number; instrument: string; type: string }> = {};
-        (attendanceRes.data || []).forEach((row: any) => {
+        attendanceData.forEach((row: any) => {
             const mid = row.music_id;
             const m = row.musics;
             if (!musicianMap[mid]) musicianMap[mid] = { name: m?.nom || 'Desconegut', count: 0, instrument: m?.instruments || '', type: m?.tipus || '' };
             musicianMap[mid].count += 1;
         });
+
         const elevenGala = Object.values(musicianMap)
             .sort((a, b) => b.count - a.count)
             .slice(0, 11)
             .map(m => ({ ...m, percentage: agg.confirmedCount > 0 ? (m.count / agg.confirmedCount) * 100 : 0 }));
 
         const sectionMap: Record<string, number> = {};
-        (attendanceRes.data || []).forEach((row: any) => {
+        attendanceData.forEach((row: any) => {
             const inst = row.musics?.instruments || 'Altres';
             const firstIn = inst.split(',')[0].trim();
             sectionMap[firstIn] = (sectionMap[firstIn] || 0) + 1;
@@ -223,9 +168,9 @@ export async function GET(request: Request) {
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
 
-        // Map data
+        // -- MAP --
         const coordsMap = new Map<string, { lat: number; lng: number }>();
-        (coordsRes.data || []).forEach((c: any) => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
+        (coordsData || []).forEach((c: any) => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
 
         const mapData = Object.values(agg.allTowns).map(t => {
             const coords = coordsMap.get(t.name);
@@ -234,7 +179,21 @@ export async function GET(request: Request) {
         }).filter(Boolean);
 
         const result = {
-            kpis,
+            kpis: {
+                totalIncome: agg.totalIncome,
+                count: agg.count,
+                confirmedCount: agg.confirmedCount,
+                rejectedCount: agg.rejectedCount,
+                pendingCount: agg.count - agg.confirmedCount - agg.rejectedCount,
+                avgPrice: agg.confirmedCount > 0 ? agg.totalIncome / agg.confirmedCount : 0,
+                medianPrice: agg.medianPrice,
+                acceptanceRate: agg.count > 0 ? (agg.confirmedCount / agg.count) * 100 : 0,
+                rejectionRate: agg.count > 0 ? (agg.rejectedCount / agg.count) * 100 : 0,
+                cashIncome: agg.cashIncome,
+                invoiceIncome: agg.invoiceIncome,
+                totalExpenses: agg.totalExpenses,
+                netProfit: agg.netProfit,
+            },
             charts: {
                 monthly: agg.monthly,
                 towns: agg.towns,
@@ -249,12 +208,7 @@ export async function GET(request: Request) {
             rankings: { elevenGala, topSections },
         };
 
-        // Store in cache
-        cache.set(cacheKey, { ts: Date.now(), data: result });
-
-        return NextResponse.json(result, {
-            headers: { 'X-Cache': 'MISS', 'Cache-Control': 'private, max-age=60' }
-        });
+        return NextResponse.json(result);
 
     } catch (error: any) {
         console.error('Stats API Error:', error);
