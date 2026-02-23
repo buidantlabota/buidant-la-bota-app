@@ -33,36 +33,21 @@ export const ElevenGala = ({ initialMusicians, availableYears }: ElevenGalaProps
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [availableYears]);
 
-    // Funció de fetch: dona una llista d'anys, agafa cadascun per separat i suma
+    // Funció de fetch: crida el servidor que fa la suma any per any
     const fetchByYears = async (yearsToFetch: string[]) => {
-        if (yearsToFetch.length === 0) return;
         setLoading(true);
         try {
-            const accum: Record<string, Musician> = {};
-
-            for (const year of yearsToFetch) {
-                const params = new URLSearchParams();
-                params.append('years', year);
-                params.append('timeline', 'realitzats');
-                const res = await fetch(`/api/estadistiques?${params}`);
-                const data = await res.json();
-
-                if (data.rankings?.elevenGala) {
-                    // L'API retorna TOTS els músics (sense tall), som them per nom
-                    (data.rankings.elevenGala as Musician[]).forEach(m => {
-                        if (accum[m.name]) {
-                            accum[m.name].count += m.count;
-                        } else {
-                            accum[m.name] = { ...m };
-                        }
-                    });
-                }
+            // El servidor fa la suma any per any i retorna el resultat final
+            const params = new URLSearchParams();
+            if (yearsToFetch.length > 0) {
+                params.append('years', yearsToFetch.join(','));
             }
+            const res = await fetch(`/api/estadistiques/rankings?${params}`);
+            const data = await res.json();
 
-            // Mostrem TOTS els músics ordenats per assistència
-            const sorted = Object.values(accum).sort((a, b) => b.count - a.count);
-            const maxCount = sorted[0]?.count || 1;
-            setMusicians(sorted.map(m => ({ ...m, percentage: (m.count / maxCount) * 100 })));
+            if (data.rankings) {
+                setMusicians(data.rankings as Musician[]);
+            }
         } catch (e) {
             console.error('Error fetching gala:', e);
         } finally {
