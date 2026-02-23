@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
-const CONFIRMED = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat'];
+// FORÇAR QUE NO HI HAGI CACHE DE CAP TIPUS A NIVELL DE VERCEL/NEXT
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const CONFIRMED = ['Confirmada', 'Confirmat', 'Pendents de cobrar', 'Per pagar', 'Tancades', 'Tancat', 'confirmada', 'confirmat', 'Tancada'];
 const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats'];
 
 // ── Aggregation helpers ───────────────────────────────────
@@ -81,7 +85,7 @@ export async function GET(request: Request) {
     const timeline = searchParams.get('timeline') || 'realitzats';
 
     try {
-        // 1. Fetch Bolos
+        // 1. Fetch Bolos (sense cache i amb límit ampli)
         let bQuery = supabase.from('bolos').select(
             'id, data_bolo, nom_poble, import_total, tipus_ingres, estat, tipus_actuacio, cost_total_musics, ajust_pot_manual, pot_delta_final'
         ).limit(50000);
@@ -100,9 +104,10 @@ export async function GET(request: Request) {
         const { data: rawBolos, error: bolosError } = await bQuery;
         if (bolosError) throw bolosError;
 
-        // 2. Timeline Filter
+        // 2. JS filtering (Molt important: incloem el debug de data)
         const now = new Date().toISOString().split('T')[0];
         let bolos = rawBolos || [];
+
         if (timeline === 'realitzats') {
             bolos = bolos.filter((b: any) => CONFIRMED.includes(b.estat) && b.data_bolo <= now);
         } else if (timeline === 'confirmats') {
@@ -120,36 +125,34 @@ export async function GET(request: Request) {
         const agg = aggregate(bolos);
         const boloIds = agg.confirmed.map((b: any) => b.id);
 
-        // 3. Fetch Musician Attendance (Optimized chunking to avoid URL limit)
+        // 3. Fetch Musician Attendance (Chunking robust de 100 en 100)
         let attendanceData: any[] = [];
         if (boloIds.length > 0) {
-            // We use a join if possible, or fetch in chunks. Let's try join on estat first.
-            // But Supabase JS join might be tricky. Let's just fetch ALL confirmed attendances for confirmed bolos
-            // To be really safe, we fetch in chunks of 200 IDs
-            const chunkSize = 200;
+            const chunkSize = 100;
             for (let i = 0; i < boloIds.length; i += chunkSize) {
                 const chunk = boloIds.slice(i, i + chunkSize);
-                const { data } = await supabase.from('bolo_musics')
+                const { data, error } = await supabase.from('bolo_musics')
                     .select('music_id, musics(nom, instruments, tipus)')
                     .in('bolo_id', chunk)
                     .eq('estat', 'confirmat')
                     .limit(10000);
                 if (data) attendanceData = [...attendanceData, ...data];
+                if (error) console.error("Error in attendance chunk:", error);
             }
         }
 
-        // 4. Fetch Towns Coords
+        // 4. Fetch Towns Coords i Músics rànkings
         const { data: coordsData } = await supabase.from('municipis')
             .select('nom, lat, lng')
             .in('nom', Object.keys(agg.allTowns))
             .limit(10000);
 
-        // -- RANKINGS --
         const musicianMap: Record<string, { name: string; count: number; instrument: string; type: string }> = {};
         attendanceData.forEach((row: any) => {
             const mid = row.music_id;
             const m = row.musics;
-            if (!musicianMap[mid]) musicianMap[mid] = { name: m?.nom || 'Desconegut', count: 0, instrument: m?.instruments || '', type: m?.tipus || '' };
+            if (!mid || !m) return;
+            if (!musicianMap[mid]) musicianMap[mid] = { name: m.nom || 'Desconegut', count: 0, instrument: m.instruments || '', type: m.tipus || '' };
             musicianMap[mid].count += 1;
         });
 
@@ -168,7 +171,6 @@ export async function GET(request: Request) {
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
 
-        // -- MAP --
         const coordsMap = new Map<string, { lat: number; lng: number }>();
         (coordsData || []).forEach((c: any) => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
 
@@ -178,7 +180,13 @@ export async function GET(request: Request) {
             return { municipi: t.name, lat: coords.lat, lng: coords.lng, total_bolos: t.count, total_ingressos: t.income };
         }).filter(Boolean);
 
-        const result = {
+        return NextResponse.json({
+            debug: {
+                timestamp: new Date().toISOString(),
+                bolos_total: rawBolos?.length,
+                bolos_filtrats: bolos.length,
+                assistencies_total: attendanceData.length
+            },
             kpis: {
                 totalIncome: agg.totalIncome,
                 count: agg.count,
@@ -206,9 +214,9 @@ export async function GET(request: Request) {
                 map: mapData,
             },
             rankings: { elevenGala, topSections },
-        };
-
-        return NextResponse.json(result);
+        }, {
+            headers: { 'Cache-Control': 'no-store, max-age=0, must-revalidate' }
+        });
 
     } catch (error: any) {
         console.error('Stats API Error:', error);
