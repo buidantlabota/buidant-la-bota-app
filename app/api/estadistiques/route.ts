@@ -102,7 +102,7 @@ export async function GET(request: Request) {
         // ── Bolos query (only needed columns) ─────────────
         let query = supabase.from('bolos').select(
             'id, data_bolo, nom_poble, import_total, tipus_ingres, estat, tipus_actuacio, cost_total_musics, ajust_pot_manual, pot_delta_final'
-        );
+        ).limit(5000);
 
         // Date filter (DB-side)
         if (years.length > 0) {
@@ -191,11 +191,13 @@ export async function GET(request: Request) {
                     .select('music_id, musics(nom, instruments, tipus)')
                     .in('bolo_id', boloIds)
                     .eq('estat', 'confirmat')
+                    .limit(5000)
                 : Promise.resolve({ data: [] }),
 
             supabase.from('municipis')
                 .select('nom, lat, lng')
-                .in('nom', Object.keys(agg.allTowns)),
+                .in('nom', Object.keys(agg.allTowns))
+                .limit(5000),
         ]);
 
         // Musician rankings

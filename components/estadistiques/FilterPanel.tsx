@@ -180,6 +180,12 @@ export default function FilterPanel({ onFilterChange, availableData }: FilterPan
                     </Dropdown>
 
                     <Dropdown id="years" label="Anys" icon={Calendar} count={filters.years.length}>
+                        <Option
+                            label="Des de l'inici"
+                            active={filters.years.length === 0}
+                            onClick={() => setFilters(prev => ({ ...prev, years: [] }))}
+                        />
+                        <div className="h-px bg-gray-50 my-1" />
                         {availableData.years.map(year => (
                             <Option
                                 key={year}

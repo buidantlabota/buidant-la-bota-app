@@ -16,26 +16,52 @@ function TasquesContent() {
     const [loadingNotes, setLoadingNotes] = useState(true);
     const [activeTab, setActiveTab] = useState<'tasques' | 'notes'>('tasques');
 
+    // Year Filtering State
+    const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
+    const [availableYears, setAvailableYears] = useState<number[]>([]);
+
     useEffect(() => {
         const view = searchParams.get('view');
         if (view === 'notes') {
             setActiveTab('notes');
         }
         fetchNotes();
-    }, [searchParams]);
+        fetchAvailableYears();
+    }, [searchParams, selectedYear]);
+
+    const fetchAvailableYears = async () => {
+        const { data } = await supabase.from('bolos').select('data_bolo');
+        if (data) {
+            const years = Array.from(new Set(data.map(b => new Date(b.data_bolo).getFullYear()))).sort((a, b) => b - a);
+            setAvailableYears(years);
+        }
+    };
 
     const fetchNotes = async () => {
         setLoadingNotes(true);
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('notes')
-                .select('*')
-                .eq('archived', false)
+                .select('*, bolos(data_bolo)')
+                .eq('archived', false);
+
+            const { data, error } = await query
                 .order('pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            setNotes(data || []);
+
+            // Filter by year in JS to handle both creation date and associated bolo date
+            const filteredData = (data || []).filter(note => {
+                if (selectedYear === 'all') return true;
+
+                const noteYear = new Date(note.created_at).getFullYear();
+                const boloYear = note.bolos?.data_bolo ? new Date(note.bolos.data_bolo).getFullYear() : null;
+
+                return boloYear === selectedYear || (boloYear === null && noteYear === selectedYear);
+            });
+
+            setNotes(filteredData);
         } catch (error) {
             console.error('Error fetching notes:', error);
         } finally {
@@ -54,28 +80,50 @@ function TasquesContent() {
                     </p>
                 </div>
 
-                {/* Tabs Toggle */}
-                <div className="flex bg-gray-100 p-1 rounded-xl">
-                    <button
-                        onClick={() => setActiveTab('tasques')}
-                        className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'tasques'
-                            ? 'bg-white text-primary shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                    >
-                        <span className="material-icons-outlined text-sm mr-2 align-middle">analytics</span>
-                        Tauler de Bolos
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('notes')}
-                        className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'notes'
-                            ? 'bg-white text-primary shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                    >
-                        <span className="material-icons-outlined text-sm mr-2 align-middle">sticky_note_2</span>
-                        Notes ({notes.length})
-                    </button>
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                    {/* Year Selector */}
+                    <div className="relative">
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSelectedYear(val === 'all' ? 'all' : parseInt(val));
+                            }}
+                            className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none pr-10 cursor-pointer h-[42px]"
+                        >
+                            <option value="all">Des de l'inici</option>
+                            {availableYears.map(year => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <span className="material-icons-outlined text-sm">expand_more</span>
+                        </div>
+                    </div>
+
+                    {/* Tabs Toggle */}
+                    <div className="flex bg-gray-100 p-1 rounded-xl h-[42px]">
+                        <button
+                            onClick={() => setActiveTab('tasques')}
+                            className={`px-6 py-1 rounded-lg font-bold text-sm transition-all flex items-center ${activeTab === 'tasques'
+                                ? 'bg-white text-primary shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            <span className="material-icons-outlined text-sm mr-2">analytics</span>
+                            Tauler
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('notes')}
+                            className={`px-6 py-1 rounded-lg font-bold text-sm transition-all flex items-center ${activeTab === 'notes'
+                                ? 'bg-white text-primary shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            <span className="material-icons-outlined text-sm mr-2">sticky_note_2</span>
+                            Notes ({notes.length})
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -84,7 +132,7 @@ function TasquesContent() {
                 {activeTab === 'tasques' ? (
                     <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm">
                         <div className="p-6 md:p-8 overflow-x-auto min-h-[700px]">
-                            <BoloKanban />
+                            <BoloKanban externalYear={selectedYear} />
                         </div>
                     </div>
                 ) : (

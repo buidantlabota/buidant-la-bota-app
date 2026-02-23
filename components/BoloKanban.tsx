@@ -22,16 +22,22 @@ const COLUMNS: KanbanColumn[] = [
     { id: 'tancada', title: 'Tancades', color: 'bg-red-900', textColor: 'text-white' },
 ];
 
-export function BoloKanban() {
+export function BoloKanban({ externalYear }: { externalYear?: number | 'all' }) {
     const supabase = createClient();
     const [bolos, setBolos] = useState<Bolo[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<number | null>(null);
 
-
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
     const [showCurrentMonth, setShowCurrentMonth] = useState(false);
+
+    // Sync with external year if provided
+    useEffect(() => {
+        if (externalYear !== undefined) {
+            setSelectedYear(externalYear);
+        }
+    }, [externalYear]);
 
     useEffect(() => {
         fetchBolos();
@@ -71,8 +77,14 @@ export function BoloKanban() {
                 const years = Array.from(new Set(data.map((b: any) => new Date(b.data_bolo).getFullYear()))).sort((a: any, b: any) => b - a) as number[];
                 setAvailableYears(years);
 
-                if (years.length > 0 && selectedYear === 'all') {
-                    setSelectedYear(years[0]);
+                const currentYear = new Date().getFullYear();
+                if (selectedYear === 'all') {
+                    // Default to current year if it exists in data, otherwise first year, otherwise keep all
+                    if (years.includes(currentYear)) {
+                        setSelectedYear(currentYear);
+                    } else if (years.length > 0) {
+                        setSelectedYear(years[0]);
+                    }
                 }
             }
         }
@@ -188,7 +200,7 @@ export function BoloKanban() {
 
     return (
         <div className="space-y-4">
-            {/* Year Selector & Month Toggle */}
+            {/* Month Toggle */}
             <div className="flex flex-col sm:flex-row justify-end items-center gap-4 px-4 sm:px-0">
                 <button
                     onClick={() => setShowCurrentMonth(!showCurrentMonth)}
@@ -202,24 +214,6 @@ export function BoloKanban() {
                     <span className="text-[10px] uppercase">Mes Actual</span>
                     {showCurrentMonth && <span className="material-icons-outlined text-xs ml-1">check_circle</span>}
                 </button>
-
-                <div className={`bg-gray-100 p-1 rounded-lg inline-flex transition-opacity ${showCurrentMonth ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                    <button
-                        onClick={() => setSelectedYear('all')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${selectedYear === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Tots
-                    </button>
-                    {availableYears.map(year => (
-                        <button
-                            key={year}
-                            onClick={() => setSelectedYear(year)}
-                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${selectedYear === year ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                            {year}
-                        </button>
-                    ))}
-                </div>
             </div>
 
             <div className="flex lg:grid lg:grid-cols-6 gap-4 overflow-x-auto lg:overflow-x-visible pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin scrollbar-thumb-gray-200">

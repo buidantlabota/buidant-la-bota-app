@@ -2029,15 +2029,15 @@ export default function BoloDetailPage() {
             {/* Internal Comments Section */}
             {/* Internal Comments Section */}
             {bolo.notes && (
-                <div className="bg-indigo-50/30 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/40 overflow-hidden mt-6 shadow-sm">
-                    <div className="px-6 py-3 border-b border-indigo-100 dark:border-indigo-800/40 bg-indigo-50/50 dark:bg-indigo-900/30">
+                <div className="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-800/60 overflow-hidden mt-6 shadow-md">
+                    <div className="px-6 py-4 border-b border-indigo-100 dark:border-indigo-800/60 bg-indigo-100/50 dark:bg-indigo-900/40">
                         <h2 className="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest flex items-center">
                             <span className="material-icons-outlined mr-2 text-lg">description</span>
                             Notes de la Sol·licitud (Formulari)
                         </h2>
                     </div>
                     <div className="p-6">
-                        <p className="text-indigo-950 dark:text-indigo-100 text-sm whitespace-pre-wrap font-medium leading-relaxed italic">
+                        <p className="text-indigo-950 dark:text-gray-100 text-sm whitespace-pre-wrap font-bold leading-relaxed italic">
                             {bolo.notes}
                         </p>
                     </div>
