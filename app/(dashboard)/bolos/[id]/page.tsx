@@ -532,13 +532,13 @@ export default function BoloDetailPage() {
         try {
             // Prepare data: if Altres, we might want to force 0s if they were leftover
             const dataToSave = {
-                import_total: economicData.tipus_ingres === 'Altres' ? 0 : economicData.import_total,
-                preu_per_musica: economicData.tipus_ingres === 'Altres' ? 0 : economicData.preu_per_musica,
-                tipus_ingres: economicData.tipus_ingres,
-                cobrat: economicData.tipus_ingres === 'Altres' ? false : economicData.cobrat,
-                pagaments_musics_fets: economicData.tipus_ingres === 'Altres' ? false : economicData.pagaments_musics_fets,
-                ajust_pot_manual: economicData.tipus_ingres === 'Altres' ? 0 : economicData.ajust_pot_manual,
-                comentari_ajust_pot: economicData.comentari_ajust_pot
+                import_total: economicData.tipus_ingres === 'Altres' ? 0 : (economicData.import_total || 0),
+                preu_per_musica: economicData.tipus_ingres === 'Altres' ? 0 : (economicData.preu_per_musica || 0),
+                tipus_ingres: economicData.tipus_ingres || 'Factura',
+                cobrat: economicData.tipus_ingres === 'Altres' ? false : !!economicData.cobrat,
+                pagaments_musics_fets: economicData.tipus_ingres === 'Altres' ? false : !!economicData.pagaments_musics_fets,
+                ajust_pot_manual: economicData.tipus_ingres === 'Altres' ? 0 : (economicData.ajust_pot_manual || 0),
+                comentari_ajust_pot: economicData.comentari_ajust_pot || ''
             };
 
             const { error } = await supabase
@@ -548,7 +548,9 @@ export default function BoloDetailPage() {
 
             if (error) throw error;
 
-            setBolo({ ...bolo, ...dataToSave });
+            // Updated bolo state to match the type exactly
+            setBolo(prev => prev ? { ...prev, ...dataToSave } : null);
+
             // Update local state too
             setEconomicData({
                 ...economicData,
