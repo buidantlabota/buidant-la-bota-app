@@ -276,9 +276,8 @@ export default function EstadistiquesPage() {
                                         <MapWidget availableYears={metaData.years} />
                                     </section>
 
-                                    {/* Rankings */}
                                     <section className="grid grid-cols-1 gap-8">
-                                        <ElevenGala musicians={elevenGala} />
+                                        <ElevenGala initialMusicians={elevenGala} availableYears={metaData.years} />
                                     </section>
 
                                     {/* Funnel */}
