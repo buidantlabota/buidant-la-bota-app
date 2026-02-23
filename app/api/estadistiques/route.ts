@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-// FORÇAR QUE NO HI HAGI CACHE DE CAP TIPUS A NIVELL DE VERCEL/NEXT
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// Llista exhaustiva d'estats que considerem "vàlids" per comptar al rànquing
-const CONFIRMED = [
+/**
+ * MAPPING CENTRAL D'ESTATS
+ * Unifiquem tots els estats que es consideren "èxit" o "confirmats" 
+ * per evitar discrepàncies entre SQL i App.
+ */
+const CONFIRMED_BOLO_STATUSES = [
     'Confirmada', 'Confirmat', 'confirmada', 'confirmat',
     'Pendents de cobrar', 'Pendent de cobrar', 'Per pagar',
     'Tancades', 'Tancat', 'Tancada', 'tancat', 'tancada',
@@ -14,12 +18,16 @@ const CONFIRMED = [
     'ACCEPTADA', 'ACCEPTAT', 'Acceptada', 'Acceptat', 'acceptada', 'acceptat',
     'Sol·licitada', 'Sol·licitat', 'sol·licitada', 'sol·licitat'
 ];
-const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats', 'REBUTJADA', 'REBUTJADES', 'REBUTJAT'];
 
-// ── Aggregation helpers ───────────────────────────────────
+const REJECTED_BOLO_STATUSES = [
+    'Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats',
+    'REBUTJADA', 'REBUTJADES', 'REBUTJAT', 'Cancel·lada'
+];
+
+// ── Aggregation helper ─
 function aggregate(bolos: any[]) {
-    const confirmed = bolos.filter(b => CONFIRMED.includes(b.estat));
-    const rejected = bolos.filter(b => REJECTED.includes(b.estat));
+    const confirmed = bolos.filter(b => CONFIRMED_BOLO_STATUSES.includes(b.estat));
+    const rejected = bolos.filter(b => REJECTED_BOLO_STATUSES.includes(b.estat));
 
     const totalIncome = confirmed.reduce((s, b) => s + (b.import_total || 0), 0);
     const cashIncome = confirmed.filter(b => b.tipus_ingres === 'Efectiu').reduce((s, b) => s + (b.import_total || 0), 0);
@@ -74,13 +82,19 @@ function aggregate(bolos: any[]) {
     };
 }
 
-// ── GET handler ───────────────────────────────────────────
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const supabase = await createClient();
+    const userClient = await createClient(); // Per Check Auth només
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'No autoritzat' }, { status: 401 });
+
+    // Mode Debug & Comparació
+    const isDebug = searchParams.get('debug') === 'true' || process.env.NODE_ENV === 'development';
+    const targetMusicId = searchParams.get('music_id') || '28f7ff5b-8162-478e-b1f6-01abaaca190b'; // Jofre
+
+    // Fem servir Service Role per a les estadístiques (Robustesa: bypass RLS)
+    const adminClient = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
     const years = searchParams.get('years')?.split(',').filter(Boolean) || [];
     const towns = searchParams.get('towns')?.split(',').filter(Boolean) || [];
@@ -93,8 +107,8 @@ export async function GET(request: Request) {
     const timeline = searchParams.get('timeline') || 'realitzats';
 
     try {
-        // 1. Fetch Bolos (sense cache i amb límit ampli)
-        let bQuery = supabase.from('bolos').select(
+        // 1. Fetch Bolos (Admin Client)
+        let bQuery = adminClient.from('bolos').select(
             'id, data_bolo, nom_poble, import_total, tipus_ingres, estat, tipus_actuacio, cost_total_musics, ajust_pot_manual, pot_delta_final'
         ).limit(50000);
 
@@ -112,56 +126,53 @@ export async function GET(request: Request) {
         const { data: rawBolos, error: bolosError } = await bQuery;
         if (bolosError) throw bolosError;
 
-        // 2. JS filtering (Molt important: incloem el debug de data)
+        // 2. Timeline filtering (Normalització de dades)
         const now = new Date().toISOString().split('T')[0];
         let bolos = rawBolos || [];
 
         if (timeline === 'realitzats') {
-            bolos = bolos.filter((b: any) => CONFIRMED.includes(b.estat) && b.data_bolo <= now);
+            bolos = bolos.filter((b: any) => CONFIRMED_BOLO_STATUSES.includes(b.estat) && b.data_bolo <= now);
         } else if (timeline === 'confirmats') {
-            bolos = bolos.filter((b: any) => CONFIRMED.includes(b.estat));
+            bolos = bolos.filter((b: any) => CONFIRMED_BOLO_STATUSES.includes(b.estat));
         }
 
-        // JS status filter if provided
+        // Filtre d'estat addicional (si n'hi ha)
         if (statuses.length > 0) {
             const s = statuses[0];
-            if (s === 'acceptat') bolos = bolos.filter(b => CONFIRMED.includes(b.estat));
-            else if (s === 'rebutjat') bolos = bolos.filter(b => REJECTED.includes(b.estat));
+            if (s === 'acceptat') bolos = bolos.filter(b => CONFIRMED_BOLO_STATUSES.includes(b.estat));
+            else if (s === 'rebutjat') bolos = bolos.filter(b => REJECTED_BOLO_STATUSES.includes(b.estat));
             else if (s === 'pendent') bolos = bolos.filter(b => ['Nova', 'Pendent de confirmació', 'Sol·licitat'].includes(b.estat));
         }
 
         const agg = aggregate(bolos);
-        const boloIds = agg.confirmed.map((b: any) => b.id);
+        const boloIds = bolos.map((b: any) => b.id);
 
-        // 3. Fetch Musician Attendance (Chunking robust de 100 en 100)
+        // 3. Fetch Attendance (Admin Client per evitar filtres parcials de RLS)
         let attendanceData: any[] = [];
         if (boloIds.length > 0) {
-            const chunkSize = 100;
+            const chunkSize = 200;
             for (let i = 0; i < boloIds.length; i += chunkSize) {
                 const chunk = boloIds.slice(i, i + chunkSize);
-                const { data, error } = await supabase.from('bolo_musics')
-                    .select('music_id, musics(nom, instruments, tipus)')
+                const { data } = await adminClient.from('bolo_musics')
+                    .select('bolo_id, music_id, musics(nom, instruments, tipus)')
                     .in('bolo_id', chunk)
                     .ilike('estat', 'confirmat')
-                    .limit(10000);
+                    .limit(20000);
                 if (data) attendanceData = [...attendanceData, ...data];
-                if (error) console.error("Error in attendance chunk:", error);
             }
         }
 
-        // 4. Fetch Towns Coords i Músics rànkings
-        const { data: coordsData } = await supabase.from('municipis')
-            .select('nom, lat, lng')
-            .in('nom', Object.keys(agg.allTowns))
-            .limit(10000);
-
-        const musicianMap: Record<string, { name: string; count: number; instrument: string; type: string }> = {};
+        // 4. Rankings Calculation (Usant music_id sempre)
+        const musicianMap: Record<string, { name: string; count: number; instrument: string; type: string; ids: number[] }> = {};
         attendanceData.forEach((row: any) => {
             const mid = row.music_id;
             const m = row.musics;
             if (!mid || !m) return;
-            if (!musicianMap[mid]) musicianMap[mid] = { name: m.nom || 'Desconegut', count: 0, instrument: m.instruments || '', type: m.tipus || '' };
+            if (!musicianMap[mid]) {
+                musicianMap[mid] = { name: m.nom || 'Desconegut', count: 0, instrument: m.instruments || '', type: m.tipus || '', ids: [] };
+            }
             musicianMap[mid].count += 1;
+            musicianMap[mid].ids.push(row.bolo_id);
         });
 
         const elevenGala = Object.values(musicianMap)
@@ -169,32 +180,26 @@ export async function GET(request: Request) {
             .slice(0, 11)
             .map(m => ({ ...m, percentage: agg.confirmedCount > 0 ? (m.count / agg.confirmedCount) * 100 : 0 }));
 
-        const sectionMap: Record<string, number> = {};
-        attendanceData.forEach((row: any) => {
-            const inst = row.musics?.instruments || 'Altres';
-            const firstIn = inst.split(',')[0].trim();
-            sectionMap[firstIn] = (sectionMap[firstIn] || 0) + 1;
-        });
-        const topSections = Object.entries(sectionMap)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count);
-
-        const coordsMap = new Map<string, { lat: number; lng: number }>();
+        // Coords
+        const { data: coordsData } = await adminClient.from('municipis')
+            .select('nom, lat, lng')
+            .in('nom', Object.keys(agg.allTowns))
+            .limit(10000);
+        const coordsMap = new Map();
         (coordsData || []).forEach((c: any) => coordsMap.set(c.nom, { lat: c.lat, lng: c.lng }));
 
-        const mapData = Object.values(agg.allTowns).map(t => {
-            const coords = coordsMap.get(t.name);
-            if (!coords?.lat || !coords?.lng) return null;
-            return { municipi: t.name, lat: coords.lat, lng: coords.lng, total_bolos: t.count, total_ingressos: t.income };
-        }).filter(Boolean);
-
+        // Respond
         return NextResponse.json({
-            debug: {
-                timestamp: new Date().toISOString(),
-                bolos_total: rawBolos?.length,
-                bolos_filtrats: bolos.length,
-                assistencies_total: attendanceData.length
-            },
+            debug: isDebug ? {
+                total_raw_bolos: rawBolos?.length,
+                filtered_bolos: bolos.length,
+                attendance_total: attendanceData.length,
+                target_musician: {
+                    id: targetMusicId,
+                    count: musicianMap[targetMusicId]?.count || 0,
+                    ids_sample: musicianMap[targetMusicId]?.ids.slice(0, 20)
+                }
+            } : undefined,
             kpis: {
                 totalIncome: agg.totalIncome,
                 count: agg.count,
@@ -219,9 +224,13 @@ export async function GET(request: Request) {
                 ],
                 prices: agg.priceBuckets,
                 types: agg.types,
-                map: mapData,
+                map: Object.values(agg.allTowns).map(t => {
+                    const coords = coordsMap.get(t.name);
+                    if (!coords?.lat || !coords?.lng) return null;
+                    return { municipi: t.name, lat: coords.lat, lng: coords.lng, total_bolos: t.count, total_ingressos: t.income };
+                }).filter(Boolean),
             },
-            rankings: { elevenGala, topSections },
+            rankings: { elevenGala },
         }, {
             headers: { 'Cache-Control': 'no-store, max-age=0, must-revalidate' }
         });

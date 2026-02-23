@@ -1,0 +1,46 @@
+{
+  "total": 106,
+  "states": {
+    "Tancades": 95,
+    "Confirmada": 3,
+    "Per pagar": 3,
+    "Pendents de cobrar": 5
+  },
+  "samples": [
+    {
+      "bolo_id": 71,
+      "bolos": {
+        "estat": "Tancades",
+        "data_bolo": "2023-04-16"
+      }
+    },
+    {
+      "bolo_id": 78,
+      "bolos": {
+        "estat": "Tancades",
+        "data_bolo": "2023-08-06"
+      }
+    },
+    {
+      "bolo_id": 82,
+      "bolos": {
+        "estat": "Tancades",
+        "data_bolo": "2023-11-24"
+      }
+    },
+    {
+      "bolo_id": 70,
+      "bolos": {
+        "estat": "Confirmada",
+        "data_bolo": "2026-04-05"
+      }
+    },
+    {
+      "bolo_id": 60,
+      "bolos": {
+        "estat": "Per pagar",
+        "data_bolo": "2026-02-06"
+      }
+    }
+  ]
+}
