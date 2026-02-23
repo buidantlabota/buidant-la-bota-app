@@ -101,7 +101,7 @@ export default function EstadistiquesPage() {
                 const yearList = data.map((b: any) => new Date(b.data_bolo).getFullYear());
                 // Forcem l'aparició de 2023 si no hi és, ja que sabem que hi ha dades
                 if (!yearList.includes(2023)) yearList.push(2023);
-                const years = Array.from(new Set(yearList.map(y => y.toString()))).sort().reverse();
+                const years = Array.from(new Set(yearList.map((y: number) => y.toString()))).sort().reverse();
                 const towns = Array.from(new Set(data.map((b: any) => b.nom_poble))).sort();
                 const types = Array.from(new Set(data.map((b: any) => b.tipus_actuacio).filter((t: any) => !!t))).sort();
                 setMetaData({ years: years as string[], towns: towns as string[], types: types as string[] });
