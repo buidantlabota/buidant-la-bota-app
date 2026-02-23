@@ -90,9 +90,9 @@ export async function GET(request: Request) {
         });
 
         type RankEntry = { name: string; instrument: string; type: string; count: number };
+        // No tallem a 11 aquí! Ho farà el frontend després de sumar tots els anys
         const elevenGala = (Array.from(rankingMap.values()) as RankEntry[])
             .sort((a, b) => b.count - a.count)
-            .slice(0, 11)
             .map(m => ({
                 name: m.name,
                 count: m.count,

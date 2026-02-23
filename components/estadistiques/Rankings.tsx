@@ -18,73 +18,79 @@ interface ElevenGalaProps {
 }
 
 export const ElevenGala = ({ initialMusicians, availableYears }: ElevenGalaProps) => {
+    // Per defecte: TOTS els anys seleccionats (l'API calcularà any a any i sumarà)
+    const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [musicians, setMusicians] = useState<Musician[]>(initialMusicians);
     const [loading, setLoading] = useState(false);
-    const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-    // Actualitza quan canvien els músics inicials (per filtres globals)
+    // Quan tenim els anys disponibles, carreguem de seguida la suma de tots
     useEffect(() => {
-        if (selectedYears.length === 0) {
-            setMusicians(initialMusicians);
+        if (availableYears.length > 0 && selectedYears.length === 0) {
+            // Carrega inicial: suma tots els anys
+            fetchByYears(availableYears);
         }
-    }, [initialMusicians, selectedYears.length]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availableYears]);
 
-    // Actualitza quan canvien els anys seleccionats al widget
-    useEffect(() => {
-        const fetchRankings = async () => {
-            if (selectedYears.length === 0) return;
+    // Funció de fetch: dona una llista d'anys, agafa cadascun per separat i suma
+    const fetchByYears = async (yearsToFetch: string[]) => {
+        if (yearsToFetch.length === 0) return;
+        setLoading(true);
+        try {
+            const accum: Record<string, Musician> = {};
 
-            setLoading(true);
-            try {
-                const allMusicians: { [key: string]: Musician } = {};
+            for (const year of yearsToFetch) {
+                const params = new URLSearchParams();
+                params.append('years', year);
+                params.append('timeline', 'realitzats');
+                const res = await fetch(`/api/estadistiques?${params}`);
+                const data = await res.json();
 
-                for (const year of selectedYears) {
-                    const params = new URLSearchParams();
-                    params.append('years', year);
-                    params.append('timeline', 'realitzats');
-
-                    const res = await fetch(`/api/estadistiques?${params}`);
-                    const data = await res.json();
-
-                    if (data.rankings?.elevenGala) {
-                        data.rankings.elevenGala.forEach((m: Musician) => {
-                            if (allMusicians[m.name]) {
-                                allMusicians[m.name].count += m.count;
-                            } else {
-                                allMusicians[m.name] = { ...m };
-                            }
-                        });
-                    }
+                if (data.rankings?.elevenGala) {
+                    // L'API retorna TOTS els músics (sense tall), som them per nom
+                    (data.rankings.elevenGala as Musician[]).forEach(m => {
+                        if (accum[m.name]) {
+                            accum[m.name].count += m.count;
+                        } else {
+                            accum[m.name] = { ...m };
+                        }
+                    });
                 }
-
-                // Convert aggregated object back to array and sort
-                const aggregatedMusicians = Object.values(allMusicians).sort((a, b) => b.count - a.count);
-
-                // Recalculate percentages based on the new aggregated counts
-                const maxCount = aggregatedMusicians.length > 0 ? aggregatedMusicians[0].count : 1;
-                const musiciansWithPercentages = aggregatedMusicians.map(m => ({
-                    ...m,
-                    percentage: (m.count / maxCount) * 100
-                }));
-
-                setMusicians(musiciansWithPercentages);
-
-            } catch (e) {
-                console.error('Error fetching gala rankings:', e);
-            } finally {
-                setLoading(false);
             }
-        };
 
-        fetchRankings();
+            // Mostrem TOTS els músics ordenats per assistència
+            const sorted = Object.values(accum).sort((a, b) => b.count - a.count);
+            const maxCount = sorted[0]?.count || 1;
+            setMusicians(sorted.map(m => ({ ...m, percentage: (m.count / maxCount) * 100 })));
+        } catch (e) {
+            console.error('Error fetching gala:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Quan canvien els anys seleccionats manualment
+    useEffect(() => {
+        if (selectedYears.length > 0) {
+            fetchByYears(selectedYears);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedYears]);
+
 
     const toggleYear = (year: string) => {
         setSelectedYears(prev =>
             prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year]
         );
     };
+
+    // Label del botó
+    const buttonLabel = selectedYears.length === 0 || selectedYears.length === availableYears.length
+        ? 'Tots els anys'
+        : selectedYears.length === 1
+            ? selectedYears[0]
+            : `${selectedYears.length} anys`;
 
     return (
         <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col relative">
@@ -107,7 +113,7 @@ export const ElevenGala = ({ initialMusicians, availableYears }: ElevenGalaProps
                         className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-gray-600"
                     >
                         <Calendar size={14} className="text-primary" />
-                        <span>{selectedYears.length === 0 ? "Global (Sincronitzat)" : `${selectedYears.length} Anys`}</span>
+                        <span>{buttonLabel}</span>
                         <ChevronDown size={14} className={`ml-1 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 
@@ -129,10 +135,10 @@ export const ElevenGala = ({ initialMusicians, availableYears }: ElevenGalaProps
                                 >
                                     <div className="flex flex-col gap-1">
                                         <button
-                                            onClick={() => { setSelectedYears([]); setIsDropdownOpen(false); }}
-                                            className={`px-3 py-2 rounded-xl text-left text-[11px] font-bold ${selectedYears.length === 0 ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
+                                            onClick={() => { setSelectedYears([]); fetchByYears(availableYears); setIsDropdownOpen(false); }}
+                                            className={`px-3 py-2 rounded-xl text-left text-[11px] font-bold ${(selectedYears.length === 0 || selectedYears.length === availableYears.length) ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
                                         >
-                                            Sincronitzat amb Filtres
+                                            Tots els anys
                                         </button>
                                         <div className="h-px bg-gray-50 my-1" />
                                         {availableYears.map(year => (
