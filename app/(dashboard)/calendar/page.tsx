@@ -13,7 +13,6 @@ interface Bolo {
     estat: string;
     import_total?: number;
     tipus_ingres?: string;
-    nom_actuacio?: string;
     client?: { nom: string };
 }
 
@@ -51,6 +50,8 @@ export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [yearBolos, setYearBolos] = useState<Bolo[]>([]);
+    const [yearLoading, setYearLoading] = useState(true);
+    const [yearError, setYearError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
@@ -67,7 +68,7 @@ export default function CalendarPage() {
 
             const { data: bolosData } = await supabase
                 .from('bolos')
-                .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres, nom_actuacio, client:clients(nom)')
+                .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres, client:clients(nom)')
                 .gte('data_bolo', startDate)
                 .lte('data_bolo', endDate);
 
@@ -86,7 +87,6 @@ export default function CalendarPage() {
                 estat: b.estat,
                 import_total: b.import_total,
                 tipus_ingres: b.tipus_ingres,
-                nom_actuacio: b.nom_actuacio,
                 client: Array.isArray(b.client) ? b.client[0] : b.client
             }));
 
@@ -109,26 +109,37 @@ export default function CalendarPage() {
     // Fetch tots els bolos de l'any per al resum (independent del mes del calendari)
     useEffect(() => {
         const fetchYearBolos = async () => {
-            const year = new Date().getFullYear();
-            const { data } = await supabase
-                .from('bolos')
-                .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres, nom_actuacio')
-                .gte('data_bolo', `${year}-01-01`)
-                .lte('data_bolo', `${year}-12-31`)
-                .order('data_bolo', { ascending: true });
+            setYearLoading(true);
+            setYearError(null);
+            try {
+                const year = new Date().getFullYear();
+                const { data, error } = await supabase
+                    .from('bolos')
+                    .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres')
+                    .gte('data_bolo', `${year}-01-01`)
+                    .lte('data_bolo', `${year}-12-31`)
+                    .order('data_bolo', { ascending: true });
 
-            setYearBolos((data || []).map((b: any) => ({
-                type: 'bolo',
-                id: b.id,
-                nom_poble: b.nom_poble,
-                data_bolo: b.data_bolo,
-                estat: b.estat,
-                import_total: b.import_total,
-                tipus_ingres: b.tipus_ingres,
-                nom_actuacio: b.nom_actuacio,
-            })));
+                if (error) throw error;
+
+                setYearBolos((data || []).map((b: any) => ({
+                    type: 'bolo',
+                    id: b.id,
+                    nom_poble: b.nom_poble,
+                    data_bolo: b.data_bolo,
+                    estat: b.estat,
+                    import_total: b.import_total,
+                    tipus_ingres: b.tipus_ingres,
+                })));
+            } catch (e: any) {
+                console.error('Error carregant bolos anuals:', e);
+                setYearError(e?.message || 'Error desconegut');
+            } finally {
+                setYearLoading(false);
+            }
         };
         fetchYearBolos();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Helpers calendari
@@ -210,10 +221,7 @@ export default function CalendarPage() {
                     const dayFormatted = dStr === '00' ? '00' : dStr;
                     const monthFormatted = mStr;
 
-                    // Nom: si té nom_actuacio l'usem, sinó el poble
-                    const nomDisplay = b.nom_actuacio
-                        ? `${b.nom_actuacio}`
-                        : b.nom_poble;
+                    const nomDisplay = b.nom_poble;
 
                     // Preu
                     const price = b.import_total && b.import_total > 0
@@ -444,7 +452,13 @@ export default function CalendarPage() {
 
                         <div className="relative">
                             <pre className="bg-gray-50 p-8 rounded-2xl border border-gray-200 text-gray-800 font-mono text-sm whitespace-pre-wrap leading-relaxed shadow-inner select-all">
-                                {yearBolos.length === 0 ? 'Carregant bolos...' : generateWhatsappSummary()}
+                                {yearLoading
+                                    ? '⏳ Carregant bolos de l\'any...'
+                                    : yearError
+                                        ? `❌ Error: ${yearError}`
+                                        : yearBolos.length === 0
+                                            ? '(No hi ha bolos per a l\'any en curs)'
+                                            : generateWhatsappSummary()}
                             </pre>
                         </div>
 
