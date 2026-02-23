@@ -10,7 +10,9 @@ const CONFIRMED = [
     'Confirmada', 'Confirmat', 'confirmada', 'confirmat',
     'Pendents de cobrar', 'Pendent de cobrar', 'Per pagar',
     'Tancades', 'Tancat', 'Tancada', 'tancat', 'tancada',
-    'Facturada', 'Facturat', 'Cobrada', 'Cobrat', 'Pagat', 'Pagada'
+    'Facturada', 'Facturat', 'Cobrada', 'Cobrat', 'Pagat', 'Pagada',
+    'ACCEPTADA', 'ACCEPTAT', 'Acceptada', 'Acceptat', 'acceptada', 'acceptat',
+    'Sol·licitada', 'Sol·licitat', 'sol·licitada', 'sol·licitat'
 ];
 const REJECTED = ['Cancel·lat', 'Cancel·lats', 'rebutjat', 'rebutjats', 'REBUTJADA', 'REBUTJADES', 'REBUTJAT'];
 
