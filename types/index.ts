@@ -55,6 +55,8 @@ export interface Bolo {
     partitures: string | null
     ubicacio_inici: string | null
     notes_fundes: string | null
+    maps_inici: string | null
+    maps_fundes: string | null
 
     // Automatic Fields (Base 44)
     import_total: number

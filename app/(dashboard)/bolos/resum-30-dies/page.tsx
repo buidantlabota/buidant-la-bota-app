@@ -180,6 +180,18 @@ export default function Resum30DiesPage() {
                     }
                 }
 
+                // 2. Check the assigned instrument for this specific bolo (new preferred logic)
+                if (bm.instrument) {
+                    const normalizedAssigned = bm.instrument.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    if (normalizedSection === 'saxo' && normalizedAssigned.includes('saxo')) {
+                        return true;
+                    }
+                    if (normalizedAssigned.includes(normalizedSection)) {
+                        return true;
+                    }
+                    return false; // If has instrument assigned, we only use this one
+                }
+
                 if (!bm.music || !bm.music.instruments) return false;
                 const normalizedInst = bm.music.instruments.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -218,7 +230,7 @@ export default function Resum30DiesPage() {
 
         bolos.forEach(bolo => {
             const totalMusics = bolo.musicians.length;
-            const boloName = bolo.tipus_actuacio || bolo.municipi_text || bolo.nom_poble;
+            const boloName = bolo.titol || bolo.tipus_actuacio || bolo.municipi_text || bolo.nom_poble;
             const date = new Date(bolo.data_bolo).toLocaleDateString('ca-ES', { day: 'numeric', month: 'short' });
 
             const statusIcon = bolo.lineup_confirmed ? '✅' : '⏳';
@@ -306,7 +318,7 @@ export default function Resum30DiesPage() {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3">
                                                 <h3 className="text-lg font-bold text-gray-900">
-                                                    {bolo.tipus_actuacio || bolo.municipi_text || bolo.nom_poble}
+                                                    {bolo.titol || bolo.tipus_actuacio || bolo.municipi_text || bolo.nom_poble}
                                                 </h3>
                                                 <span className="text-sm px-2 py-0.5 rounded bg-blue-100 text-blue-700">
                                                     -{totalMusics}

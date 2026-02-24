@@ -172,7 +172,7 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
     };
 
     // Build Summary
-    const rawType = (bolo.tipus_actuacio || bolo.concepte || bolo.nom_poble || 'Actuació');
+    const rawType = (bolo.titol || bolo.tipus_actuacio || bolo.concepte || bolo.nom_poble || 'Actuació');
     const typeStr = rawType.toUpperCase();
     const municipiStr = (bolo.nom_poble || '').toUpperCase();
     const timeRange = bolo.hora_inici ? ` (${formatTimeHM(startDateObj)} - ${formatTimeHM(endDateObj)})` : '';
@@ -184,13 +184,18 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
 
     // Build Description
     const description = [
-        `Municipi: ${bolo.nom_poble || 'No indicat'}`,
-        `Lloc / Inici convocatòria: ${bolo.ubicacio_inici || 'No informat'}`,
-        `Vestimenta: ${bolo.vestimenta || 'No informada'}`,
-        `Partitures: ${bolo.partitures || 'No informades'}`,
-        `Fundes: ${bolo.notes_fundes || 'No informades'}`,
-        `Notes: ${bolo.notes || 'Sense observacions'}`,
-    ].join('\n');
+        `📍 Poble: ${bolo.nom_poble || 'No indicat'}`,
+        `📅 Data: ${bolo.data_bolo}`,
+        `⏰ Hora: ${(bolo.hora_inici || '').substring(0, 5)}`,
+        `👕 Vestimenta: ${bolo.vestimenta || 'Per confirmar'}`,
+        `📂 Partitures: ${bolo.partitures || 'Per confirmar'}`,
+        `🗺️ Ubicació: ${bolo.ubicacio_detallada || 'Per confirmar'}`,
+        `🏁 Punt d'inici: ${bolo.ubicacio_inici || 'Per confirmar'}`,
+        bolo.maps_inici ? `🗺️ MAPS Inici: ${bolo.maps_inici}` : null,
+        `📦 Fundes: ${bolo.notes_fundes || 'Per confirmar'}`,
+        bolo.maps_fundes ? `🗺️ MAPS Fundes: ${bolo.maps_fundes}` : null,
+        `📝 Notes: ${bolo.notes || 'Cap nota addicional'}`,
+    ].filter(line => line !== null).join('\n');
 
     const resource = {
         summary,

@@ -177,7 +177,8 @@ export default function BolosPage() {
 📂 *Partitures:* ${bolo.partitures || 'Per confirmar'}
 🗺️ *Ubicació:* ${bolo.ubicacio_detallada || 'Per confirmar'}
 🏁 *Punt d'inici:* ${bolo.ubicacio_inici || 'Per confirmar'}
-
+${bolo.maps_inici ? `🗺️ *MAPS Inici:* ${bolo.maps_inici}\n` : ''}📦 *Fundes:* ${bolo.notes_fundes || 'Per confirmar'}
+${bolo.maps_fundes ? `🗺️ *MAPS Fundes:* ${bolo.maps_fundes}\n` : ''}
 📝 *Notes:* ${bolo.notes || 'Cap nota addicional'}
 
 _Es prega confirmació el més aviat possible!_ 🎺🥁`;

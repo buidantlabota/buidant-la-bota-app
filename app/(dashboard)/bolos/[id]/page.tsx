@@ -1057,7 +1057,7 @@ export default function BoloDetailPage() {
             showToastMessage('Camp actualitzat', 'success');
 
             // Sync if it's one of the fields in the calendar description
-            const calendarFields: (keyof Bolo)[] = ['ubicacio_inici', 'vestimenta', 'partitures', 'notes_fundes', 'notes', 'ubicacio_detallada'];
+            const calendarFields: (keyof Bolo)[] = ['ubicacio_inici', 'vestimenta', 'partitures', 'notes_fundes', 'notes', 'ubicacio_detallada', 'maps_inici', 'maps_fundes'];
             if (calendarFields.includes(field)) {
                 triggerGoogleSync();
             }
@@ -1564,6 +1564,19 @@ export default function BoloDetailPage() {
                             />
                         </div>
 
+                        {/* 4b. MAPS Inici */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">MAPS: inici</label>
+                            <input
+                                type="text"
+                                value={bolo.maps_inici || ''}
+                                onChange={(e) => handleAutomationFieldChange('maps_inici', e.target.value)}
+                                disabled={isRebutjat}
+                                placeholder="Enllaç Google Maps"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                            />
+                        </div>
+
                         <div className="space-y-1 sm:col-span-2">
                             <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Vestimenta</label>
                             <input
@@ -1597,6 +1610,19 @@ export default function BoloDetailPage() {
                                 onChange={(e) => handleAutomationFieldChange('notes_fundes', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Ex: Al cotxe"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                            />
+                        </div>
+
+                        {/* 7b. MAPS Fundes */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">MAPS: fundes</label>
+                            <input
+                                type="text"
+                                value={bolo.maps_fundes || ''}
+                                onChange={(e) => handleAutomationFieldChange('maps_fundes', e.target.value)}
+                                disabled={isRebutjat}
+                                placeholder="Enllaç Google Maps"
                                 className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>

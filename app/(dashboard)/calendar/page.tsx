@@ -14,6 +14,8 @@ interface Bolo {
     import_total?: number;
     tipus_ingres?: string;
     client?: { nom: string };
+    maps_inici?: string | null;
+    maps_fundes?: string | null;
 }
 
 interface Task {
@@ -45,6 +47,8 @@ const CONFIRMED_STATUSES = [
     'Facturat', 'Facturada', 'Acceptat', 'Acceptada',
 ];
 
+const CANCELLED_STATUSES = ['Cancel·lat', 'Cancel·lats', 'Rebutjat', 'cancel·lat', 'rebutjat'];
+
 // Client de Supabase fora del component per evitar re-creació a cada render
 const supabase = createClient();
 
@@ -70,7 +74,7 @@ export default function CalendarPage() {
 
             const { data: bolosData } = await supabase
                 .from('bolos')
-                .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres, client:clients(nom)')
+                .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres, maps_inici, maps_fundes, client:clients(nom)')
                 .gte('data_bolo', startDate)
                 .lte('data_bolo', endDate);
 
@@ -89,6 +93,8 @@ export default function CalendarPage() {
                 estat: b.estat,
                 import_total: b.import_total,
                 tipus_ingres: b.tipus_ingres,
+                maps_inici: b.maps_inici,
+                maps_fundes: b.maps_fundes,
                 client: Array.isArray(b.client) ? b.client[0] : b.client
             }));
 
@@ -117,7 +123,7 @@ export default function CalendarPage() {
                 const year = new Date().getFullYear();
                 const { data, error } = await supabase
                     .from('bolos')
-                    .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres')
+                    .select('id, nom_poble, data_bolo, estat, import_total, tipus_ingres, maps_inici, maps_fundes')
                     .gte('data_bolo', `${year}-01-01`)
                     .lte('data_bolo', `${year}-12-31`)
                     .order('data_bolo', { ascending: true });
@@ -132,6 +138,8 @@ export default function CalendarPage() {
                     estat: b.estat,
                     import_total: b.import_total,
                     tipus_ingres: b.tipus_ingres,
+                    maps_inici: b.maps_inici,
+                    maps_fundes: b.maps_fundes,
                 })));
             } catch (e: any) {
                 console.error('Error carregant bolos anuals:', e);
@@ -240,7 +248,12 @@ export default function CalendarPage() {
                     if (b.tipus_ingres === 'Factura') paymentIcon = '💳';
                     else if (b.tipus_ingres === 'Efectiu' || b.tipus_ingres === 'Negre') paymentIcon = '✉️';
 
-                    text += `- [ ] ${dayFormatted}/${monthFormatted} ${nomDisplay}${price}${statusIcon}${paymentIcon}\n`;
+                    const mapsIcon = b.maps_inici ? '📍' : '';
+
+                    text += `- [ ] ${dayFormatted}/${monthFormatted} ${nomDisplay}${price}${statusIcon}${paymentIcon}${mapsIcon}\n`;
+                    if (b.maps_inici) {
+                        text += `      ${b.maps_inici}\n`;
+                    }
                 });
 
                 text += '\n';
@@ -412,9 +425,11 @@ export default function CalendarPage() {
                                                     key={`${event.type}-${event.id}`}
                                                     onClick={(e) => handleEventClick(e, event)}
                                                     className={`w-full text-left text-xs px-2.5 py-2 rounded-lg border-l-3 truncate shadow-sm transition-all hover:scale-[1.02] hover:shadow-md active:scale-95 flex items-center gap-2 font-medium ${event.type === 'bolo'
-                                                        ? CONFIRMED_STATUSES.includes(event.estat)
-                                                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 text-green-800'
-                                                            : 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-500 text-yellow-800'
+                                                        ? CANCELLED_STATUSES.includes(event.estat)
+                                                            ? 'bg-red-50 border-red-500 text-red-700 line-through opacity-60'
+                                                            : CONFIRMED_STATUSES.includes(event.estat)
+                                                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 text-green-800'
+                                                                : 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-500 text-yellow-800'
                                                         : event.estat === 'completada'
                                                             ? 'bg-gray-100 border-gray-400 text-gray-500 line-through opacity-60'
                                                             : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-500 text-blue-800'
