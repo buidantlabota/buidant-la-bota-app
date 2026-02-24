@@ -620,20 +620,30 @@ export default function BoloDetailPage() {
     const handleGenerateWhatsappConvo = () => {
         if (!bolo) return;
 
-        const dateStr = format(new Date(bolo.data_bolo), 'dd/MM/yyyy');
-        const horaStr = (bolo.hora_inici || '').substring(0, 5);
+        let dateStr = 'XX/XX/XXXX';
+        try {
+            if (bolo.data_bolo) {
+                dateStr = format(new Date(bolo.data_bolo), 'dd/MM/yyyy');
+            }
+        } catch (e) {
+            console.error("Error formatting date:", e);
+        }
 
-        // Sort musicians by instrument priority
-        const sortedMusicians = [...boloMusics].sort((a, b) => {
-            const priorityA = getInstrumentPriority(a.instrument || '');
-            const priorityB = getInstrumentPriority(b.instrument || '');
-            if (priorityA !== priorityB) return priorityA - priorityB;
-            return (a.music?.nom || '').localeCompare(b.music?.nom || '');
-        });
+        const horaStr = (bolo.hora_inici || '').substring(0, 5) || 'XX:XX';
 
-        const musicianNames = sortedMusicians
-            .map(m => m.music?.nom || 'Músic')
-            .join(', ');
+        // Filter and sort musicians by instrument priority
+        const sortedMusicians = [...(boloMusics || [])]
+            .filter(m => m.estat === 'confirmat' || m.estat === 'pendent') // Only relevant musicians
+            .sort((a, b) => {
+                const priorityA = getInstrumentPriority(a.instrument || '');
+                const priorityB = getInstrumentPriority(b.instrument || '');
+                if (priorityA !== priorityB) return priorityA - priorityB;
+                return (a.music?.nom || '').localeCompare(b.music?.nom || '');
+            });
+
+        const musicianNames = sortedMusicians.length > 0
+            ? sortedMusicians.map(m => m.music?.nom || 'Músic').join(', ')
+            : 'Cap músic assignat encara';
 
         const text = `🥁🎷🎺🎤🍷🇧🇷🥳🥾
 
@@ -649,11 +659,11 @@ ${bolo.concepte || 'Cercavila'}
 🅿️ *APARCAMENT:* ${bolo.ubicacio_aparcament || 'Per confirmar'}${bolo.maps_aparcament ? ` (${bolo.maps_aparcament})` : ''}
 
 👨‍👩‍👧‍👧 *NÚMERO DE MÚSICS*
-${boloMusics.length} músics
+${sortedMusicians.length} músics
 (${musicianNames})
 
 💵 *Sou Individual*
-${bolo.preu_per_musica} €
+${bolo.preu_per_musica || 0} €
 
 ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
 *A Buidar-la fortíssim*🍷🍷🥳🇧🇷🥾`;
@@ -2604,6 +2614,38 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                 className="px-8 py-2 rounded-lg bg-amber-600 text-white font-black hover:bg-amber-700 transition-all uppercase text-xs tracking-widest shadow-lg disabled:opacity-50"
                             >
                                 Guardar Pagament
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showWhatsappConvoModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[120] p-4 backdrop-blur-md">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+                        <div className="flex justify-between items-center border-b pb-4">
+                            <h3 className="text-xl font-black text-primary uppercase tracking-tight">TEXT CONVOCATÒRIA</h3>
+                            <button onClick={() => setShowWhatsappConvoModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <span className="material-icons-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
+                                {whatsappConvoText}
+                            </pre>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowWhatsappConvoModal(false)}
+                                className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                            >
+                                TANCAR
+                            </button>
+                            <button
+                                onClick={handleCopyWhatsappConvo}
+                                className="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                            >
+                                <span className="material-icons-outlined">content_copy</span>
+                                COPIAR TEXT
                             </button>
                         </div>
                     </div>
