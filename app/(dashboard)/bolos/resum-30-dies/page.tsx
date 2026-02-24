@@ -98,6 +98,10 @@ export default function Resum30DiesPage() {
 
                 if (error) throw error;
             } else {
+                // Find the musician to get their default instrument
+                const music = allMusics.find(m => m.id === musicId);
+                const defaultInst = music?.instrument_principal || (music?.instruments ? music.instruments.split(',')[0].trim() : null);
+
                 // Afegir assignació
                 const { error } = await supabase
                     .from('bolo_musics')
@@ -106,7 +110,8 @@ export default function Resum30DiesPage() {
                         music_id: musicId,
                         tipus: 'titular',
                         estat: 'confirmat',
-                        import_assignat: 0
+                        import_assignat: 0,
+                        instrument: defaultInst
                     }]);
 
                 if (error) throw error;
@@ -192,20 +197,16 @@ export default function Resum30DiesPage() {
                     return false; // If has instrument assigned, we only use this one
                 }
 
+                // 3. Fallback (when bm.instrument is null)
                 if (!bm.music || !bm.music.instruments) return false;
-                const normalizedInst = bm.music.instruments.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-                // Exclude if it belongs to another specific section via override
-                if (bm.comentari && bm.comentari.startsWith('[') && bm.comentari.includes(']')) {
-                    return false; // Already handled by override check above
-                }
+                // Use only the primary instrument or the first one as fallback 
+                // to avoid showing a musician in multiple sections simultaneously
+                const primaryInst = (bm.music.instrument_principal || bm.music.instruments.split(',')[0])
+                    .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-                // Broad match for Saxo
-                if (normalizedSection === 'saxo' && normalizedInst.includes('saxo')) {
-                    return true;
-                }
-
-                return normalizedInst.includes(normalizedSection);
+                if (normalizedSection === 'saxo' && primaryInst.includes('saxo')) return true;
+                return primaryInst.includes(normalizedSection);
             })
             .sort((a, b) => {
                 // 1. Tipus: titular abans que substitut
