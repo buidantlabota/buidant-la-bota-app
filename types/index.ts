@@ -10,6 +10,7 @@ export interface Bolo {
     municipi_text?: string | null
     data_bolo: string
     hora_inici: string | null
+    hora_convocatoria: string | null
     estat: BoloStatus
     pressupost?: number | null
     notes: string | null

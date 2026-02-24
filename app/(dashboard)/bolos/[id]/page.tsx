@@ -630,6 +630,7 @@ export default function BoloDetailPage() {
         }
 
         const horaStr = (bolo.hora_inici || '').substring(0, 5) || 'XX:XX';
+        const horaConvoStr = (bolo.hora_convocatoria || '').substring(0, 5) || calculateDefaultConvoTime(horaStr) || 'XX:XX';
 
         // Filter and sort musicians by instrument priority
         const sortedMusicians = [...(boloMusics || [])]
@@ -647,13 +648,15 @@ export default function BoloDetailPage() {
 
         const text = `🥁🎷🎺🎤🍷🇧🇷🥳🥾
 
-🎉 *${(bolo.titol || bolo.nom_poble || 'SENSE TÍTOL').toUpperCase()} 🗓️ ${dateStr} a les ⏰ ${horaStr} h*
+🎉 *${(bolo.titol || bolo.nom_poble || 'SENSE TÍTOL').toUpperCase()} 🗓️ ${dateStr}*
+⏰ *Inici:* ${horaStr} h
+🕒 *Convocatòria:* ${horaConvoStr} h
 
 📒 *CONCEPTE*
 ${bolo.concepte || 'Cercavila'}
 
 *❗️CONVOCATÒRIA❗️*
-🕒 *${horaStr}* (Hora de quedada)
+🕒 *${horaConvoStr}* (Hora de quedada)
 🏟️ *LLOC de quedada:* ${bolo.ubicacio_inici || 'Per confirmar'}${bolo.maps_inici ? ` (${bolo.maps_inici})` : ''}
 🧳 *FUNDES:* ${bolo.notes_fundes || 'Per confirmar'}${bolo.maps_fundes ? ` (${bolo.maps_fundes})` : ''}
 🅿️ *APARCAMENT:* ${bolo.ubicacio_aparcament || 'Per confirmar'}${bolo.maps_aparcament ? ` (${bolo.maps_aparcament})` : ''}
@@ -995,10 +998,26 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
 
 
     const [localHora, setLocalHora] = useState<string>('');
+    const [localHoraConvocatoria, setLocalHoraConvocatoria] = useState<string>('');
 
     useEffect(() => {
         setLocalHora(bolo?.hora_inici || '');
-    }, [bolo?.hora_inici]);
+        setLocalHoraConvocatoria(bolo?.hora_convocatoria || '');
+    }, [bolo?.hora_inici, bolo?.hora_convocatoria]);
+
+    const calculateDefaultConvoTime = (startTime: string): string => {
+        if (!startTime) return '';
+        try {
+            const [h, m] = startTime.split(':').map(Number);
+            const date = new Date();
+            date.setHours(h);
+            date.setMinutes(m - 30);
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        } catch (e) {
+            return '';
+        }
+    };
 
     const handleDataBoloChange = async (newVal: string) => {
         if (!bolo) return;
@@ -1025,9 +1044,19 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
         if (newHora === bolo.hora_inici) return;
 
         try {
+            const updates: any = { hora_inici: newHora || null };
+
+            // If convo time is not set, calculate default (half hour before)
+            if (!bolo.hora_convocatoria && newHora) {
+                const defaultConvo = calculateDefaultConvoTime(newHora);
+                if (defaultConvo) {
+                    updates.hora_convocatoria = defaultConvo;
+                }
+            }
+
             const { error } = await supabase
                 .from('bolos')
-                .update({ hora_inici: newHora || null })
+                .update(updates)
                 .eq('id', bolo.id);
 
             if (error) {
@@ -1038,12 +1067,38 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                 throw error;
             }
 
-            setBolo({ ...bolo, hora_inici: newHora || null });
+            setBolo({ ...bolo, ...updates });
             showToastMessage('Hora actualitzada', 'success');
             triggerGoogleSync();
         } catch (error) {
             console.error('Error updating hora:', error);
             showToastMessage('Error en actualitzar l\'hora', 'error');
+        }
+    };
+
+    const handleUpdateHoraConvocatoria = async (newHora: string) => {
+        if (!bolo) return;
+        if (newHora === bolo.hora_convocatoria) return;
+
+        try {
+            const { error } = await supabase
+                .from('bolos')
+                .update({ hora_convocatoria: newHora || null })
+                .eq('id', bolo.id);
+
+            if (error) {
+                if (error.code === '42703') {
+                    alert('ERROR: La columna "hora_convocatoria" no existeix. SQL:\n\nALTER TABLE bolos ADD COLUMN hora_convocatoria time;');
+                }
+                throw error;
+            }
+
+            setBolo({ ...bolo, hora_convocatoria: newHora || null });
+            showToastMessage('Hora de convocatòria actualitzada', 'success');
+            triggerGoogleSync();
+        } catch (error) {
+            console.error('Error updating hora convocatoria:', error);
+            showToastMessage('Error en actualitzar l\'hora de convocatòria', 'error');
         }
     };
 
@@ -1553,15 +1608,39 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                 {format(new Date(bolo.data_bolo), 'dd MMMM', { locale: ca })} <span className="text-lg sm:text-2xl font-normal opacity-60 ml-1">{new Date(bolo.data_bolo).getFullYear()}</span>
                             </h2>
 
-                            <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors w-full sm:w-auto">
-                                <span className="material-icons-outlined text-gray-500 text-lg mr-2">schedule</span>
-                                <input
-                                    type="time"
-                                    value={localHora}
-                                    onChange={(e) => setLocalHora(e.target.value)}
-                                    onBlur={(e) => handleUpdateHora(e.target.value)}
-                                    className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 cursor-pointer p-0 min-w-[90px]"
-                                />
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">Inici</span>
+                                        <div className="flex items-center">
+                                            <span className="material-icons-outlined text-gray-500 text-sm mr-1">schedule</span>
+                                            <input
+                                                type="time"
+                                                value={localHora}
+                                                onChange={(e) => setLocalHora(e.target.value)}
+                                                onBlur={(e) => handleUpdateHora(e.target.value)}
+                                                className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[80px]"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">Quedada</span>
+                                        <div className="flex items-center">
+                                            <span className="material-icons-outlined text-gray-500 text-sm mr-1">group</span>
+                                            <input
+                                                type="time"
+                                                value={localHoraConvocatoria}
+                                                onChange={(e) => setLocalHoraConvocatoria(e.target.value)}
+                                                onBlur={(e) => handleUpdateHoraConvocatoria(e.target.value)}
+                                                placeholder="HH:MM"
+                                                className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[80px]"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
