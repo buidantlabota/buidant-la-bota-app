@@ -377,7 +377,7 @@ export default function BoloDetailPage() {
         // Fetch existing attendance
         const { data: attendanceData, error: attendanceError } = await supabase
             .from('bolo_musics')
-            .select('*')
+            .select('*, music:musics(nom)')
             .eq('bolo_id', boloId);
 
         if (attendanceError) console.error('Error fetching attendance:', attendanceError);
