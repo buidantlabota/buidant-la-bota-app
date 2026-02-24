@@ -171,12 +171,36 @@ export default function Resum30DiesPage() {
         }
     };
 
+    const handleUpdateMusicianInstrument = async (boloId: number, musicId: string, instrument: string | null) => {
+        try {
+            const { error } = await supabase
+                .from('bolo_musics')
+                .update({ instrument: instrument })
+                .eq('bolo_id', boloId)
+                .eq('music_id', musicId);
+
+            if (error) throw error;
+            fetchData(true);
+        } catch (error: any) {
+            console.error('Error updating musician instrument:', error?.message || error);
+        }
+    };
+
     const getMusiciansBySection = (bolo: BoloWithMusicians, sectionKey: string) => {
         const normalizedSection = sectionKey.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
         return bolo.musicians
             .filter(bm => {
-                // 1. Check for explicit override in comentari: "[SectionName]"
+                // 1. Check the assigned instrument for this specific bolo (primary logic)
+                if (bm.instrument) {
+                    const normalizedAssigned = bm.instrument.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    // Map generic "saxo" key to any specific sax types
+                    if (normalizedSection === 'saxo' && normalizedAssigned.includes('saxo')) return true;
+                    if (normalizedAssigned.includes(normalizedSection)) return true;
+                    return false; // If has instrument assigned, it MUST match the section
+                }
+
+                // 2. Check for explicit override in comentari (legacy support)
                 if (bm.comentari && bm.comentari.startsWith('[') && bm.comentari.includes(']')) {
                     const match = bm.comentari.match(/^\[(.*?)\].*/);
                     if (match) {
@@ -185,23 +209,9 @@ export default function Resum30DiesPage() {
                     }
                 }
 
-                // 2. Check the assigned instrument for this specific bolo (new preferred logic)
-                if (bm.instrument) {
-                    const normalizedAssigned = bm.instrument.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    if (normalizedSection === 'saxo' && normalizedAssigned.includes('saxo')) {
-                        return true;
-                    }
-                    if (normalizedAssigned.includes(normalizedSection)) {
-                        return true;
-                    }
-                    return false; // If has instrument assigned, we only use this one
-                }
-
-                // 3. Fallback (when bm.instrument is null)
+                // 3. Fallback: Use only the primary instrument or the first one
                 if (!bm.music || !bm.music.instruments) return false;
 
-                // Use only the primary instrument or the first one as fallback 
-                // to avoid showing a musician in multiple sections simultaneously
                 const primaryInst = (bm.music.instrument_principal || bm.music.instruments.split(',')[0])
                     .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -452,19 +462,7 @@ export default function Resum30DiesPage() {
                                                                             onChange={(e) => {
                                                                                 const newSec = e.target.value;
                                                                                 if (newSec === section.label) return;
-
-                                                                                // Clean current comment from any [Section] prefix
-                                                                                let cleanNote = bm.comentari || '';
-                                                                                if (cleanNote.startsWith('[')) {
-                                                                                    cleanNote = cleanNote.replace(/^\[.*?\]\s*/, '');
-                                                                                }
-
-                                                                                if (newSec === 'Reset') {
-                                                                                    handleUpdateMusicianNote(bolo.id, bm.music_id, cleanNote);
-                                                                                } else {
-                                                                                    const updatedNote = `[${newSec}] ${cleanNote}`.trim();
-                                                                                    handleUpdateMusicianNote(bolo.id, bm.music_id, updatedNote);
-                                                                                }
+                                                                                handleUpdateMusicianInstrument(bolo.id, bm.music_id, newSec === 'Reset' ? null : newSec);
                                                                             }}
                                                                         >
                                                                             <option value="" disabled>Moure a...</option>
