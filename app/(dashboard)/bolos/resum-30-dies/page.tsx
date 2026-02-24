@@ -14,8 +14,8 @@ const SECTIONS = [
     { key: 'Percu', label: 'Percu', whatsappLabel: 'Percu:' },
     { key: 'Trompeta', label: 'Trompeta', whatsappLabel: 'Trompeta:' },
     { key: 'Trombó', label: 'Trombó', whatsappLabel: 'Trombó:' },
-    { key: 'Saxo', label: 'Saxo', whatsappLabel: 'Saxo:' },
-    { key: 'Tenor', label: 'Tenor', whatsappLabel: 'Terror:' },
+    { key: 'Saxo Alt', label: 'Saxo Alt', whatsappLabel: 'Saxo Alt:' },
+    { key: 'Saxo Tenor', label: 'Saxo Tenor', whatsappLabel: 'Terror:' },
     { key: 'Tuba', label: 'Tuba', whatsappLabel: 'Tuba:' },
 ] as const;
 
@@ -191,32 +191,26 @@ export default function Resum30DiesPage() {
 
         return bolo.musicians
             .filter(bm => {
-                // 1. Check the assigned instrument for this specific bolo (primary logic)
-                if (bm.instrument) {
-                    const normalizedAssigned = bm.instrument.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    // Map generic "saxo" key to any specific sax types
-                    if (normalizedSection === 'saxo' && normalizedAssigned.includes('saxo')) return true;
-                    if (normalizedAssigned.includes(normalizedSection)) return true;
-                    return false; // If has instrument assigned, it MUST match the section
-                }
-
-                // 2. Check for explicit override in comentari (legacy support)
-                if (bm.comentari && bm.comentari.startsWith('[') && bm.comentari.includes(']')) {
-                    const match = bm.comentari.match(/^\[(.*?)\].*/);
-                    if (match) {
-                        const override = match[1].trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        return override === normalizedSection;
-                    }
-                }
-
-                // 3. Fallback: Use only the primary instrument or the first one
-                if (!bm.music || !bm.music.instruments) return false;
-
-                const primaryInst = (bm.music.instrument_principal || bm.music.instruments.split(',')[0])
+                // 1. Get the current active instrument for this musician in this bolo
+                // Priority: 1. Manual override for bolo, 2. Principal, 3. First from list
+                const inst = (bm.instrument || bm.music?.instrument_principal || bm.music?.instruments?.split(',')[0] || '')
                     .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-                if (normalizedSection === 'saxo' && primaryInst.includes('saxo')) return true;
-                return primaryInst.includes(normalizedSection);
+                if (!inst) return false;
+
+                // 2. Precise matching logic to avoid duplicates (e.g., Saxo vs Saxo Tenor)
+                if (normalizedSection === 'saxo alt') {
+                    // Include if it's saxo but EXCLUDE if it specifies tenor or bariton
+                    return inst.includes('saxo') && !inst.includes('tenor') && !inst.includes('bariton');
+                }
+
+                if (normalizedSection === 'saxo tenor') {
+                    // Include specifically for tenor or your custom "terror" name
+                    return inst.includes('tenor') || inst.includes('terror');
+                }
+
+                // Default matching for other sections (Percu, Trompeta, Trombó, Tuba)
+                return inst.includes(normalizedSection);
             })
             .sort((a, b) => {
                 // 1. Tipus: titular abans que substitut
