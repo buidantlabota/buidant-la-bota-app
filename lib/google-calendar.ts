@@ -153,12 +153,22 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
 
     // 3. LOGIC: CREATE OR UPDATE (STATUS IS CONFIRMED)
 
+    // RE-FETCH to avoid race conditions (duplication)
+    const { data: currentBolo, error: fetchError } = await supabase
+        .from('bolos')
+        .select('*')
+        .eq('id', boloId)
+        .single();
+
+    if (fetchError || !currentBolo) throw new Error(`Bolo #${boloId} not found during re-fetch`);
+    const activeBolo = currentBolo;
+
     // Format Date and Time
-    const [year, month, day] = bolo.data_bolo.split('-').map(Number);
-    const [hour, min] = (bolo.hora_inici || '00:00').split(':').map(Number);
+    const [year, month, day] = activeBolo.data_bolo.split('-').map(Number);
+    const [hour, min] = (activeBolo.hora_inici || '00:00').split(':').map(Number);
     const startDateObj = new Date(year, month - 1, day, hour, min);
 
-    const durationMinutes = bolo.durada || 120;
+    const durationMinutes = activeBolo.durada || 120;
     const endDateObj = new Date(startDateObj.getTime() + durationMinutes * 60000);
 
     const getLocalISO = (d: Date) => {
@@ -172,10 +182,10 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
     };
 
     // Build Summary
-    const rawType = (bolo.titol || bolo.tipus_actuacio || bolo.concepte || bolo.nom_poble || 'Actuació');
+    const rawType = (activeBolo.titol || activeBolo.tipus_actuacio || activeBolo.concepte || activeBolo.nom_poble || 'Actuació');
     const typeStr = rawType.toUpperCase();
-    const municipiStr = (bolo.nom_poble || '').toUpperCase();
-    const timeRange = bolo.hora_inici ? ` (${formatTimeHM(startDateObj)} - ${formatTimeHM(endDateObj)})` : '';
+    const municipiStr = (activeBolo.nom_poble || '').toUpperCase();
+    const timeRange = activeBolo.hora_inici ? ` (${formatTimeHM(startDateObj)} - ${formatTimeHM(endDateObj)})` : '';
 
     // Format: "BLB - {TYPE} {MUNICIPI} {TIME}"
     // If the type is the same as the city name, don't duplicate
@@ -184,18 +194,25 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
 
     // Build Description
     const description = [
-        `📍 Poble: ${bolo.nom_poble || 'No indicat'}`,
-        `📅 Data: ${bolo.data_bolo}`,
-        `⏰ Hora: ${(bolo.hora_inici || '').substring(0, 5)}`,
-        `👕 Vestimenta: ${bolo.vestimenta || 'Per confirmar'}`,
-        `📂 Partitures: ${bolo.partitures || 'Per confirmar'}`,
-        `🗺️ Ubicació: ${bolo.ubicacio_detallada || 'Per confirmar'}`,
-        `🏁 Punt d'inici: ${bolo.ubicacio_inici || 'Per confirmar'}`,
-        bolo.maps_inici ? `🗺️ MAPS Inici: ${bolo.maps_inici}` : null,
-        `📦 Fundes: ${bolo.notes_fundes || 'Per confirmar'}`,
-        bolo.maps_fundes ? `🗺️ MAPS Fundes: ${bolo.maps_fundes}` : null,
-        `📝 Notes: ${bolo.notes || 'Cap nota addicional'}`,
-    ].filter(line => line !== null).join('\n');
+        `🥁🎷🎺🎤🍷🇧🇷🥳🥾`,
+        ``,
+        `🎉 *${activeBolo.titol || activeBolo.nom_poble}*`,
+        `📅 *Data:* ${activeBolo.data_bolo}`,
+        `⏰ *Hora:* ${(activeBolo.hora_inici || '').substring(0, 5)} h`,
+        ``,
+        `📒 *CONCEPTE*`,
+        `${activeBolo.concepte || 'Cercavila'}`,
+        ``,
+        `*❗️CONVOCATÒRIA❗️*`,
+        `🕒 *${(activeBolo.hora_inici || '').substring(0, 5)}* (Hora de quedada)`,
+        `🏟️ *LLOC:* ${activeBolo.ubicacio_inici || 'Per confirmar'}${activeBolo.maps_inici ? ` (${activeBolo.maps_inici})` : ''}`,
+        `🧳 *FUNDES:* ${activeBolo.notes_fundes || 'Per confirmar'}${activeBolo.maps_fundes ? ` (${activeBolo.maps_fundes})` : ''}`,
+        `🅿️ *APARCAMENT:* ${activeBolo.ubicacio_aparcament || 'Per confirmar'}${activeBolo.maps_aparcament ? ` (${activeBolo.maps_aparcament})` : ''}`,
+        ``,
+        `📝 *Notes:* ${activeBolo.notes || 'Cap nota addicional'}`,
+        ``,
+        `*A Buidar-la fortíssim*🍷🍷🥳🇧🇷🥾`
+    ].join('\n');
 
     const resource = {
         summary,

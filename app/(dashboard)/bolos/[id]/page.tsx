@@ -144,6 +144,8 @@ export default function BoloDetailPage() {
     const [advancePayments, setAdvancePayments] = useState<AdvancePayment[]>([]);
     const [loadingAdvancePayments, setLoadingAdvancePayments] = useState(false);
     const [showAdvancePaymentModal, setShowAdvancePaymentModal] = useState(false);
+    const [showWhatsappConvoModal, setShowWhatsappConvoModal] = useState(false);
+    const [whatsappConvoText, setWhatsappConvoText] = useState('');
     const [newAdvancePayment, setNewAdvancePayment] = useState<Partial<AdvancePayment>>({
         music_id: '',
         import: 0,
@@ -598,7 +600,73 @@ export default function BoloDetailPage() {
         }
     };
 
+    const getInstrumentPriority = (inst: string): number => {
+        const i = (inst || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (i.includes('percussio') || i.includes('bateria') || i.includes('timbal') || i.includes('bombo') || i.includes('plat') || i.includes('caixa')) return 1;
+        if (i.includes('trompeta')) return 2;
+        if (i.includes('trombo')) return 3;
+        if (i.includes('tuba') || i.includes('bombardi')) return 4;
+        if (i.includes('saxo') && i.includes('alt')) return 5;
+        if (i.includes('saxo') && i.includes('tenor')) return 6;
+        if (i.includes('saxo')) return 7;
+        if (i.includes('flabiol')) return 8;
+        if (i.includes('tible')) return 9;
+        if (i.includes('tenora')) return 10;
+        if (i.includes('fiscorn')) return 11;
+        if (i.includes('clarinet')) return 12;
+        return 99;
+    };
 
+    const handleGenerateWhatsappConvo = () => {
+        if (!bolo) return;
+
+        const dateStr = format(new Date(bolo.data_bolo), 'dd/MM/yyyy');
+        const horaStr = (bolo.hora_inici || '').substring(0, 5);
+
+        // Sort musicians by instrument priority
+        const sortedMusicians = [...boloMusics].sort((a, b) => {
+            const priorityA = getInstrumentPriority(a.instrument || '');
+            const priorityB = getInstrumentPriority(b.instrument || '');
+            if (priorityA !== priorityB) return priorityA - priorityB;
+            return (a.music?.nom || '').localeCompare(b.music?.nom || '');
+        });
+
+        const musicianNames = sortedMusicians
+            .map(m => m.music?.nom || 'Músic')
+            .join(', ');
+
+        const text = `🥁🎷🎺🎤🍷🇧🇷🥳🥾
+
+🎉 *${(bolo.titol || bolo.nom_poble || 'SENSE TÍTOL').toUpperCase()} 🗓️ ${dateStr} a les ⏰ ${horaStr} h*
+
+📒 *CONCEPTE*
+${bolo.concepte || 'Cercavila'}
+
+*❗️CONVOCATÒRIA❗️*
+🕒 *${horaStr}* (Hora de quedada)
+🏟️ *LLOC de quedada:* ${bolo.ubicacio_inici || 'Per confirmar'}${bolo.maps_inici ? ` (${bolo.maps_inici})` : ''}
+🧳 *FUNDES:* ${bolo.notes_fundes || 'Per confirmar'}${bolo.maps_fundes ? ` (${bolo.maps_fundes})` : ''}
+🅿️ *APARCAMENT:* ${bolo.ubicacio_aparcament || 'Per confirmar'}${bolo.maps_aparcament ? ` (${bolo.maps_aparcament})` : ''}
+
+👨‍👩‍👧‍👧 *NÚMERO DE MÚSICS*
+${boloMusics.length} músics
+(${musicianNames})
+
+💵 *Sou Individual*
+${bolo.preu_per_musica} €
+
+${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
+*A Buidar-la fortíssim*🍷🍷🥳🇧🇷🥾`;
+
+        setWhatsappConvoText(text);
+        setShowWhatsappConvoModal(true);
+    };
+
+    const handleCopyWhatsappConvo = () => {
+        navigator.clipboard.writeText(whatsappConvoText);
+        showToastMessage('Convocatòria copiada al porta-retalls', 'success');
+        setShowWhatsappConvoModal(false);
+    };
 
     const handleSolicitarConvocatoria = async () => {
         if (!bolo) return;
@@ -1057,7 +1125,7 @@ export default function BoloDetailPage() {
             showToastMessage('Camp actualitzat', 'success');
 
             // Sync if it's one of the fields in the calendar description
-            const calendarFields: (keyof Bolo)[] = ['ubicacio_inici', 'vestimenta', 'partitures', 'notes_fundes', 'notes', 'ubicacio_detallada', 'maps_inici', 'maps_fundes'];
+            const calendarFields: (keyof Bolo)[] = ['ubicacio_inici', 'vestimenta', 'partitures', 'notes_fundes', 'notes', 'ubicacio_detallada', 'maps_inici', 'maps_fundes', 'ubicacio_aparcament', 'maps_aparcament'];
             if (calendarFields.includes(field)) {
                 triggerGoogleSync();
             }
@@ -1501,6 +1569,16 @@ export default function BoloDetailPage() {
                                 {(bolo.estat as string) === 'Confirmada' ? 'En curs' : (isRebutjat ? 'Cancel·lada' : bolo.estat)}
                             </span>
                         </div>
+
+                        {!isRebutjat && (
+                            <button
+                                onClick={handleGenerateWhatsappConvo}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95"
+                            >
+                                <span className="material-icons-outlined text-sm">chat</span>
+                                CONVOCATÒRIA
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 dark:border-white/10">
@@ -1621,6 +1699,32 @@ export default function BoloDetailPage() {
                                 type="text"
                                 value={bolo.maps_fundes || ''}
                                 onChange={(e) => handleAutomationFieldChange('maps_fundes', e.target.value)}
+                                disabled={isRebutjat}
+                                placeholder="Enllaç Google Maps"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                            />
+                        </div>
+
+                        {/* 8. Aparcament */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Aparcament</label>
+                            <input
+                                type="text"
+                                value={bolo.ubicacio_aparcament || ''}
+                                onChange={(e) => handleAutomationFieldChange('ubicacio_aparcament', e.target.value)}
+                                disabled={isRebutjat}
+                                placeholder="Ex: Pàrquing de la fageda"
+                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                            />
+                        </div>
+
+                        {/* 8b. MAPS Aparcament */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">MAPS: Aparcament</label>
+                            <input
+                                type="text"
+                                value={bolo.maps_aparcament || ''}
+                                onChange={(e) => handleAutomationFieldChange('maps_aparcament', e.target.value)}
                                 disabled={isRebutjat}
                                 placeholder="Enllaç Google Maps"
                                 className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
