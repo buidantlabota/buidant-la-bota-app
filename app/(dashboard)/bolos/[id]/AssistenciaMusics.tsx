@@ -13,6 +13,7 @@ interface AssistenciaMusicsProps {
     onUpdateComment: (musicId: string, comment: string) => Promise<void>;
     onRemove: (attendanceId: string, musicId: string) => Promise<void>;
     onUpdatePrice: (musicId: string, price: number | null) => Promise<void>;
+    onUpdateConductor: (musicId: string, conductor: boolean) => Promise<void>;
     onRequestMaterial: () => Promise<void>;
     isEditable: boolean;
 }
@@ -55,6 +56,7 @@ export default function AssistenciaMusics({
     onUpdateComment,
     onRemove,
     onUpdatePrice,
+    onUpdateConductor,
     onRequestMaterial,
     isEditable
 }: AssistenciaMusicsProps) {
@@ -203,6 +205,7 @@ export default function AssistenciaMusics({
                             onUpdateInstrument={onUpdateInstrument}
                             onUpdateComment={onUpdateComment}
                             onUpdatePrice={onUpdatePrice}
+                            onUpdateConductor={onUpdateConductor}
                             onRemove={onRemove}
                         />
                     </div>
@@ -253,6 +256,7 @@ export default function AssistenciaMusics({
                             onUpdateInstrument={onUpdateInstrument}
                             onUpdateComment={onUpdateComment}
                             onUpdatePrice={onUpdatePrice}
+                            onUpdateConductor={onUpdateConductor}
                             onRemove={onRemove}
                         />
                         <div className="mt-4 flex flex-wrap gap-4 items-center">
@@ -371,7 +375,7 @@ export default function AssistenciaMusics({
     );
 }
 
-function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateInstrument, onUpdateComment, onUpdatePrice, onRemove }: any) {
+function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateInstrument, onUpdateComment, onUpdatePrice, onUpdateConductor, onRemove }: any) {
     if (items.length === 0) return <p className="text-sm text-gray-500 italic py-2">Cap músic assignat.</p>;
 
     return (
@@ -382,6 +386,7 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateInstrument,
                         <th className="px-4 py-3">Músic</th>
                         <th className="px-4 py-3 w-32">Instruments</th>
                         <th className="px-4 py-3 w-28 text-right">Import</th>
+                        <th className="px-4 py-3 w-16 text-center">🚌</th>
                         <th className="px-4 py-3 w-40">Estat</th>
                         <th className="px-4 py-3">Comentari</th>
                         {isEditable && <th className="px-4 py-3 w-10"></th>}
@@ -397,6 +402,7 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateInstrument,
                             onUpdateInstrument={onUpdateInstrument}
                             onUpdateComment={onUpdateComment}
                             onUpdatePrice={onUpdatePrice}
+                            onUpdateConductor={onUpdateConductor}
                             onRemove={onRemove}
                         />
                     ))}
@@ -406,7 +412,7 @@ function MusiciansTable({ items, isEditable, onUpdateStatus, onUpdateInstrument,
     );
 }
 
-function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateInstrument, onUpdateComment, onUpdatePrice, onRemove }: any) {
+function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateInstrument, onUpdateComment, onUpdatePrice, onUpdateConductor, onRemove }: any) {
     const [localComment, setLocalComment] = useState(item.comentari || '');
     const [localPrice, setLocalPrice] = useState(item.preu_personalitzat?.toString() || '');
     const [isEditingComment, setIsEditingComment] = useState(false);
@@ -495,6 +501,15 @@ function MusicianRow({ item, isEditable, onUpdateStatus, onUpdateInstrument, onU
                         {item.preu_personalitzat !== null ? item.preu_personalitzat : (item.import_assignat ?? 0)}€
                     </div>
                 )}
+            </td>
+            <td className="px-4 py-3 text-center">
+                <input
+                    type="checkbox"
+                    checked={!!item.conductor}
+                    onChange={(e) => onUpdateConductor(item.music_id, e.target.checked)}
+                    disabled={!isEditable}
+                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer disabled:cursor-not-allowed"
+                />
             </td>
             <td className="px-4 py-3">
                 {isEditable ? (

@@ -185,7 +185,11 @@ export interface BoloMusic {
     preu_personalitzat: number | null
     comentari: string | null
     instrument?: string | null // Instrument específic tocat en aquest bolo
-    music?: { nom: string } // Joined data
+    conductor: boolean
+    km: number
+    ajustament_preu: number
+    comentari_ajustament: string | null
+    music?: { nom: string; instrument_principal?: string | null; instruments?: string } // Joined data
     updated_at: string
 }
 

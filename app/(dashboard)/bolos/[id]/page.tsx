@@ -504,6 +504,26 @@ export default function BoloDetailPage() {
         }
     };
 
+    const handleUpdateMusicianConductor = async (musicId: string, conductor: boolean) => {
+        if (!bolo) return;
+
+        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, conductor } : bm));
+
+        try {
+            const { error } = await supabase
+                .from('bolo_musics')
+                .update({ conductor })
+                .eq('bolo_id', bolo.id)
+                .eq('music_id', musicId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating conductor:', error);
+            showToastMessage('Error en desar el conductor', 'error');
+            await fetchMusicsAndAttendance(String(bolo.id), true);
+        }
+    };
+
     const handleRemoveMusician = async (attendanceId: string, musicId: string) => {
         if (!bolo) return;
         if (!confirm('Segur que vols eliminar aquest músic del bolo?')) return;
@@ -1990,6 +2010,7 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                 onUpdateComment={handleUpdateMusicianComment}
                                 onUpdateInstrument={handleUpdateMusicianInstrument}
                                 onUpdatePrice={handleUpdateMusicianPrice}
+                                onUpdateConductor={handleUpdateMusicianConductor}
                                 onRemove={handleRemoveMusician}
                                 onRequestMaterial={handleRequestMaterial}
                                 isEditable={!isRebutjat && (bolo.estat as string) !== 'Tancat'}

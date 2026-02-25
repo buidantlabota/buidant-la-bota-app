@@ -112,6 +112,7 @@ function InternalDashboardLayout({
                 { name: 'Previsió músics', path: '/bolos/resum-30-dies', icon: 'list_alt' },
                 { name: 'Gestió de Roba', path: '/gestio-roba', icon: 'checkroom' },
                 { name: 'Músics', path: '/musics', icon: 'groups' },
+                { name: 'Cotxes', path: '/cotxes', icon: 'directions_car' },
                 { name: 'Clients', path: '/clients', icon: 'business' },
             ]
         },
@@ -121,6 +122,7 @@ function InternalDashboardLayout({
             children: [
                 { name: 'Pressupost i fact.', path: '/pressupostos', icon: 'receipt_long' },
                 { name: 'Registre factures', path: '/factures', icon: 'history_edu' },
+                { name: 'Liquidació (Pagaments)', path: '/liquidacio', icon: 'payments' },
                 { name: 'Economia', path: '/economia', icon: 'account_balance' },
                 { name: 'Previsió econòmica', path: '/previsio-economica', icon: 'trending_up' },
                 { name: 'Gestió Pot', path: '/pot', icon: 'savings' },
