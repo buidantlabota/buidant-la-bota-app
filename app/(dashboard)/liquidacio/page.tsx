@@ -17,6 +17,34 @@ interface GlobalLiquidacio {
 
 const AVAILABLE_YEARS = ['2024', '2025', '2026'];
 
+// Sub-component to handle local input state to prevent losing focus/characters during DB updates
+function DebouncedInput({ value, onSave, type = 'text', placeholder = '', className = '' }: any) {
+    const [localValue, setLocalValue] = useState(value);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    return (
+        <input
+            type={type}
+            value={localValue === null ? '' : localValue}
+            onChange={(e) => setLocalValue(type === 'number' ? e.target.value : e.target.value)}
+            onBlur={() => {
+                const finalValue = type === 'number' ? (parseFloat(localValue) || 0) : localValue;
+                if (finalValue !== value) onSave(finalValue);
+            }}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                }
+            }}
+            placeholder={placeholder}
+            className={className}
+        />
+    );
+}
+
 export default function LiquidacioPage() {
     const supabase = createClient();
     const [bolos, setBolos] = useState<Bolo[]>([]);
@@ -28,6 +56,34 @@ export default function LiquidacioPage() {
 
     // State for selected bolos to calculate payment
     const [selectedBolos, setSelectedBolos] = useState<Record<number, boolean>>({});
+
+    // Summary State
+    const [summaryEfectiu, setSummaryEfectiu] = useState(0);
+    const [summaryTransfer, setSummaryTransfer] = useState(0);
+    const [summaryBanc, setSummaryBanc] = useState(0);
+
+    // Load summary from localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const key = `summary-${selectedYears.join('-')}`;
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                const data = JSON.parse(saved);
+                setSummaryEfectiu(data.efectiu || 0);
+                setSummaryTransfer(data.transfer || 0);
+                setSummaryBanc(data.banc || 0);
+            } else {
+                setSummaryEfectiu(0);
+                setSummaryTransfer(0);
+                setSummaryBanc(0);
+            }
+        }
+    }, [selectedYears]);
+
+    const saveSummary = (ef: number, tr: number, ba: number) => {
+        const key = `summary-${selectedYears.join('-')}`;
+        localStorage.setItem(key, JSON.stringify({ efectiu: ef, transfer: tr, banc: ba }));
+    };
 
     useEffect(() => {
         fetchData();
@@ -144,7 +200,6 @@ export default function LiquidacioPage() {
     };
 
     const handleUpdateGlobal = async (musicId: string, field: 'sobre_fet' | 'ajustament_global', value: number | boolean) => {
-        // If multiple years are selected, we update the LATEST year selected to avoid ambiguity
         const targetYear = Math.max(...selectedYears.map(y => parseInt(y)));
 
         try {
@@ -233,6 +288,30 @@ export default function LiquidacioPage() {
         ];
     }, [musics, attendance, globals]);
 
+    // Calculate Grand Total for the summary
+    const grandTotal = useMemo(() => {
+        let total = 0;
+        groupedMusicians.forEach(group => {
+            group.list.forEach(music => {
+                let musicBase = 0;
+                let musicAjust = 0;
+                bolos.forEach(bolo => {
+                    if (selectedBolos[bolo.id]) {
+                        const att = attendance.find(a => a.bolo_id === bolo.id && a.music_id === music.id);
+                        if (att && att.estat === 'confirmat') {
+                            musicBase += (att.preu_personalitzat !== null ? att.preu_personalitzat : (bolo.preu_per_musica || 0));
+                            musicAjust += (att.ajustament_preu || 0);
+                        }
+                    }
+                });
+                const musicGlobals = globals.filter(g => g.music_id === music.id);
+                const musicGlobalAjust = musicGlobals.reduce((acc, curr) => acc + (curr.ajustament_global || 0), 0);
+                total += (musicBase + musicAjust + musicGlobalAjust);
+            });
+        });
+        return total;
+    }, [groupedMusicians, bolos, selectedBolos, attendance, globals]);
+
     if (loading) return (
         <div className="flex justify-center items-center h-screen bg-gray-50">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -268,7 +347,7 @@ export default function LiquidacioPage() {
             </div>
 
             {/* Container wrapper for horizontal scroll */}
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto max-w-full">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto max-w-full font-sans">
                 <table className="text-left border-collapse text-[10px] w-full min-w-[max-content]">
                     <thead>
                         {/* Selector Row */}
@@ -338,8 +417,6 @@ export default function LiquidacioPage() {
                                         }
                                     });
 
-                                    // For globals, we sum the adjustments of ALL selected years
-                                    // and we show the 'sobre_fet' status of the LATEST selected year.
                                     const musicGlobals = globals.filter(g => g.music_id === music.id);
                                     const latestYear = Math.max(...selectedYears.map(y => parseInt(y)));
                                     const latestGlobal = musicGlobals.find(g => g.exercici === latestYear);
@@ -363,12 +440,12 @@ export default function LiquidacioPage() {
                                             <td className="p-2 border-r border-gray-200 text-center font-bold text-primary group/ajust relative">
                                                 <div className="flex flex-col items-center">
                                                     <PrivacyMask value={sumaAjustaments + sumaAjustGlobal} />
-                                                    <input
+                                                    <DebouncedInput
                                                         type="number"
                                                         className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover/ajust:opacity-100 transition-opacity"
                                                         placeholder={selectedYears.length > 1 ? `Any ${latestYear}` : "+/-"}
-                                                        value={latestGlobal?.ajustament_global || ''}
-                                                        onChange={(e) => handleUpdateGlobal(music.id, 'ajustament_global', parseFloat(e.target.value) || 0)}
+                                                        value={latestGlobal?.ajustament_global}
+                                                        onSave={(val: number) => handleUpdateGlobal(music.id, 'ajustament_global', val)}
                                                     />
                                                 </div>
                                             </td>
@@ -383,7 +460,8 @@ export default function LiquidacioPage() {
                                                     <span className="text-[7px] mt-1 uppercase opacity-50">{sobreFet ? 'Fet' : 'Pendent'}</span>
                                                 </div>
                                             </td>
-                                            <td className={`p-2 border-r border-gray-200 text-center font-black text-xs ${totalNet > 0 ? 'bg-green-600 text-white' : 'bg-gray-50 text-gray-400'}`}>
+                                            {/* Green background only when sobreFet is true. Otherwise use a light warning color if > 0. */}
+                                            <td className={`p-2 border-r border-gray-200 text-center font-black text-xs transition-colors duration-300 ${sobreFet ? 'bg-green-600 text-white' : (totalNet > 0 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-400')}`}>
                                                 <PrivacyMask value={totalNet} showEuro={true} />
                                             </td>
                                             {bolos.map(bolo => {
@@ -413,19 +491,19 @@ export default function LiquidacioPage() {
                                                                 )}
                                                                 {/* Editors inside cell for quick adjustments */}
                                                                 <div className="flex flex-col gap-1 mt-1 opacity-0 group-hover/cell:opacity-100 transition-opacity">
-                                                                    <input
+                                                                    <DebouncedInput
                                                                         type="number"
                                                                         className="w-12 text-[7px] p-0.5 border rounded"
                                                                         placeholder="Ajust."
-                                                                        value={att!.ajustament_preu || ''}
-                                                                        onChange={(e) => handleUpdateAjustament(bolo.id, music.id, parseFloat(e.target.value) || 0)}
+                                                                        value={att!.ajustament_preu}
+                                                                        onSave={(val: number) => handleUpdateAjustament(bolo.id, music.id, val)}
                                                                     />
-                                                                    <input
+                                                                    <DebouncedInput
                                                                         type="text"
                                                                         className="w-12 text-[7px] p-0.5 border rounded"
                                                                         placeholder="Mot."
-                                                                        value={att!.comentari_ajustament || ''}
-                                                                        onChange={(e) => handleUpdateComentari(bolo.id, music.id, e.target.value)}
+                                                                        value={att!.comentari_ajustament}
+                                                                        onSave={(text: string) => handleUpdateComentari(bolo.id, music.id, text)}
                                                                     />
                                                                 </div>
                                                             </div>
@@ -442,6 +520,71 @@ export default function LiquidacioPage() {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Previsions de Pagament Summary */}
+            <div className="mt-8 flex flex-col md:flex-row gap-6 items-end justify-between px-2 pb-12">
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex-1 max-w-md">
+                    <h3 className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Resum de Previsions</h3>
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center bg-primary/5 p-3 rounded-lg border border-primary/10">
+                            <span className="text-[10px] font-black uppercase text-primary">DESTINAT A PAGAMENTS</span>
+                            <span className="text-lg font-black text-primary">
+                                <PrivacyMask value={grandTotal} showEuro={true} />
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[8px] font-black text-gray-400 uppercase">Efectiu (Ja el tenim)</label>
+                                <DebouncedInput
+                                    type="number"
+                                    className="p-2 border rounded font-black text-xs"
+                                    placeholder="0€"
+                                    value={summaryEfectiu}
+                                    onSave={(v: number) => { setSummaryEfectiu(v); saveSummary(v, summaryTransfer, summaryBanc); }}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[8px] font-black text-gray-400 uppercase">Per treure del Banc</label>
+                                <DebouncedInput
+                                    type="number"
+                                    className="p-2 border rounded font-black text-xs text-red-600 border-red-100"
+                                    placeholder="0€"
+                                    value={summaryBanc}
+                                    onSave={(v: number) => { setSummaryBanc(v); saveSummary(summaryEfectiu, summaryTransfer, v); }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[8px] font-black text-gray-400 uppercase">Transferència / Bizum</label>
+                            <DebouncedInput
+                                type="number"
+                                className="p-2 border rounded font-black text-xs text-blue-600 border-blue-100 w-full"
+                                placeholder="0€"
+                                value={summaryTransfer}
+                                onSave={(v: number) => { setSummaryTransfer(v); saveSummary(summaryEfectiu, v, summaryBanc); }}
+                            />
+                        </div>
+
+                        <div className="h-px bg-gray-100 my-2"></div>
+
+                        <div className="flex justify-between items-center px-1">
+                            <span className="text-[9px] font-bold text-gray-400">Diferència / Resta</span>
+                            <span className={`text-sm font-black ${grandTotal - (summaryEfectiu + summaryBanc + summaryTransfer) === 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                                <PrivacyMask value={grandTotal - (summaryEfectiu + summaryBanc + summaryTransfer)} showEuro={true} />
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="text-right hidden md:block">
+                    <p className="text-[10px] text-gray-400 font-medium italic">
+                        * Les previsions es guarden localment al navegador <br />
+                        per als anys seleccionats.
+                    </p>
+                </div>
             </div>
         </div>
     );

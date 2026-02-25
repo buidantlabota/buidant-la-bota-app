@@ -8,6 +8,34 @@ import { ca } from 'date-fns/locale';
 
 const AVAILABLE_YEARS = ['2024', '2025', '2026'];
 
+// Sub-component to handle local input state to prevent losing focus/characters during DB updates
+function DebouncedInput({ value, onSave, type = 'text', placeholder = '', className = '' }: any) {
+    const [localValue, setLocalValue] = useState(value);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    return (
+        <input
+            type={type}
+            value={localValue === null ? '' : localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => {
+                const finalValue = type === 'number' ? (parseFloat(localValue) || 0) : localValue;
+                if (finalValue !== value) onSave(finalValue);
+            }}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                }
+            }}
+            placeholder={placeholder}
+            className={className}
+        />
+    );
+}
+
 export default function CotxesPage() {
     const supabase = createClient();
     const [bolos, setBolos] = useState<Bolo[]>([]);
@@ -119,7 +147,7 @@ export default function CotxesPage() {
 
     // Filter only bolos that have at least one driver to keep the table clean
     const filteredActiveBolos = useMemo(() => {
-        const driverBoloIds = new Set(attendance.filter(a => a.conductor).map(a => a.bolo_id));
+        const driverBoloIds = new Set<number>(attendance.filter(a => a.conductor).map(a => a.bolo_id));
         return bolos.filter(b => driverBoloIds.has(b.id));
     }, [bolos, attendance]);
 
@@ -209,10 +237,10 @@ export default function CotxesPage() {
                                                 >
                                                     {isDriver ? (
                                                         <div className="flex flex-col items-center gap-1">
-                                                            <input
+                                                            <DebouncedInput
                                                                 type="number"
-                                                                value={att.km || ''}
-                                                                onChange={(e) => handleUpdateKm(bolo.id, music.id, parseFloat(e.target.value) || 0)}
+                                                                value={att.km}
+                                                                onSave={(val: number) => handleUpdateKm(bolo.id, music.id, val)}
                                                                 placeholder="0"
                                                                 className="w-16 text-center text-[10px] font-black p-1 border rounded bg-white border-blue-200 focus:ring-2 focus:ring-primary/20 outline-none"
                                                             />
