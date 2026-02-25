@@ -12,7 +12,10 @@ interface GlobalLiquidacio {
     sobre_fet: boolean;
     ajustament_global: number;
     comentari_global: string | null;
+    exercici: number;
 }
+
+const AVAILABLE_YEARS = ['2024', '2025', '2026'];
 
 export default function LiquidacioPage() {
     const supabase = createClient();
@@ -21,29 +24,36 @@ export default function LiquidacioPage() {
     const [attendance, setAttendance] = useState<BoloMusic[]>([]);
     const [globals, setGlobals] = useState<GlobalLiquidacio[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterAny, setFilterAny] = useState(new Date().getFullYear().toString());
+    const [selectedYears, setSelectedYears] = useState<string[]>([new Date().getFullYear().toString()]);
 
     // State for selected bolos to calculate payment
     const [selectedBolos, setSelectedBolos] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
         fetchData();
-    }, [filterAny]);
+    }, [selectedYears]);
 
     const fetchData = async () => {
+        if (selectedYears.length === 0) {
+            setBolos([]);
+            setMusics([]);
+            setAttendance([]);
+            setGlobals([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
-            const startDate = `${filterAny}-01-01`;
-            const endDate = `${filterAny}-12-31`;
-
             // 1. Fetch Bolos
-            const { data: bolosData, error: bolosError } = await supabase
-                .from('bolos')
-                .select('*')
-                .gte('data_bolo', startDate)
-                .lte('data_bolo', endDate)
-                .neq('estat', 'Cancel·lat')
-                .order('data_bolo', { ascending: true });
+            let query = supabase.from('bolos').select('*').neq('estat', 'Cancel·lat').order('data_bolo', { ascending: true });
+
+            if (selectedYears.length < AVAILABLE_YEARS.length) {
+                const yearFilters = selectedYears.map(y => `and(data_bolo.gte.${y}-01-01,data_bolo.lte.${y}-12-31)`).join(',');
+                query = query.or(yearFilters);
+            }
+
+            const { data: bolosData, error: bolosError } = await query;
 
             if (bolosError) throw bolosError;
 
@@ -51,6 +61,7 @@ export default function LiquidacioPage() {
                 setBolos([]);
                 setMusics([]);
                 setAttendance([]);
+                setGlobals([]);
                 setLoading(false);
                 return;
             }
@@ -74,11 +85,11 @@ export default function LiquidacioPage() {
 
             if (attendanceError) throw attendanceError;
 
-            // 4. Fetch Global Adjustments (Sobre fet, etc)
+            // 4. Fetch Global Adjustments for selected years
             const { data: globalsData, error: globalsError } = await supabase
                 .from('liquidacio_global')
                 .select('*')
-                .eq('exercici', parseInt(filterAny));
+                .in('exercici', selectedYears.map(y => parseInt(y)));
 
             if (!globalsError) {
                 setGlobals(globalsData || []);
@@ -133,41 +144,55 @@ export default function LiquidacioPage() {
     };
 
     const handleUpdateGlobal = async (musicId: string, field: 'sobre_fet' | 'ajustament_global', value: number | boolean) => {
+        // If multiple years are selected, we update the LATEST year selected to avoid ambiguity
+        const targetYear = Math.max(...selectedYears.map(y => parseInt(y)));
+
         try {
-            const anyNum = parseInt(filterAny);
-            const current = globals.find(g => g.music_id === musicId);
+            const current = globals.find(g => g.music_id === musicId && g.exercici === targetYear);
 
             if (current) {
                 const { error } = await supabase
                     .from('liquidacio_global')
                     .update({ [field]: value })
-                    .eq('exercici', anyNum) // Changed 'any' to 'exercici'
+                    .eq('exercici', targetYear)
                     .eq('music_id', musicId);
                 if (error) throw error;
             } else {
                 const { error } = await supabase
                     .from('liquidacio_global')
-                    .insert([{ exercici: anyNum, music_id: musicId, [field]: value }]); // Changed 'any' to 'exercici'
+                    .insert([{ exercici: targetYear, music_id: musicId, [field]: value }]);
                 if (error) throw error;
             }
 
             setGlobals(prev => {
-                const exists = prev.find(g => g.music_id === musicId);
+                const exists = prev.find(g => g.music_id === musicId && g.exercici === targetYear);
                 if (exists) {
-                    return prev.map(g => g.music_id === musicId ? { ...g, [field]: value } : g);
+                    return prev.map(g => (g.music_id === musicId && g.exercici === targetYear) ? { ...g, [field]: value } : g);
                 } else {
                     return [...prev, {
                         music_id: musicId,
-                        sobre_fet: field === 'sobre_fet' ? (value as boolean) : false, // Handle boolean for sobre_fet
+                        sobre_fet: field === 'sobre_fet' ? (value as boolean) : false,
                         ajustament_global: field === 'ajustament_global' ? (value as number) : 0,
                         comentari_global: null,
-                        exercici: anyNum // Add exercici to new global entry
+                        exercici: targetYear
                     }];
                 }
             });
         } catch (error) {
             console.error('Error updating global data:', error);
         }
+    };
+
+    const toggleYear = (year: string) => {
+        setSelectedYears(prev =>
+            prev.includes(year)
+                ? prev.filter(y => y !== year)
+                : [...prev, year]
+        );
+    };
+
+    const selectAllYears = () => {
+        setSelectedYears(AVAILABLE_YEARS);
     };
 
     const getInstrumentPriority = (inst: string): number => {
@@ -216,23 +241,35 @@ export default function LiquidacioPage() {
 
     return (
         <div className="p-4 sm:p-6 min-h-screen bg-gray-50 w-full overflow-hidden">
-            <div className="flex justify-between items-center mb-6 px-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 px-2 gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 uppercase">Resum de Liquidació</h1>
                     <p className="text-gray-500 text-sm font-medium">Control de pagaments als músics</p>
                 </div>
-                <select
-                    value={filterAny}
-                    onChange={(e) => setFilterAny(e.target.value)}
-                    className="bg-white border rounded px-3 py-1 font-bold text-sm"
-                >
-                    {[2024, 2025, 2026].map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
+
+                <div className="flex flex-wrap items-center gap-2 bg-white p-1 rounded-lg border border-gray-200">
+                    <button
+                        onClick={selectAllYears}
+                        className={`px-3 py-1 rounded text-[10px] font-black uppercase transition-colors ${selectedYears.length === AVAILABLE_YEARS.length ? 'bg-primary text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        Tots
+                    </button>
+                    <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                    {AVAILABLE_YEARS.map(year => (
+                        <button
+                            key={year}
+                            onClick={() => toggleYear(year)}
+                            className={`px-3 py-1 rounded text-[10px] font-black uppercase transition-colors ${selectedYears.includes(year) ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-transparent text-gray-400 border border-transparent hover:bg-gray-50'}`}
+                        >
+                            {year}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Container wrapper for horizontal scroll */}
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
-                <table className="text-left border-collapse text-[10px] w-full min-w-[1400px]">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto max-w-full">
+                <table className="text-left border-collapse text-[10px] w-full min-w-[max-content]">
                     <thead>
                         {/* Selector Row */}
                         <tr className="bg-gray-100 border-b border-gray-200">
@@ -270,8 +307,8 @@ export default function LiquidacioPage() {
                                     <div className="uppercase tracking-tighter leading-none mb-1 text-gray-900">
                                         {bolo.titol || bolo.nom_poble}
                                     </div>
-                                    <div className="text-[8px] text-gray-500 font-medium">
-                                        {format(new Date(bolo.data_bolo), 'dd/MM')}
+                                    <div className="text-[8px] text-gray-500 font-medium whitespace-nowrap">
+                                        {format(new Date(bolo.data_bolo), 'dd/MM/yy')}
                                     </div>
                                     <div className="mt-2 text-[8px] bg-gray-200 rounded px-1 py-0.5 inline-block text-gray-700">
                                         {bolo.preu_per_musica || 0}€
@@ -301,15 +338,20 @@ export default function LiquidacioPage() {
                                         }
                                     });
 
-                                    const global = globals.find(g => g.music_id === music.id);
-                                    const sobreFet = !!global?.sobre_fet;
-                                    const ajustGlobal = global?.ajustament_global || 0;
+                                    // For globals, we sum the adjustments of ALL selected years
+                                    // and we show the 'sobre_fet' status of the LATEST selected year.
+                                    const musicGlobals = globals.filter(g => g.music_id === music.id);
+                                    const latestYear = Math.max(...selectedYears.map(y => parseInt(y)));
+                                    const latestGlobal = musicGlobals.find(g => g.exercici === latestYear);
 
-                                    const totalNet = sumaBaseBolos + sumaAjustaments + ajustGlobal;
+                                    const sumaAjustGlobal = musicGlobals.reduce((acc, curr) => acc + (curr.ajustament_global || 0), 0);
+                                    const sobreFet = !!latestGlobal?.sobre_fet;
+
+                                    const totalNet = sumaBaseBolos + sumaAjustaments + sumaAjustGlobal;
 
                                     return (
-                                        <tr key={music.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                            <td className="p-2 border-r border-gray-200 sticky left-0 bg-white z-10 font-bold whitespace-nowrap">
+                                        <tr key={music.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors group">
+                                            <td className="p-2 border-r border-gray-200 sticky left-0 bg-white z-10 font-bold whitespace-nowrap group-hover:bg-gray-50">
                                                 <div className="flex flex-col">
                                                     <span>{music.nom}</span>
                                                     <span className="text-[7px] font-medium opacity-50 uppercase">{music.instrument_principal || music.instruments || ''}</span>
@@ -318,19 +360,19 @@ export default function LiquidacioPage() {
                                             <td className="p-2 border-r border-gray-200 text-center font-black text-gray-700">
                                                 <PrivacyMask value={sumaBaseBolos} />
                                             </td>
-                                            <td className="p-2 border-r border-gray-200 text-center font-bold text-primary group relative">
+                                            <td className="p-2 border-r border-gray-200 text-center font-bold text-primary group/ajust relative">
                                                 <div className="flex flex-col items-center">
-                                                    <PrivacyMask value={sumaAjustaments + ajustGlobal} />
+                                                    <PrivacyMask value={sumaAjustaments + sumaAjustGlobal} />
                                                     <input
                                                         type="number"
-                                                        className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        placeholder="+/-"
-                                                        value={ajustGlobal || ''}
+                                                        className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover/ajust:opacity-100 transition-opacity"
+                                                        placeholder={selectedYears.length > 1 ? `Any ${latestYear}` : "+/-"}
+                                                        value={latestGlobal?.ajustament_global || ''}
                                                         onChange={(e) => handleUpdateGlobal(music.id, 'ajustament_global', parseFloat(e.target.value) || 0)}
                                                     />
                                                 </div>
                                             </td>
-                                            <td className="p-2 border-r border-gray-200 text-center font-bold text-red-600 group relative">
+                                            <td className="p-2 border-r border-gray-200 text-center font-bold text-red-600">
                                                 <div className="flex flex-col items-center">
                                                     <input
                                                         type="checkbox"
@@ -352,7 +394,7 @@ export default function LiquidacioPage() {
                                                 return (
                                                     <td
                                                         key={`${music.id}-${bolo.id}`}
-                                                        className={`p-1 border-r border-gray-200 text-center group cursor-default ${isConfirmed ? (isSelected ? 'bg-green-50' : 'bg-gray-50') : 'bg-red-50/30'}`}
+                                                        className={`p-1 border-r border-gray-200 text-center group/cell cursor-default ${isConfirmed ? (isSelected ? 'bg-green-50' : 'bg-gray-50 group-hover:bg-gray-100') : 'bg-red-50/10'}`}
                                                     >
                                                         {isConfirmed ? (
                                                             <div className="flex flex-col items-center">
@@ -370,7 +412,7 @@ export default function LiquidacioPage() {
                                                                     </div>
                                                                 )}
                                                                 {/* Editors inside cell for quick adjustments */}
-                                                                <div className="flex flex-col gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <div className="flex flex-col gap-1 mt-1 opacity-0 group-hover/cell:opacity-100 transition-opacity">
                                                                     <input
                                                                         type="number"
                                                                         className="w-12 text-[7px] p-0.5 border rounded"
@@ -388,7 +430,7 @@ export default function LiquidacioPage() {
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-gray-300 font-black">---</span>
+                                                            <span className="text-gray-200 font-black">---</span>
                                                         )}
                                                     </td>
                                                 );

@@ -6,32 +6,43 @@ import { Bolo, Music, BoloMusic } from '@/types';
 import { format } from 'date-fns';
 import { ca } from 'date-fns/locale';
 
+const AVAILABLE_YEARS = ['2024', '2025', '2026'];
+
 export default function CotxesPage() {
     const supabase = createClient();
     const [bolos, setBolos] = useState<Bolo[]>([]);
     const [musics, setMusics] = useState<Music[]>([]);
     const [attendance, setAttendance] = useState<BoloMusic[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterAny, setFilterAny] = useState(new Date().getFullYear().toString());
+    // filterAny is now an array of strings
+    const [selectedYears, setSelectedYears] = useState<string[]>([new Date().getFullYear().toString()]);
 
     useEffect(() => {
         fetchData();
-    }, [filterAny]);
+    }, [selectedYears]);
 
     const fetchData = async () => {
+        if (selectedYears.length === 0) {
+            setBolos([]);
+            setMusics([]);
+            setAttendance([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
-            const startDate = `${filterAny}-01-01`;
-            const endDate = `${filterAny}-12-31`;
+            // Build query based on selected years
+            let query = supabase.from('bolos').select('*').neq('estat', 'Cancel·lat').order('data_bolo', { ascending: true });
 
-            // 1. Fetch Bolos
-            const { data: bolosData, error: bolosError } = await supabase
-                .from('bolos')
-                .select('*')
-                .gte('data_bolo', startDate)
-                .lte('data_bolo', endDate)
-                .neq('estat', 'Cancel·lat')
-                .order('data_bolo', { ascending: true });
+            if (selectedYears.length < AVAILABLE_YEARS.length) {
+                // Construct multiple ranges or use a complex filter. 
+                // Since years are contiguous here, we could find min/max, but for non-contiguous we use or filters.
+                const yearFilters = selectedYears.map(y => `and(data_bolo.gte.${y}-01-01,data_bolo.lte.${y}-12-31)`).join(',');
+                query = query.or(yearFilters);
+            }
+
+            const { data: bolosData, error: bolosError } = await query;
 
             if (bolosError) throw bolosError;
 
@@ -88,6 +99,18 @@ export default function CotxesPage() {
         }
     };
 
+    const toggleYear = (year: string) => {
+        setSelectedYears(prev =>
+            prev.includes(year)
+                ? prev.filter(y => y !== year)
+                : [...prev, year]
+        );
+    };
+
+    const selectAllYears = () => {
+        setSelectedYears(AVAILABLE_YEARS);
+    };
+
     // Filter only musicians who are/were drivers in this period to keep the table clean
     const driverMusicians = useMemo(() => {
         const driverIds = new Set(attendance.filter(a => a.conductor).map(a => a.music_id));
@@ -95,7 +118,7 @@ export default function CotxesPage() {
     }, [musics, attendance]);
 
     // Filter only bolos that have at least one driver to keep the table clean
-    const activeBolos = useMemo(() => {
+    const filteredActiveBolos = useMemo(() => {
         const driverBoloIds = new Set(attendance.filter(a => a.conductor).map(a => a.bolo_id));
         return bolos.filter(b => driverBoloIds.has(b.id));
     }, [bolos, attendance]);
@@ -108,34 +131,46 @@ export default function CotxesPage() {
 
     return (
         <div className="p-4 sm:p-6 min-h-screen bg-gray-50 w-full overflow-hidden">
-            <div className="flex justify-between items-center mb-6 px-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 px-2 gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 uppercase">Control de Cotxes (Km)</h1>
                     <p className="text-gray-500 text-sm font-medium">Kilometratge per conductor i bolo</p>
                 </div>
-                <select
-                    value={filterAny}
-                    onChange={(e) => setFilterAny(e.target.value)}
-                    className="bg-white border rounded px-3 py-1 font-bold text-sm"
-                >
-                    {[2024, 2025, 2026].map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
+
+                <div className="flex flex-wrap items-center gap-2 bg-white p-1 rounded-lg border border-gray-200">
+                    <button
+                        onClick={selectAllYears}
+                        className={`px-3 py-1 rounded text-[10px] font-black uppercase transition-colors ${selectedYears.length === AVAILABLE_YEARS.length ? 'bg-primary text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        Tots
+                    </button>
+                    <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                    {AVAILABLE_YEARS.map(year => (
+                        <button
+                            key={year}
+                            onClick={() => toggleYear(year)}
+                            className={`px-3 py-1 rounded text-[10px] font-black uppercase transition-colors ${selectedYears.includes(year) ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-transparent text-gray-400 border border-transparent hover:bg-gray-50'}`}
+                        >
+                            {year}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {driverMusicians.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-xl p-20 text-center shadow-sm">
                     <span className="material-icons-outlined text-6xl text-gray-200 mb-4 block">directions_car</span>
-                    <p className="text-gray-400 font-bold uppercase tracking-widest">No hi ha cap conductor assignat encara</p>
-                    <p className="text-gray-400 text-xs mt-2">Assigna conductors des de la fitxa de cada bolo per veure'ls aquí.</p>
+                    <p className="text-gray-400 font-bold uppercase tracking-widest">No hi ha cap dades per als anys seleccionats</p>
+                    <p className="text-gray-400 text-xs mt-2">Assegura't d'haver assignat conductors als bolos d'aquest període.</p>
                 </div>
             ) : (
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
-                    <table className="text-left border-collapse text-[10px] w-full min-w-[1000px]">
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto max-w-full">
+                    <table className="text-left border-collapse text-[10px] w-full min-w-[max-content]">
                         <thead>
                             <tr className="bg-gray-100 border-b border-gray-200 font-black">
                                 <th className="p-3 border-r border-gray-200 sticky left-0 bg-gray-100 z-10 w-48">CONDUCTORS</th>
                                 <th className="p-3 border-r border-gray-200 text-center bg-primary/5 text-primary w-24">TOTAL KM</th>
-                                {activeBolos.map(bolo => (
+                                {filteredActiveBolos.map(bolo => (
                                     <th key={bolo.id} className="p-3 border-r border-gray-200 text-center align-top min-w-[100px]">
                                         <div className="uppercase tracking-tighter leading-none mb-1 text-gray-900">
                                             {bolo.titol || bolo.nom_poble}
@@ -156,21 +191,21 @@ export default function CotxesPage() {
                                     .reduce((acc, curr) => acc + (curr.km || 0), 0);
 
                                 return (
-                                    <tr key={music.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                        <td className="p-3 border-r border-gray-200 sticky left-0 bg-white z-10 font-bold whitespace-nowrap">
+                                    <tr key={music.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors group">
+                                        <td className="p-3 border-r border-gray-200 sticky left-0 bg-white z-10 font-bold whitespace-nowrap group-hover:bg-gray-50">
                                             {music.nom}
                                         </td>
-                                        <td className="p-3 border-r border-gray-200 bg-primary/5 text-center font-black text-primary text-xs">
+                                        <td className="p-3 border-r border-gray-200 bg-primary/5 text-center font-black text-primary text-xs group-hover:bg-primary/10">
                                             {totalKm}
                                         </td>
-                                        {activeBolos.map(bolo => {
+                                        {filteredActiveBolos.map(bolo => {
                                             const att = attendance.find(a => a.bolo_id === bolo.id && a.music_id === music.id);
                                             const isDriver = att && att.conductor;
 
                                             return (
                                                 <td
                                                     key={`${music.id}-${bolo.id}`}
-                                                    className={`p-1 border-r border-gray-200 text-center ${isDriver ? 'bg-blue-50/30' : 'bg-gray-50/10'}`}
+                                                    className={`p-1 border-r border-gray-200 text-center ${isDriver ? 'bg-blue-50/30 group-hover:bg-blue-50/50' : 'bg-gray-50/10 group-hover:bg-gray-50/20'}`}
                                                 >
                                                     {isDriver ? (
                                                         <div className="flex flex-col items-center gap-1">
