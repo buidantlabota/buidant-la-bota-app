@@ -35,7 +35,6 @@ export default function CotxesPage() {
                         music:musics (nom)
                     )
                 `)
-                .eq('conductor', true)
                 .gte('data_bolo', startDate)
                 .lte('data_bolo', endDate)
                 .order('data_bolo', { ascending: false });
@@ -44,7 +43,7 @@ export default function CotxesPage() {
 
             const processed = (data || []).map((bolo: any) => ({
                 ...bolo,
-                drivers: bolo.bolo_musics || []
+                drivers: (bolo.bolo_musics || []).filter((bm: any) => bm.conductor === true)
             }));
 
             setBolos(processed);

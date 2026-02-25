@@ -7,11 +7,19 @@ import { format } from 'date-fns';
 import { ca } from 'date-fns/locale';
 import { PrivacyMask } from '@/components/PrivacyMask';
 
+interface GlobalLiquidacio {
+    music_id: string;
+    sobre_fet: number;
+    ajustament_global: number;
+    comentari_global: string | null;
+}
+
 export default function LiquidacioPage() {
     const supabase = createClient();
     const [bolos, setBolos] = useState<Bolo[]>([]);
     const [musics, setMusics] = useState<Music[]>([]);
     const [attendance, setAttendance] = useState<BoloMusic[]>([]);
+    const [globals, setGlobals] = useState<GlobalLiquidacio[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterAny, setFilterAny] = useState(new Date().getFullYear().toString());
 
@@ -38,6 +46,7 @@ export default function LiquidacioPage() {
                 .order('data_bolo', { ascending: true });
 
             if (bolosError) throw bolosError;
+
             if (!bolosData || bolosData.length === 0) {
                 setBolos([]);
                 setMusics([]);
@@ -64,6 +73,16 @@ export default function LiquidacioPage() {
                 .in('bolo_id', boloIds);
 
             if (attendanceError) throw attendanceError;
+
+            // 4. Fetch Global Adjustments (Sobre fet, etc)
+            const { data: globalsData, error: globalsError } = await supabase
+                .from('liquidacio_global')
+                .select('*')
+                .eq('any', parseInt(filterAny));
+
+            if (!globalsError) {
+                setGlobals(globalsData || []);
+            }
 
             setBolos(activeBolos);
             setMusics(musicsData);
@@ -113,6 +132,38 @@ export default function LiquidacioPage() {
         }
     };
 
+    const handleUpdateGlobal = async (musicId: string, field: 'sobre_fet' | 'ajustament_global', value: number) => {
+        try {
+            const anyNum = parseInt(filterAny);
+            const current = globals.find(g => g.music_id === musicId);
+
+            if (current) {
+                const { error } = await supabase
+                    .from('liquidacio_global')
+                    .update({ [field]: value })
+                    .eq('any', anyNum)
+                    .eq('music_id', musicId);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('liquidacio_global')
+                    .insert([{ any: anyNum, music_id: musicId, [field]: value }]);
+                if (error) throw error;
+            }
+
+            setGlobals(prev => {
+                const exists = prev.find(g => g.music_id === musicId);
+                if (exists) {
+                    return prev.map(g => g.music_id === musicId ? { ...g, [field]: value } : g);
+                } else {
+                    return [...prev, { music_id: musicId, sobre_fet: field === 'sobre_fet' ? value : 0, ajustament_global: field === 'ajustament_global' ? value : 0, comentari_global: null }];
+                }
+            });
+        } catch (error) {
+            console.error('Error updating global data:', error);
+        }
+    };
+
     const getInstrumentPriority = (inst: string): number => {
         const i = inst.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         if (i.includes('percussio') || i.includes('caixa') || i.includes('bombo')) return 1;
@@ -141,8 +192,7 @@ export default function LiquidacioPage() {
             return a.nom.localeCompare(b.nom);
         });
 
-        // Any musician not tagged as titular/substitut but who has attendance
-        const othersIds = new Set(attendance.map(a => a.music_id));
+        const othersIds = new Set(attendance.map(a => a.music_id).concat(globals.map(g => g.music_id)));
         const taggedIds = new Set([...titulars, ...substituts].map(m => m.id));
         const others = musics.filter(m => othersIds.has(m.id) && !taggedIds.has(m.id));
 
@@ -150,7 +200,7 @@ export default function LiquidacioPage() {
             { title: 'FIXES', list: titulars },
             { title: 'SUBSTITUTS', list: [...substituts, ...others] }
         ];
-    }, [musics, attendance]);
+    }, [musics, attendance, globals]);
 
     if (loading) return (
         <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -159,7 +209,7 @@ export default function LiquidacioPage() {
     );
 
     return (
-        <div className="p-4 sm:p-6 max-w-[100vw] overflow-x-auto min-h-screen bg-gray-50">
+        <div className="p-4 sm:p-6 min-h-screen bg-gray-50 w-full overflow-hidden">
             <div className="flex justify-between items-center mb-6 px-2">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 uppercase">Resum de Liquidació</h1>
@@ -174,13 +224,17 @@ export default function LiquidacioPage() {
                 </select>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <table className="text-left border-collapse text-[10px] w-full min-w-[1200px]">
+            {/* Container wrapper for horizontal scroll */}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                <table className="text-left border-collapse text-[10px] w-full min-w-[1400px]">
                     <thead>
                         {/* Selector Row */}
                         <tr className="bg-gray-100 border-b border-gray-200">
                             <th className="p-2 border-r border-gray-200 sticky left-0 bg-gray-100 z-10 w-48">PAGAR? (Selector)</th>
-                            <th className="p-2 border-r border-gray-200 text-center font-black w-24">TOTAL INDIVIDUAL</th>
+                            <th className="p-2 border-r border-gray-200 text-center font-black w-24">BOLOS</th>
+                            <th className="p-2 border-r border-gray-200 text-center font-black w-24">AJUSTAMENTS</th>
+                            <th className="p-2 border-r border-gray-200 text-center font-black w-24 text-red-600">SOBRE FET</th>
+                            <th className="p-2 border-r border-gray-200 text-center font-black w-24 bg-primary/10 text-primary">TOTAL NET</th>
                             {bolos.map(bolo => (
                                 <th key={`sel-${bolo.id}`} className="p-1 border-r border-gray-200 text-center w-24">
                                     <div className="flex flex-col items-center">
@@ -201,7 +255,10 @@ export default function LiquidacioPage() {
                         {/* Bolo Names Row */}
                         <tr className="bg-gray-50 border-b border-gray-200 font-black">
                             <th className="p-2 border-r border-gray-200 sticky left-0 bg-gray-50 z-10">MÚSICS</th>
-                            <th className="p-2 border-r border-gray-200 bg-primary/5 text-primary text-center">SUMA SELECCIONATS</th>
+                            <th className="p-2 border-r border-gray-200 text-center">Base</th>
+                            <th className="p-2 border-r border-gray-200 text-center text-primary">(+/-)</th>
+                            <th className="p-2 border-r border-gray-200 text-center text-red-600">Ja lliurat</th>
+                            <th className="p-2 border-r border-gray-200 text-center bg-primary/10 text-primary">LIQUIDACIÓ</th>
                             {bolos.map(bolo => (
                                 <th key={`name-${bolo.id}`} className="p-2 border-r border-gray-200 text-center align-top min-w-[80px]">
                                     <div className="uppercase tracking-tighter leading-none mb-1 text-gray-900">
@@ -222,21 +279,28 @@ export default function LiquidacioPage() {
                         {groupedMusicians.map(group => (
                             <Fragment key={group.title}>
                                 <tr className="bg-gray-900 text-white font-black text-[9px] uppercase tracking-widest">
-                                    <td colSpan={bolos.length + 2} className="px-3 py-1">{group.title}</td>
+                                    <td colSpan={bolos.length + 5} className="px-3 py-1">{group.title}</td>
                                 </tr>
                                 {group.list.map(music => {
-                                    // Calculate total for this musician across selected bolos
-                                    let totalIndividual = 0;
+                                    let sumaBaseBolos = 0;
+                                    let sumaAjustaments = 0;
+
                                     bolos.forEach(bolo => {
                                         if (selectedBolos[bolo.id]) {
                                             const att = attendance.find(a => a.bolo_id === bolo.id && a.music_id === music.id);
                                             if (att && att.estat === 'confirmat') {
-                                                const basePrice = att.preu_personalitzat !== null ? att.preu_personalitzat : (bolo.preu_per_musica || 0);
-                                                const adjustment = att.ajustament_preu || 0;
-                                                totalIndividual += (basePrice + adjustment);
+                                                sumaBaseBolos += (att.preu_personalitzat !== null ? att.preu_personalitzat : (bolo.preu_per_musica || 0));
+                                                sumaAjustaments += (att.ajustament_preu || 0);
                                             }
                                         }
                                     });
+
+                                    const global = globals.find(g => g.music_id === music.id);
+                                    const sobreFet = global?.sobre_fet || 0;
+                                    const ajustGlobal = global?.ajustament_global || 0;
+
+                                    const totalIndividual = sumaBaseBolos + sumaAjustaments + ajustGlobal;
+                                    const totalNet = totalIndividual - sobreFet;
 
                                     return (
                                         <tr key={music.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -246,8 +310,36 @@ export default function LiquidacioPage() {
                                                     <span className="text-[7px] font-medium opacity-50 uppercase">{music.instrument_principal || music.instruments || ''}</span>
                                                 </div>
                                             </td>
+                                            <td className="p-2 border-r border-gray-200 text-center font-black text-gray-700">
+                                                <PrivacyMask value={sumaBaseBolos} />
+                                            </td>
+                                            <td className="p-2 border-r border-gray-200 text-center font-bold text-primary group relative">
+                                                <div className="flex flex-col items-center">
+                                                    <PrivacyMask value={sumaAjustaments + ajustGlobal} />
+                                                    {/* Global Ajustament Editor */}
+                                                    <input
+                                                        type="number"
+                                                        className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        placeholder="Global"
+                                                        value={ajustGlobal || ''}
+                                                        onChange={(e) => handleUpdateGlobal(music.id, 'ajustament_global', parseFloat(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td className="p-2 border-r border-gray-200 text-center font-bold text-red-600 group relative">
+                                                <div className="flex flex-col items-center">
+                                                    <PrivacyMask value={sobreFet} />
+                                                    <input
+                                                        type="number"
+                                                        className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        placeholder="Sobre"
+                                                        value={sobreFet || ''}
+                                                        onChange={(e) => handleUpdateGlobal(music.id, 'sobre_fet', parseFloat(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                            </td>
                                             <td className="p-2 border-r border-gray-200 bg-primary/5 text-center font-black text-primary text-xs">
-                                                <PrivacyMask value={totalIndividual as number} />
+                                                <PrivacyMask value={totalNet as number} />
                                             </td>
                                             {bolos.map(bolo => {
                                                 const att = attendance.find(a => a.bolo_id === bolo.id && a.music_id === music.id);
@@ -257,7 +349,7 @@ export default function LiquidacioPage() {
                                                 return (
                                                     <td
                                                         key={`${music.id}-${bolo.id}`}
-                                                        className={`p-1 border-r border-gray-200 text-center ${isConfirmed ? (isSelected ? 'bg-green-50' : 'bg-gray-50') : 'bg-red-50/30'}`}
+                                                        className={`p-1 border-r border-gray-200 text-center group cursor-default ${isConfirmed ? (isSelected ? 'bg-green-50' : 'bg-gray-50') : 'bg-red-50/30'}`}
                                                     >
                                                         {isConfirmed ? (
                                                             <div className="flex flex-col items-center">
@@ -265,9 +357,9 @@ export default function LiquidacioPage() {
                                                                     {(att!.preu_personalitzat !== null ? att!.preu_personalitzat : (bolo.preu_per_musica || 0)) + (att!.ajustament_preu || 0)}€
                                                                 </span>
                                                                 {(att!.ajustament_preu !== 0 || att!.comentari_ajustament) && (
-                                                                    <div className="group relative mt-1">
+                                                                    <div className="group/info relative mt-1">
                                                                         <span className="material-icons-outlined text-[10px] text-primary cursor-help">info</span>
-                                                                        <div className="hidden group-hover:block absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-[8px] p-2 rounded shadow-lg pointer-events-none">
+                                                                        <div className="hidden group-hover/info:block absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-[8px] p-2 rounded shadow-lg pointer-events-none">
                                                                             <p className="font-bold">Ajustament: {att!.ajustament_preu || 0}€</p>
                                                                             <p className="mt-1 italic">{att!.comentari_ajustament || 'Sense comentari'}</p>
                                                                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
@@ -309,4 +401,3 @@ export default function LiquidacioPage() {
         </div>
     );
 }
-
