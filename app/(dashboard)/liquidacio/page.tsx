@@ -9,7 +9,7 @@ import { PrivacyMask } from '@/components/PrivacyMask';
 
 interface GlobalLiquidacio {
     music_id: string;
-    sobre_fet: number;
+    sobre_fet: boolean;
     ajustament_global: number;
     comentari_global: string | null;
 }
@@ -78,7 +78,7 @@ export default function LiquidacioPage() {
             const { data: globalsData, error: globalsError } = await supabase
                 .from('liquidacio_global')
                 .select('*')
-                .eq('any', parseInt(filterAny));
+                .eq('exercici', parseInt(filterAny));
 
             if (!globalsError) {
                 setGlobals(globalsData || []);
@@ -132,7 +132,7 @@ export default function LiquidacioPage() {
         }
     };
 
-    const handleUpdateGlobal = async (musicId: string, field: 'sobre_fet' | 'ajustament_global', value: number) => {
+    const handleUpdateGlobal = async (musicId: string, field: 'sobre_fet' | 'ajustament_global', value: number | boolean) => {
         try {
             const anyNum = parseInt(filterAny);
             const current = globals.find(g => g.music_id === musicId);
@@ -141,13 +141,13 @@ export default function LiquidacioPage() {
                 const { error } = await supabase
                     .from('liquidacio_global')
                     .update({ [field]: value })
-                    .eq('any', anyNum)
+                    .eq('exercici', anyNum) // Changed 'any' to 'exercici'
                     .eq('music_id', musicId);
                 if (error) throw error;
             } else {
                 const { error } = await supabase
                     .from('liquidacio_global')
-                    .insert([{ any: anyNum, music_id: musicId, [field]: value }]);
+                    .insert([{ exercici: anyNum, music_id: musicId, [field]: value }]); // Changed 'any' to 'exercici'
                 if (error) throw error;
             }
 
@@ -156,7 +156,13 @@ export default function LiquidacioPage() {
                 if (exists) {
                     return prev.map(g => g.music_id === musicId ? { ...g, [field]: value } : g);
                 } else {
-                    return [...prev, { music_id: musicId, sobre_fet: field === 'sobre_fet' ? value : 0, ajustament_global: field === 'ajustament_global' ? value : 0, comentari_global: null }];
+                    return [...prev, {
+                        music_id: musicId,
+                        sobre_fet: field === 'sobre_fet' ? (value as boolean) : false, // Handle boolean for sobre_fet
+                        ajustament_global: field === 'ajustament_global' ? (value as number) : 0,
+                        comentari_global: null,
+                        exercici: anyNum // Add exercici to new global entry
+                    }];
                 }
             });
         } catch (error) {
@@ -296,11 +302,10 @@ export default function LiquidacioPage() {
                                     });
 
                                     const global = globals.find(g => g.music_id === music.id);
-                                    const sobreFet = global?.sobre_fet || 0;
+                                    const sobreFet = !!global?.sobre_fet;
                                     const ajustGlobal = global?.ajustament_global || 0;
 
-                                    const totalIndividual = sumaBaseBolos + sumaAjustaments + ajustGlobal;
-                                    const totalNet = totalIndividual - sobreFet;
+                                    const totalNet = sumaBaseBolos + sumaAjustaments + ajustGlobal;
 
                                     return (
                                         <tr key={music.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -316,11 +321,10 @@ export default function LiquidacioPage() {
                                             <td className="p-2 border-r border-gray-200 text-center font-bold text-primary group relative">
                                                 <div className="flex flex-col items-center">
                                                     <PrivacyMask value={sumaAjustaments + ajustGlobal} />
-                                                    {/* Global Ajustament Editor */}
                                                     <input
                                                         type="number"
                                                         className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        placeholder="Global"
+                                                        placeholder="+/-"
                                                         value={ajustGlobal || ''}
                                                         onChange={(e) => handleUpdateGlobal(music.id, 'ajustament_global', parseFloat(e.target.value) || 0)}
                                                     />
@@ -328,18 +332,17 @@ export default function LiquidacioPage() {
                                             </td>
                                             <td className="p-2 border-r border-gray-200 text-center font-bold text-red-600 group relative">
                                                 <div className="flex flex-col items-center">
-                                                    <PrivacyMask value={sobreFet} />
                                                     <input
-                                                        type="number"
-                                                        className="w-12 text-[7px] p-0.5 border rounded mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        placeholder="Sobre"
-                                                        value={sobreFet || ''}
-                                                        onChange={(e) => handleUpdateGlobal(music.id, 'sobre_fet', parseFloat(e.target.value) || 0)}
+                                                        type="checkbox"
+                                                        className="w-4 h-4 text-red-600 rounded cursor-pointer"
+                                                        checked={sobreFet}
+                                                        onChange={(e) => handleUpdateGlobal(music.id, 'sobre_fet', e.target.checked)}
                                                     />
+                                                    <span className="text-[7px] mt-1 uppercase opacity-50">{sobreFet ? 'Fet' : 'Pendent'}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-2 border-r border-gray-200 bg-primary/5 text-center font-black text-primary text-xs">
-                                                <PrivacyMask value={totalNet as number} />
+                                            <td className={`p-2 border-r border-gray-200 text-center font-black text-xs ${totalNet > 0 ? 'bg-green-600 text-white' : 'bg-gray-50 text-gray-400'}`}>
+                                                <PrivacyMask value={totalNet} showEuro={true} />
                                             </td>
                                             {bolos.map(bolo => {
                                                 const att = attendance.find(a => a.bolo_id === bolo.id && a.music_id === music.id);
