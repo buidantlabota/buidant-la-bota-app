@@ -109,24 +109,24 @@ export default function EconomiaPage() {
                 globalDinersDispo: 0
             });
 
-            // Calculate Global Pot (2025+)
-            const cutoffDate = '2025-01-01';
-            const potBase = 510;
+            // Calculate Global Pot (2026+)
+            const cutoffDate = '2026-01-01';
+            const potBase = 4560.21;
 
-            // 1. All Bolos since 2025
+            // 1. All Bolos since 2026
             const { data: allBolos } = await supabase
                 .from('bolos')
                 .select('pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, estat')
                 .gte('data_bolo', cutoffDate)
                 .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
 
-            // 2. All Manual Movements since 2025
+            // 2. All Manual Movements since 2026
             const { data: allMovements } = await supabase
                 .from('despeses_ingressos')
                 .select('import, tipus, data')
                 .gte('data', cutoffDate);
 
-            // 3. All Advance Payments (that haven't been "absorbed" by tancat bolos)
+            // 3. All Advance Payments
             const { data: allAdvances } = await supabase
                 .from('pagaments_anticipats')
                 .select('import, data_pagament, bolos(estat, data_bolo)')
@@ -139,19 +139,11 @@ export default function EconomiaPage() {
                 .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
             const potRealCount = (allBolos || [])
-                .filter((b: any) => {
-                    const year = b.data_bolo.split('-')[0];
-                    if (year === '2025') return true;
-                    return b.cobrat && b.pagaments_musics_fets;
-                })
+                .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
                 .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
             const dinersDispoCount = (allBolos || [])
-                .filter((b: any) => {
-                    const year = b.data_bolo.split('-')[0];
-                    if (year === '2025') return true;
-                    return b.cobrat;
-                })
+                .filter((b: any) => b.cobrat)
                 .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
             const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesValue;

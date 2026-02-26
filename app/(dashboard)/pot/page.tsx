@@ -85,8 +85,8 @@ export default function GestioPotPage() {
             .select('*, bolos(estat, nom_poble, data_bolo)');
 
         // CALCULATIONS
-        const potBase = 510;
-        const cutoffDate = '2025-01-01';
+        const potBase = 4560.21;
+        const cutoffDate = '2026-01-01';
 
         // Filters for stats (2025+)
         const manualMovements2025 = (allMovements || []).filter((m: any) => m.data >= cutoffDate || !m.data);
@@ -97,19 +97,11 @@ export default function GestioPotPage() {
         const manualBalance = manualMovements2025.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const potRealValue = bolos2025
-            .filter((b: any) => {
-                const year = b.data_bolo.split('-')[0];
-                if (year === '2025') return true;
-                return b.cobrat && b.pagaments_musics_fets;
-            })
+            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const dinersDispoValue = bolos2025
-            .filter((b: any) => {
-                const year = b.data_bolo.split('-')[0];
-                if (year === '2025') return true;
-                return b.cobrat;
-            })
+            .filter((b: any) => b.cobrat)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const pendingAdvancesValue = (allAdvances || [])
@@ -147,11 +139,7 @@ export default function GestioPotPage() {
 
         // 2. All 2025+ Bolos (user wants to count them all as settled movements)
         const boloLedgerEntries = bolos2025
-            .filter((b: any) => {
-                const year = b.data_bolo.split('-')[0];
-                if (year === '2025') return true;
-                return b.cobrat && b.pagaments_musics_fets;
-            })
+            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
             .map((b: any) => ({
                 date: b.data_bolo,
                 description: `Bolo: ${b.nom_poble}`,
@@ -160,8 +148,19 @@ export default function GestioPotPage() {
                 originalId: b.id
             }));
 
+        // Final entry representing the sum of all 2025 (fixed base)
+        const baseEntry = {
+            date: '2025-12-31',
+            description: 'Tancament Pot 2025',
+            amount: 0,
+            type: 'manual' as const,
+            originalId: '2025-base',
+            before: 0,
+            after: potBase
+        };
+
         // Combine and Sort
-        const sortedEntries = [...manualLedgerEntries, ...boloLedgerEntries].sort((a, b) => a.date.localeCompare(b.date));
+        const sortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, baseEntry].sort((a, b) => a.date.localeCompare(b.date));
 
         // Calculate running balance
         let currentBalance = potBase;
