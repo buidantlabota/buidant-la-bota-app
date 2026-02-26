@@ -21,8 +21,9 @@ interface LedgerMovement {
     amount: number;
     balanceBefore: number;
     balanceAfter: number;
-    type: 'bolo' | 'manual';
+    type: 'bolo' | 'manual' | 'advance';
     originalId: string | number;
+    timestamp?: string;
 }
 
 export default function GestioPotPage() {
@@ -76,7 +77,7 @@ export default function GestioPotPage() {
         // 2. All Bolos for calculations
         const { data: allBolos } = await supabase
             .from('bolos')
-            .select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets')
+            .select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, updated_at')
             .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
 
         // 3. All Manual Movements for global balance
@@ -131,40 +132,55 @@ export default function GestioPotPage() {
         const yearIng = (yearData || []).filter((m: any) => m.tipus === 'ingrés').reduce((sum: number, m: any) => sum + m.import, 0);
         const yearDesp = (yearData || []).filter((m: any) => m.tipus === 'despesa').reduce((sum: number, m: any) => sum + m.import, 0);
 
-        // D. Create Chronological Ledger
+        // D. Create Chronological Ledger (by transaction time)
         // 1. Manual Movements
         const manualLedgerEntries = manualMovements2025.map((m: any) => ({
             date: m.data,
+            timestamp: m.created_at,
             description: m.descripcio,
             amount: m.tipus === 'ingrés' ? m.import : -m.import,
             type: 'manual' as const,
             originalId: m.id
         }));
 
-        // 2. All 2025+ Bolos (user wants to count them all as settled movements)
+        // 2. All 2025+ Bolos (when marked as paid/closed)
         const boloLedgerEntries = bolos2025
             .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
             .map((b: any) => ({
                 date: b.data_bolo,
+                timestamp: b.updated_at,
                 description: `Bolo: ${b.nom_poble}`,
                 amount: b.pot_delta_final || 0,
                 type: 'bolo' as const,
                 originalId: b.id
             }));
 
-        // Final entry representing the sum of all 2025 (fixed base)
+        // 3. Advance Payments (count as they are paid)
+        const advanceLedgerEntries = (allAdvances || [])
+            .filter((p: any) => p.data_pagament >= cutoffDate)
+            .map((p: any) => ({
+                date: p.data_pagament,
+                timestamp: p.created_at,
+                description: `Anticipat: ${p.bolos?.nom_poble || 'Músic'}`,
+                amount: -p.import,
+                type: 'advance' as const,
+                originalId: p.id
+            }));
+
+        // Combine and Sort all history by TRANSACTION TIME (timestamp)
+        const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, ...advanceLedgerEntries]
+            .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+
         const baseEntry = {
             date: '2025-12-31',
             description: 'Tancament Pot 2025',
             amount: 0,
             type: 'manual' as const,
             originalId: '2025-base',
-            before: 0,
-            after: potBase
+            balanceBefore: 0,
+            balanceAfter: potBase,
+            timestamp: '2025-12-31T23:59:59.999Z'
         };
-
-        // Combine and Sort all history since 2026
-        const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries].sort((a, b) => a.date.localeCompare(b.date));
 
         // Calculate continuous running balance starting from the 2025 base
         let runningBalance = potBase;
@@ -350,7 +366,19 @@ export default function GestioPotPage() {
                                             </td>
                                             <td className="p-4">
                                                 <div className="font-bold text-sm text-gray-700">{m.description}</div>
-                                                <div className="text-[8px] text-gray-400 uppercase font-black tracking-widest">{m.type === 'bolo' ? 'Bolo Tancat' : 'Manual'}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[8px] px-1 rounded font-black uppercase tracking-widest ${m.type === 'bolo' ? 'bg-indigo-100 text-indigo-700' :
+                                                        m.type === 'advance' ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-gray-100 text-gray-500'
+                                                        }`}>
+                                                        {m.type === 'bolo' ? 'Bolo Tancat' : m.type === 'advance' ? 'Pagament Anticipat' : 'Manual'}
+                                                    </span>
+                                                    {m.timestamp && m.timestamp.split('T')[0] !== m.date && (
+                                                        <span className="text-[8px] text-gray-400 font-bold italic">
+                                                            (Registrat: {new Date(m.timestamp).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit' })})
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="p-4 text-right font-mono text-xs text-gray-400">
                                                 {m.balanceBefore.toFixed(2)}€
