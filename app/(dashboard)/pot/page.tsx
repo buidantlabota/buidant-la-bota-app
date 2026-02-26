@@ -106,7 +106,7 @@ export default function GestioPotPage() {
 
         const pendingAdvancesValue = (allAdvances || [])
             .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat) && p.data_pagament >= cutoffDate)
-            .reduce((sum, p) => sum + (p.import || 0), 0);
+            .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
         const totalPotReal = potBase + manualBalance + potRealValue - pendingAdvancesValue;
         const totalDinersDispo = potBase + manualBalance + dinersDispoValue - pendingAdvancesValue;
@@ -129,7 +129,7 @@ export default function GestioPotPage() {
 
         // D. Create Chronological Ledger
         // 1. Manual Movements
-        const manualLedgerEntries = manualMovements2025.map(m => ({
+        const manualLedgerEntries = manualMovements2025.map((m: any) => ({
             date: m.data,
             description: m.descripcio,
             amount: m.tipus === 'ingrés' ? m.import : -m.import,

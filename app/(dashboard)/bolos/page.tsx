@@ -298,7 +298,7 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             .select('*, bolos(estat, data_bolo)')
             .gte('data_pagament', cutoffDate);
 
-        const bolos2025 = allBolos.filter(b => b.data_bolo >= cutoffDate);
+        const bolos2025 = allBolos.filter((b: any) => b.data_bolo >= cutoffDate);
         const manualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const potRealValue = bolos2025
