@@ -81,12 +81,14 @@ export default function GestioPotPage() {
             .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
 
         // 3. All Manual Movements for global balance
-        const { data: allMovements } = await supabase.from('despeses_ingressos').select('*');
+        const { data: allMovements } = await supabase
+            .from('despeses_ingressos')
+            .select('*, created_at, updated_at');
 
         // 4. All Advance Payments
         const { data: allAdvances } = await supabase
             .from('pagaments_anticipats')
-            .select('*, bolos(estat, nom_poble, data_bolo)');
+            .select('*, created_at, updated_at, bolos(estat, nom_poble, data_bolo)');
 
         // CALCULATIONS
         const potBase = 4560.21;
@@ -136,7 +138,7 @@ export default function GestioPotPage() {
         // 1. Manual Movements
         const manualLedgerEntries = manualMovements2025.map((m: any) => ({
             date: m.data,
-            timestamp: m.created_at,
+            timestamp: m.updated_at || m.created_at,
             description: m.descripcio,
             amount: m.tipus === 'ingrés' ? m.import : -m.import,
             type: 'manual' as const,
@@ -160,7 +162,7 @@ export default function GestioPotPage() {
             .filter((p: any) => p.data_pagament >= cutoffDate)
             .map((p: any) => ({
                 date: p.data_pagament,
-                timestamp: p.created_at,
+                timestamp: p.updated_at || p.created_at,
                 description: `Anticipat: ${p.bolos?.nom_poble || 'Músic'}`,
                 amount: -p.import,
                 type: 'advance' as const,
@@ -168,8 +170,13 @@ export default function GestioPotPage() {
             }));
 
         // Combine and Sort all history by TRANSACTION TIME (timestamp)
+        // We use updated_at if available, fallback to created_at
         const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, ...advanceLedgerEntries]
-            .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+            .map(e => ({
+                ...e,
+                sortTime: new Date(e.timestamp || e.date).getTime()
+            }))
+            .sort((a, b) => a.sortTime - b.sortTime);
 
         const baseEntry = {
             date: '2025-12-31',
