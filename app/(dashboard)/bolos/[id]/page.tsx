@@ -2247,13 +2247,15 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                         </div>
 
                         {economicData.tipus_ingres !== 'Altres' && (
-                            <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
+                            // Stop propagation to prevent section header toggle on checkbox click
+                            <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
                                     <input
                                         type="checkbox"
                                         id="cobrat_eco"
                                         checked={economicData.cobrat || false}
                                         onChange={(e) => {
+                                            e.stopPropagation();
                                             setEconomicData({ ...economicData, cobrat: e.target.checked });
                                             setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
                                         }}
@@ -2271,6 +2273,7 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                         id="pagat_eco"
                                         checked={economicData.pagaments_musics_fets || false}
                                         onChange={(e) => {
+                                            e.stopPropagation();
                                             setEconomicData({ ...economicData, pagaments_musics_fets: e.target.checked });
                                             setBolo(prev => prev ? { ...prev, pagaments_musics_fets: e.target.checked } : null);
                                         }}

@@ -77,7 +77,7 @@ export default function GestioPotPage() {
         // 2. All Bolos for calculations
         const { data: allBolos } = await supabase
             .from('bolos')
-            .select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, updated_at')
+            .select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, updated_at, created_at')
             .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
 
         // 3. All Manual Movements for global balance
@@ -85,10 +85,10 @@ export default function GestioPotPage() {
             .from('despeses_ingressos')
             .select('*');
 
-        // 4. All Advance Payments
+        // 4. All Advance Payments (include bolo settled status)
         const { data: allAdvances } = await supabase
             .from('pagaments_anticipats')
-            .select('*, bolos(estat, nom_poble, data_bolo)');
+            .select('*, bolos(estat, nom_poble, data_bolo, cobrat, pagaments_musics_fets)');
 
         // CALCULATIONS
         const potBase = 4560.21;
@@ -110,9 +110,12 @@ export default function GestioPotPage() {
             .filter((b: any) => b.cobrat)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        // Subtracted from BOTH Metrics: Any advance payment NOT yet "closed" by its bolo status
+        // Subtracted from BOTH Metrics: Any advance payment NOT yet "closed" by its bolo being fully settled
         const pendingAdvancesValue = (allAdvances || [])
-            .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat))
+            .filter((p: any) => {
+                const b = p.bolos as any;
+                return !(b?.cobrat && b?.pagaments_musics_fets);
+            })
             .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
         const totalPotReal = potBase + manualBalance + potRealValue - pendingAdvancesValue;
@@ -157,13 +160,15 @@ export default function GestioPotPage() {
                 originalId: b.id
             }));
 
-        // 3. Advance Payments - ONLY those from OPEN bolos (closed bolos already include them in pot_delta_final)
+        // 3. Advance Payments - ONLY those from bolos that are NOT yet fully settled
+        // (cobrat=true AND pagaments_musics_fets=true means it's counted in pot_delta_final already)
         const advanceLedgerEntries = (allAdvances || [])
             .filter((p: any) => {
                 if (p.data_pagament < cutoffDate) return false;
-                const boloEstat = (p.bolos as any)?.estat;
-                // Exclude if the bolo is Tancat (already counted in pot_delta_final)
-                if (boloEstat && ['Tancat', 'Tancades'].includes(boloEstat)) return false;
+                const b = p.bolos as any;
+                // If the bolo is fully settled (both cobrat AND pagats musics), exclude from ledger
+                // because the pot_delta_final of that bolo already accounts for the advance payments
+                if (b?.cobrat && b?.pagaments_musics_fets) return false;
                 return true;
             })
             .map((p: any) => ({
