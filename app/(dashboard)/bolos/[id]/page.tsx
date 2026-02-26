@@ -219,7 +219,7 @@ export default function BoloDetailPage() {
         setTimeout(() => setToast({ ...toast, show: false }), 3000);
     };
 
-    const fetchBolo = async (id: string, showLoading = true) => {
+    const fetchBolo = async (id: string, showLoading = true, onlyCalculatedFields = false) => {
         if (showLoading) setLoading(true);
         const { data, error } = await supabase
             .from('bolos')
@@ -230,6 +230,19 @@ export default function BoloDetailPage() {
         if (error) {
             console.error('Error fetching bolo:', error);
         } else {
+            if (onlyCalculatedFields) {
+                // Only update the calculated fields to avoid resetting form state or causing scroll
+                setBolo(prev => prev ? {
+                    ...prev,
+                    num_musics: data.num_musics,
+                    cost_total_musics: data.cost_total_musics,
+                    pot_delta: data.pot_delta,
+                    pot_delta_final: data.pot_delta_final,
+                    cobrat: data.cobrat,
+                    pagaments_musics_fets: data.pagaments_musics_fets
+                } : null);
+                return; // Stop here, no need to reset form or navigation
+            }
             setBolo(data);
             setEconomicData({
                 import_total: data.import_total || 0,
@@ -584,8 +597,8 @@ export default function BoloDetailPage() {
             });
 
             showToastMessage('Dades econòmiques desades', 'success');
-            // Refresh the bolo data to get calculated fields from the DB (triggers)
-            await fetchBolo(String(bolo.id), false);
+            // Refresh only the calculated fields (pot_delta etc.) without resetting form or scrolling
+            await fetchBolo(String(bolo.id), false, true);
         } catch (error) {
             console.error('Error saving economic data:', error);
             showToastMessage('Error en desar les dades econòmiques', 'error');

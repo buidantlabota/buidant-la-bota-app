@@ -157,9 +157,15 @@ export default function GestioPotPage() {
                 originalId: b.id
             }));
 
-        // 3. Advance Payments (count as they are paid)
+        // 3. Advance Payments - ONLY those from OPEN bolos (closed bolos already include them in pot_delta_final)
         const advanceLedgerEntries = (allAdvances || [])
-            .filter((p: any) => p.data_pagament >= cutoffDate)
+            .filter((p: any) => {
+                if (p.data_pagament < cutoffDate) return false;
+                const boloEstat = (p.bolos as any)?.estat;
+                // Exclude if the bolo is Tancat (already counted in pot_delta_final)
+                if (boloEstat && ['Tancat', 'Tancades'].includes(boloEstat)) return false;
+                return true;
+            })
             .map((p: any) => ({
                 date: p.data_pagament,
                 timestamp: p.updated_at || p.created_at || p.creat_at || p.data_pagament,
@@ -169,14 +175,13 @@ export default function GestioPotPage() {
                 originalId: p.id
             }));
 
-        // Combine and Sort all history by TRANSACTION TIME (timestamp)
-        // We use updated_at if available, fallback to created_at
+        // Combine and Sort ascending first (for running balance calc)
         const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, ...advanceLedgerEntries]
             .map(e => ({
                 ...e,
                 sortTime: new Date(e.timestamp || e.date).getTime()
             }))
-            .sort((a, b) => a.sortTime - b.sortTime);
+            .sort((a, b) => a.sortTime - b.sortTime); // ascending for balance calc
 
         const baseEntry = {
             date: '2025-12-31',
@@ -212,7 +217,7 @@ export default function GestioPotPage() {
             yearLedger.push(baseEntry);
         }
 
-        setLedger(yearLedger.reverse()); // Newest first for display
+        setLedger([...yearLedger].reverse()); // Newest first for display (.reverse() on a copy)
         setMovements(yearData || []);
         setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat)));
 
