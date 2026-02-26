@@ -223,7 +223,7 @@ export default function GestioPotPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-4xl font-black text-text-primary tracking-tight font-outfit uppercase italic">Gestió de Pot</h1>
-                    <p className="text-text-secondary mt-1 font-medium italic">Control del pot real i historial de moviments (Des de 2025)</p>
+                    <p className="text-text-secondary mt-1 font-medium italic">Control del pot real i historial de moviments</p>
                 </div>
                 <div className="flex items-center bg-white rounded-xl border border-gray-200 p-1 shadow-sm">
                     <button onClick={() => setYear(prev => prev - 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><span className="material-icons-outlined">chevron_left</span></button>
