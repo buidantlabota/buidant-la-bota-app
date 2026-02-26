@@ -104,8 +104,9 @@ export default function GestioPotPage() {
             .filter((b: any) => b.cobrat)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
+        // Subtracted from BOTH Metrics: Any advance payment NOT yet "closed" by its bolo status
         const pendingAdvancesValue = (allAdvances || [])
-            .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat) && p.data_pagament >= cutoffDate)
+            .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat))
             .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
         const totalPotReal = potBase + manualBalance + potRealValue - pendingAdvancesValue;
@@ -159,22 +160,33 @@ export default function GestioPotPage() {
             after: potBase
         };
 
-        // Combine and Sort
-        const sortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, baseEntry].sort((a, b) => a.date.localeCompare(b.date));
+        // Combine and Sort all history since 2026
+        const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries].sort((a, b) => a.date.localeCompare(b.date));
 
-        // Calculate running balance
-        let currentBalance = potBase;
-        const ledgerWithBalance: LedgerMovement[] = sortedEntries.map(entry => {
-            const balanceBefore = currentBalance;
-            currentBalance += entry.amount;
+        // Calculate continuous running balance starting from the 2025 base
+        let runningBalance = potBase;
+        const fullLedger: any[] = allSortedEntries.map(entry => {
+            const balanceBefore = runningBalance;
+            runningBalance += entry.amount;
             return {
                 ...entry,
                 balanceBefore,
-                balanceAfter: currentBalance
+                balanceAfter: runningBalance
             };
         });
 
-        setLedger(ledgerWithBalance.reverse()); // Newest first for display
+        // Current Year's Starting Balance for the header/footer if needed
+        const yearStartBalance = fullLedger.find(e => e.date >= start)?.balanceBefore ?? (year >= 2026 ? potBase : 0);
+
+        // Filter the ledger JUST for the selected year
+        const yearLedger = fullLedger.filter(e => e.date >= start && e.date <= end);
+
+        // If year is 2025, we might want to show the base entry
+        if (year === 2025) {
+            yearLedger.push(baseEntry);
+        }
+
+        setLedger(yearLedger.reverse()); // Newest first for display
         setMovements(yearData || []);
         setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat)));
 

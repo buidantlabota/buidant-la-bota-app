@@ -139,11 +139,11 @@ export default function EconomiaPage() {
                 .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
             const potRealCount = (allBolos || [])
-                .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
+                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat && b.pagaments_musics_fets)
                 .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
             const dinersDispoCount = (allBolos || [])
-                .filter((b: any) => b.cobrat)
+                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat)
                 .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
             const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesValue;
