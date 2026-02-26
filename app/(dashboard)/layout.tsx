@@ -1,4 +1,5 @@
 ﻿'use client';
+// Redeploy trigger: Refined economic pages and pot management
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
