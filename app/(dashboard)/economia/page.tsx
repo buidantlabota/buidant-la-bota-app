@@ -35,7 +35,9 @@ export default function EconomiaPage() {
         ingressosEfectiu: 0,
         ingressosFactura: 0,
         despeses_musics: 0,
-        pot: 0
+        pot: 0,
+        globalPotReal: 0,
+        globalDinersDispo: 0
     });
 
     const fetchEconomia = async () => {
@@ -102,8 +104,56 @@ export default function EconomiaPage() {
                 ingressosEfectiu: ingEfectiu,
                 ingressosFactura: ingFactura,
                 despeses_musics: cost,
-                pot: p
+                pot: p,
+                globalPotReal: 0, // Will be set below
+                globalDinersDispo: 0
             });
+
+            // Calculate Global Pot (2025+)
+            const cutoffDate = '2025-01-01';
+            const potBase = 510;
+
+            // 1. All Bolos since 2025
+            const { data: allBolos } = await supabase
+                .from('bolos')
+                .select('pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, estat')
+                .gte('data_bolo', cutoffDate)
+                .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
+
+            // 2. All Manual Movements since 2025
+            const { data: allMovements } = await supabase
+                .from('despeses_ingressos')
+                .select('import, tipus, data')
+                .gte('data', cutoffDate);
+
+            // 3. All Advance Payments (that haven't been "absorbed" by tancat bolos)
+            const { data: allAdvances } = await supabase
+                .from('pagaments_anticipats')
+                .select('import, data_pagament, bolos(estat, data_bolo)')
+                .gte('data_pagament', cutoffDate);
+
+            const manualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+
+            const pendingAdvancesValue = (allAdvances || [])
+                .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat))
+                .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+
+            const potRealCount = (allBolos || [])
+                .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
+                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+
+            const dinersDispoCount = (allBolos || [])
+                .filter((b: any) => b.cobrat)
+                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+
+            const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesValue;
+            const finalDinersDispo = potBase + manualBalance + dinersDispoCount - pendingAdvancesValue;
+
+            setStats(prev => ({
+                ...prev,
+                globalPotReal: finalPotReal,
+                globalDinersDispo: finalDinersDispo
+            }));
         }
         setLoading(false);
     };
@@ -248,11 +298,36 @@ export default function EconomiaPage() {
                         {stats.despeses_musics.toFixed(2)}€
                     </p>
                 </div>
-                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm ring-1 ring-primary/10">
-                    <p className="text-sm text-text-secondary font-medium mb-1">Pot Resultant (Marge)</p>
-                    <p className={`text-3xl font-bold font-mono ${stats.pot >= 0 ? 'text-primary' : 'text-red-500'}`}>
-                        {stats.pot.toFixed(2)}€
+                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm ring-1 ring-primary/10 flex flex-col justify-between">
+                    <div>
+                        <p className="text-sm text-text-secondary font-medium mb-1">Pot Resultant (Marge {selectedYear})</p>
+                        <p className={`text-3xl font-bold font-mono ${stats.pot >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                            {stats.pot.toFixed(2)}€
+                        </p>
+                    </div>
+                </div>
+
+                {/* Pot Real & Diners a disposició Cards */}
+                <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pot Real</span>
+                        <span className="material-icons-outlined text-slate-500 text-xs">savings</span>
+                    </div>
+                    <p className="text-3xl font-black font-mono tracking-tighter text-white">
+                        {stats.globalPotReal.toFixed(2)}€
                     </p>
+                    <p className="text-[9px] text-slate-500 mt-2 font-medium uppercase tracking-tight">Cobrat + Pagat (+ Manuals)</p>
+                </div>
+
+                <div className="bg-emerald-950 text-white p-6 rounded-xl shadow-lg border border-emerald-900 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Diners a disposició</span>
+                        <span className="material-icons-outlined text-emerald-500 text-xs">payments</span>
+                    </div>
+                    <p className="text-3xl font-black font-mono tracking-tighter text-white">
+                        {stats.globalDinersDispo.toFixed(2)}€
+                    </p>
+                    <p className="text-[9px] text-emerald-500 mt-2 font-medium uppercase tracking-tight">Cobrat (A punt de gastar)</p>
                 </div>
             </div>
 

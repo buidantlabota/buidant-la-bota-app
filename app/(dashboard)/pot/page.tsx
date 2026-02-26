@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Bolo } from '@/types';
 
@@ -15,6 +15,16 @@ interface DespesaIngres {
     any_pot: number | null;
 }
 
+interface LedgerMovement {
+    date: string;
+    description: string;
+    amount: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    type: 'bolo' | 'manual';
+    originalId: string | number;
+}
+
 export default function GestioPotPage() {
     const supabase = createClient();
     const [movements, setMovements] = useState<DespesaIngres[]>([]);
@@ -23,6 +33,7 @@ export default function GestioPotPage() {
     const [year, setYear] = useState(new Date().getFullYear());
     const [stats, setStats] = useState({
         totalPotReal: 0,      // Money actually in the box
+        totalDinersDispo: 0,  // Margin of collected bolos
         totalACobrar: 0,      // Projected income from uncollected bolos
         totalAPagar: 0,       // Projected debt to musicians
         totalProjectat: 0,    // Real + ACobrar - APagar
@@ -31,6 +42,8 @@ export default function GestioPotPage() {
         yearIngressos: 0,
         yearDespeses: 0
     });
+
+    const [ledger, setLedger] = useState<LedgerMovement[]>([]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newMovement, setNewMovement] = useState<Partial<DespesaIngres>>({
@@ -60,80 +73,106 @@ export default function GestioPotPage() {
         // 2. All Bolos for calculations
         const { data: allBolos } = await supabase
             .from('bolos')
-            .select('id, estat, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets');
+            .select('id, estat, nom_poble, import_total, cost_total_musics, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets')
+            .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
 
         // 3. All Manual Movements for global balance
-        const { data: allMovements } = await supabase.from('despeses_ingressos').select('import, tipus');
+        const { data: allMovements } = await supabase.from('despeses_ingressos').select('*');
 
-        // 4. All Advance Payments with Bolo status
+        // 4. All Advance Payments
         const { data: allAdvances } = await supabase
             .from('pagaments_anticipats')
             .select('*, bolos(estat, nom_poble, data_bolo)');
 
         // CALCULATIONS
-
         const potBase = 510;
         const cutoffDate = '2025-01-01';
 
-        // A. Pot Real (Money in hand)
-        // Manual balance (since cutoff)
-        const totalManualBalance = (allMovements || [])
-            .filter((m: any) => m.data >= cutoffDate || !m.data)
-            .reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+        // Filters for stats (2025+)
+        const manualMovements2025 = (allMovements || []).filter((m: any) => m.data >= cutoffDate || !m.data);
+        const bolos2025 = (allBolos || []).filter((b: any) => b.data_bolo >= cutoffDate);
+        const advances2025 = (allAdvances || []).filter((p: any) => p.data_pagament >= cutoffDate);
 
-        // Closed bolos net profit (since cutoff)
-        const closedBolosPot = (allBolos || [])
-            .filter((b: any) => (b.estat === 'Tancades' || b.estat === 'Tancat') && b.data_bolo >= cutoffDate)
+        // A. Calc Pot Real and Diners Dispo
+        const manualBalance = manualMovements2025.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
+
+        const potRealValue = bolos2025
+            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        // Pending advances that ALREADY left the box (since cutoff)
-        const pendingAdvances = (allAdvances || [])
-            .filter((p: any) => (p.bolos as any)?.estat !== 'Tancades' && (p.bolos as any)?.estat !== 'Tancat' && p.data_pagament >= cutoffDate)
-            .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+        const dinersDispoValue = bolos2025
+            .filter((b: any) => b.cobrat)
+            .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        const potReal = potBase + totalManualBalance + closedBolosPot - pendingAdvances;
+        const pendingAdvancesValue = (allAdvances || [])
+            .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat) && p.data_pagament >= cutoffDate)
+            .reduce((sum, p) => sum + (p.import || 0), 0);
 
-        // B. Pending entries (A cobrar)
-        // Sum of import_total of bolos not collected (since cutoff)
-        const aCobrar = (allBolos || [])
-            .filter((b: any) => !['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat) && !b.cobrat && b.data_bolo >= cutoffDate)
-            .reduce((sum: number, b: any) => {
-                const income = b.import_total || 0;
-                const advancesReceived = (allAdvances || [])
-                    .filter((p: any) => p.bolo_id === b.id)
-                    .reduce((acc: number, p: any) => acc + (p.import || 0), 0);
-                return sum + (income - advancesReceived);
-            }, 0);
+        const totalPotReal = potBase + manualBalance + potRealValue - pendingAdvancesValue;
+        const totalDinersDispo = potBase + manualBalance + dinersDispoValue - pendingAdvancesValue;
 
-        // C. Pending departures (A pagar)
-        // Sum of remaining cost of musicians for bolos not fully paid (since cutoff)
-        const aPagar = (allBolos || [])
-            .filter((b: any) => !['Tancades', 'Tancat', 'Cancel·lats', 'Cancel·lat'].includes(b.estat) && !b.pagaments_musics_fets && b.data_bolo >= cutoffDate)
-            .reduce((sum: number, b: any) => {
-                const totalCost = b.cost_total_musics || 0;
-                // Subtract advances already paid for this bolo
-                const advancesForThisBolo = (allAdvances || [])
-                    .filter((p: any) => p.bolo_id === b.id)
-                    .reduce((acc: number, p: any) => acc + (p.import || 0), 0);
-                return sum + (totalCost - advancesForThisBolo);
-            }, 0);
+        // B. Pending entries (A cobrar / A pagar)
+        const aCobrar = bolos2025
+            .filter((b: any) => !b.cobrat)
+            .reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
 
-        // D. Annual Metrics
+        const aPagar = bolos2025
+            .filter((b: any) => !b.pagaments_musics_fets)
+            .reduce((sum: number, b: any) => sum + (b.cost_total_musics || 0), 0);
+
+        // C. Annual Metrics (requested year)
         const yearBoloPot = (allBolos || [])
-            .filter((b: any) => b.data_bolo >= start && b.data_bolo <= end && !['Cancel·lats', 'Cancel·lat'].includes(b.estat))
+            .filter((b: any) => b.data_bolo >= start && b.data_bolo <= end)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
-
         const yearIng = (yearData || []).filter((m: any) => m.tipus === 'ingrés').reduce((sum: number, m: any) => sum + m.import, 0);
         const yearDesp = (yearData || []).filter((m: any) => m.tipus === 'despesa').reduce((sum: number, m: any) => sum + m.import, 0);
 
+        // D. Create Chronological Ledger
+        // 1. Manual Movements
+        const manualLedgerEntries = manualMovements2025.map(m => ({
+            date: m.data,
+            description: m.descripcio,
+            amount: m.tipus === 'ingrés' ? m.import : -m.import,
+            type: 'manual' as const,
+            originalId: m.id
+        }));
+
+        // 2. Closed Bolos
+        const boloLedgerEntries = bolos2025
+            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
+            .map((b: any) => ({
+                date: b.data_bolo,
+                description: `Bolo: ${b.nom_poble}`,
+                amount: b.pot_delta_final || 0,
+                type: 'bolo' as const,
+                originalId: b.id
+            }));
+
+        // Combine and Sort
+        const sortedEntries = [...manualLedgerEntries, ...boloLedgerEntries].sort((a, b) => a.date.localeCompare(b.date));
+
+        // Calculate running balance
+        let currentBalance = potBase;
+        const ledgerWithBalance: LedgerMovement[] = sortedEntries.map(entry => {
+            const balanceBefore = currentBalance;
+            currentBalance += entry.amount;
+            return {
+                ...entry,
+                balanceBefore,
+                balanceAfter: currentBalance
+            };
+        });
+
+        setLedger(ledgerWithBalance.reverse()); // Newest first for display
         setMovements(yearData || []);
-        setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancades', 'Tancat'].includes((p.bolos as any)?.estat)));
+        setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat)));
 
         setStats({
-            totalPotReal: potReal,
+            totalPotReal,
+            totalDinersDispo,
             totalACobrar: aCobrar,
             totalAPagar: aPagar,
-            totalProjectat: potReal + aCobrar - aPagar,
+            totalProjectat: totalPotReal + aCobrar - aPagar,
             yearBoloPot,
             yearExtraPot: yearIng - yearDesp,
             yearIngressos: yearIng,
@@ -172,8 +211,8 @@ export default function GestioPotPage() {
         <div className="p-4 sm:p-8 space-y-8 max-w-[1400px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-4xl font-black text-text-primary tracking-tight">Gestió Econòmica</h1>
-                    <p className="text-text-secondary mt-1 font-medium">Control del pot reial i previsions de futur</p>
+                    <h1 className="text-4xl font-black text-text-primary tracking-tight font-outfit uppercase italic">Gestió de Pot</h1>
+                    <p className="text-text-secondary mt-1 font-medium italic">Control del pot real i historial de moviments (Des de 2025)</p>
                 </div>
                 <div className="flex items-center bg-white rounded-xl border border-gray-200 p-1 shadow-sm">
                     <button onClick={() => setYear(prev => prev - 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><span className="material-icons-outlined">chevron_left</span></button>
@@ -183,70 +222,76 @@ export default function GestioPotPage() {
             </div>
 
             {/* Main Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-                {/* 1. POT REIAL */}
-                <div className="bg-gradient-to-br from-primary to-red-900 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[180px] max-w-2xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. POT REAL */}
+                <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <span className="material-icons-outlined text-9xl">payments</span>
+                        <span className="material-icons-outlined text-9xl">savings</span>
                     </div>
                     <div>
-                        <p className="text-white/70 text-sm font-black uppercase tracking-[0.2em] mb-1">Diners en Caixa (Real)</p>
+                        <p className="text-white/70 text-sm font-black uppercase tracking-[0.2em] mb-1">Pot Real (Cobrat + Pagat)</p>
                         <p className="text-5xl font-black font-mono tracking-tighter">{stats.totalPotReal.toFixed(2)}€</p>
                     </div>
                     <p className="text-white/60 text-[10px] font-bold mt-4 italic">Inclou bolos tancats i despeses manuals.</p>
                 </div>
+
+                {/* 2. DINERS A DISPOSICIÓ */}
+                <div className="bg-emerald-950 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <span className="material-icons-outlined text-9xl">payments</span>
+                    </div>
+                    <div>
+                        <p className="text-emerald-400/70 text-sm font-black uppercase tracking-[0.2em] mb-1">Diners a disposició</p>
+                        <p className="text-5xl font-black font-mono tracking-tighter">{stats.totalDinersDispo.toFixed(2)}€</p>
+                    </div>
+                    <p className="text-emerald-400/60 text-[10px] font-bold mt-4 italic">Inclou bolos cobrats (marge organització disponible).</p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Manual Movements List */}
-                <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 1. Ledger (Bank Statement style) */}
+                <div className="lg:col-span-2 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xl font-bold flex items-center gap-2">
-                            <span className="material-icons-outlined text-primary">receipt_long</span>
-                            Moviments Manuals {year}
+                            <span className="material-icons-outlined text-primary">account_balance</span>
+                            Historial de Moviments (Pot Real)
                         </h3>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="bg-primary hover:bg-red-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
-                        >
-                            <span className="material-icons-outlined text-sm">add</span>
-                            Afegir
-                        </button>
                     </div>
-
                     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="max-h-[500px] overflow-y-auto">
+                        <div className="max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 sticky top-0 border-b border-gray-100 italic">
                                     <tr className="text-[10px] text-gray-400 uppercase tracking-[0.1em]">
                                         <th className="p-4">Data</th>
                                         <th className="p-4">Concepte</th>
-                                        <th className="p-4 text-right">Import</th>
-                                        <th className="p-4 w-10"></th>
+                                        <th className="p-4 text-right">Valor Inicial</th>
+                                        <th className="p-4 text-right">Moviment</th>
+                                        <th className="p-4 text-right">Nou Nivell</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {movements.map(m => (
-                                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="p-4 text-xs font-mono text-gray-500">
-                                                {new Date(m.data).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit' })}
+                                    {ledger.map((m, i) => (
+                                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 text-xs font-mono text-gray-400 whitespace-nowrap">
+                                                {new Date(m.date).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                             </td>
                                             <td className="p-4">
-                                                <div className="font-bold text-sm text-gray-700">{m.descripcio}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase font-black">{m.categoria}</div>
+                                                <div className="font-bold text-sm text-gray-700">{m.description}</div>
+                                                <div className="text-[8px] text-gray-400 uppercase font-black tracking-widest">{m.type === 'bolo' ? 'Bolo Tancat' : 'Manual'}</div>
                                             </td>
-                                            <td className={`p-4 text-right font-mono font-black ${m.tipus === 'ingrés' ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                {m.tipus === 'ingrés' ? '+' : '-'}{m.import.toFixed(2)}€
+                                            <td className="p-4 text-right font-mono text-xs text-gray-400">
+                                                {m.balanceBefore.toFixed(2)}€
                                             </td>
-                                            <td className="p-4 text-right">
-                                                <button onClick={() => handleDelete(m.id)} className="text-gray-200 hover:text-red-500 transition-colors">
-                                                    <span className="material-icons-outlined text-lg">close</span>
-                                                </button>
+                                            <td className={`p-4 text-right font-mono font-black ${m.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                {m.amount >= 0 ? '+' : ''}{m.amount.toFixed(2)}€
+                                            </td>
+                                            <td className="p-4 text-right font-mono font-black text-gray-900 bg-gray-50/50">
+                                                {m.balanceAfter.toFixed(2)}€
                                             </td>
                                         </tr>
                                     ))}
-                                    {movements.length === 0 && (
-                                        <tr><td colSpan={4} className="p-12 text-center text-gray-400">Cap moviment registrat aquest any.</td></tr>
+                                    {ledger.length === 0 && !loading && (
+                                        <tr><td colSpan={5} className="p-12 text-center text-gray-400 italic">No hi ha moviments registrats des de 2025.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -254,40 +299,50 @@ export default function GestioPotPage() {
                     </div>
                 </div>
 
-                {/* Active Advances List */}
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold flex items-center gap-2">
-                        <span className="material-icons-outlined text-orange-500">priority_high</span>
-                        Pagaments Anticipats (Actius)
-                    </h3>
-                    <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-6">
-                        <p className="text-xs text-orange-800 font-medium mb-4 leading-relaxed bg-white border border-orange-100 p-3 rounded-lg">
-                            ⚠️ Aquests pagaments ja han sortit de la caixa i es resten automàticament del Pot Reial.
-                            Desapareixeran d'aquesta llista quan el bolo corresponent es marqui com a <strong>Tancat</strong>.
+                {/* 2. Side Lists (Advances and Manual Controls) */}
+                <div className="space-y-8">
+                    {/* Manual Movements Controls */}
+                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-black uppercase text-gray-400 tracking-widest">Controls Manuals</h3>
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="bg-primary hover:bg-red-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors shadow-sm"
+                            >
+                                <span className="material-icons-outlined text-xs">add</span>
+                                Nou
+                            </button>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed italic">
+                            Utilitza els controls manuals per ingressar diners de la "butxaca" a la caixa o per registrar despeses directes.
                         </p>
+                    </div>
 
+                    {/* Active Advances List */}
+                    <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-6 flex flex-col h-fit">
+                        <h3 className="text-sm font-black uppercase text-orange-600 tracking-widest mb-4 flex items-center gap-2">
+                            <span className="material-icons-outlined text-base">priority_high</span>
+                            Avançaments Actius
+                        </h3>
                         <div className="space-y-3">
                             {activeAdvances.length > 0 ? (
                                 activeAdvances.map(adv => (
                                     <div key={adv.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex items-center justify-between">
                                         <div className="min-w-0">
-                                            <p className="text-xs font-black text-orange-600 uppercase tracking-tighter">
+                                            <p className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
                                                 {(adv.bolos as any)?.nom_poble}
                                             </p>
-                                            <p className="text-sm font-bold text-gray-700 truncate">
-                                                {adv.notes || 'Avançament de sou'}
-                                            </p>
-                                            <p className="text-[10px] text-gray-400 italic">
-                                                {new Date(adv.data_pagament).toLocaleDateString('ca-ES')}
+                                            <p className="text-xs font-bold text-gray-700 truncate">
+                                                {adv.notes || 'Avançament'}
                                             </p>
                                         </div>
-                                        <div className="text-xl font-mono font-black text-orange-700">
+                                        <div className="text-sm font-mono font-black text-orange-700">
                                             -{adv.import.toFixed(2)}€
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <div className="text-center py-8 text-orange-300 italic text-sm">No hi ha avançaments actius.</div>
+                                <div className="text-center py-8 text-orange-300 italic text-xs">No hi ha avançaments actius.</div>
                             )}
                         </div>
                     </div>
@@ -297,31 +352,31 @@ export default function GestioPotPage() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                        <h3 className="text-2xl font-black mb-6 text-gray-900">Nou Moviment</h3>
+                    <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200 border border-white/20">
+                        <h3 className="text-2xl font-black mb-6 text-gray-900 uppercase italic tracking-tighter">Nou Moviment Directe</h3>
                         <div className="space-y-5">
-                            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-50 rounded-xl">
+                            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-50 rounded-xl border border-gray-100">
                                 <button
                                     onClick={() => setNewMovement({ ...newMovement, tipus: 'despesa' })}
-                                    className={`py-2 px-4 rounded-lg font-bold text-sm transition-all ${newMovement.tipus === 'despesa' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                    className={`py-2 px-4 rounded-lg font-bold text-xs uppercase transition-all ${newMovement.tipus === 'despesa' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                                 >
                                     Despesa
                                 </button>
                                 <button
                                     onClick={() => setNewMovement({ ...newMovement, tipus: 'ingrés' })}
-                                    className={`py-2 px-4 rounded-lg font-bold text-sm transition-all ${newMovement.tipus === 'ingrés' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                    className={`py-2 px-4 rounded-lg font-bold text-xs uppercase transition-all ${newMovement.tipus === 'ingrés' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                                 >
                                     Ingrés
                                 </button>
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Data</label>
+                                <label className="block text-[8px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Data del moviment</label>
                                 <input type="date" value={newMovement.data} onChange={e => setNewMovement({ ...newMovement, data: e.target.value })} className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all font-medium text-gray-700" />
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Import (€)</label>
+                                <label className="block text-[8px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Import exacte (€)</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -336,14 +391,14 @@ export default function GestioPotPage() {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Descripció</label>
-                                <input type="text" value={newMovement.descripcio} onChange={e => setNewMovement({ ...newMovement, descripcio: e.target.value })} className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all font-medium" placeholder="Ex: Compra de material..." />
+                                <label className="block text-[8px] font-black uppercase text-gray-400 mb-1 ml-1 tracking-widest">Descripció del concepte</label>
+                                <input type="text" value={newMovement.descripcio} onChange={e => setNewMovement({ ...newMovement, descripcio: e.target.value })} className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all font-medium" placeholder="Ex: Compra instruments..." />
                             </div>
                         </div>
 
                         <div className="flex gap-4 mt-10">
-                            <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancel·lar</button>
-                            <button onClick={handleAdd} className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold shadow-lg shadow-gray-200 hover:bg-black transition-all">Guardar</button>
+                            <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-xs font-black uppercase text-gray-400 hover:text-gray-600 transition-colors">Cancel·lar</button>
+                            <button onClick={handleAdd} className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold uppercase text-xs shadow-lg shadow-gray-200 hover:bg-green-600 transition-all">Registrar Moviment</button>
                         </div>
                     </div>
                 </div>
@@ -351,4 +406,3 @@ export default function GestioPotPage() {
         </div>
     );
 }
-

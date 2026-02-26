@@ -124,7 +124,6 @@ function InternalDashboardLayout({
                 { name: 'Registre factures', path: '/factures', icon: 'history_edu' },
                 { name: 'Liquidació (Pagaments)', path: '/liquidacio', icon: 'payments' },
                 { name: 'Economia', path: '/economia', icon: 'account_balance' },
-                { name: 'Previsió econòmica', path: '/previsio-economica', icon: 'trending_up' },
                 { name: 'Gestió Pot', path: '/pot', icon: 'savings' },
             ]
         },
