@@ -584,7 +584,8 @@ export default function BoloDetailPage() {
             });
 
             showToastMessage('Dades econòmiques desades', 'success');
-            // setIsEconomicsExpanded(false); // This line was commented out in the original, but added in the instruction. I'll add it.
+            // Refresh the bolo data to get calculated fields from the DB (triggers)
+            await fetchBolo(String(bolo.id), false);
         } catch (error) {
             console.error('Error saving economic data:', error);
             showToastMessage('Error en desar les dades econòmiques', 'error');
@@ -2088,8 +2089,12 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                         <PrivacyMask value={bolo.pot_delta || 0} />
                                     </div>
                                 </div>
-                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm">
-                                    <p className="text-[10px] font-black text-primary dark:text-white/60 uppercase tracking-wider mb-1">Pot Final (+Ajust)</p>
+                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <span className="bg-primary text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 inline-block">
+                                            Pot Final (+Ajust)
+                                        </span>
+                                    </div>
                                     <div className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                         <PrivacyMask value={bolo.pot_delta_final || 0} />
                                     </div>
