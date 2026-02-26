@@ -270,64 +270,104 @@ export default function EconomiaPage() {
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm flex flex-col justify-between">
-                    <div>
-                        <p className="text-sm text-text-secondary font-medium mb-1">Total Ingressos</p>
-                        <p className="text-3xl font-bold text-green-600 font-mono">
-                            {stats.ingressos.toFixed(2)}€
-                        </p>
-                    </div>
-                    {filterTipusIngres === 'tots' && (
-                        <div className="mt-4 pt-4 border-t border-border space-y-1">
-                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                                <span>Factura</span>
-                                <span className="text-gray-900">{stats.ingressosFactura.toFixed(2)}€</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                                <span>Efectiu</span>
-                                <span className="text-gray-900">{stats.ingressosEfectiu.toFixed(2)}€</span>
-                            </div>
+            {/* Stats Cards Section */}
+            <div className="space-y-6">
+                {/* Global Core Metrics (Row 1 - Large) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[160px] group hover:scale-[1.01] transition-transform duration-300">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <span className="material-icons-outlined text-9xl">savings</span>
                         </div>
-                    )}
-                </div>
-                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm">
-                    <p className="text-sm text-text-secondary font-medium mb-1">Cost Músics</p>
-                    <p className="text-3xl font-bold text-red-600 font-mono">
-                        {stats.despeses_musics.toFixed(2)}€
-                    </p>
-                </div>
-                <div className="bg-card-bg p-6 rounded-xl border border-border shadow-sm ring-1 ring-primary/10 flex flex-col justify-between">
-                    <div>
-                        <p className="text-sm text-text-secondary font-medium mb-1">Pot Resultant (Marge {selectedYear})</p>
-                        <p className={`text-3xl font-bold font-mono ${stats.pot >= 0 ? 'text-primary' : 'text-red-500'}`}>
-                            {stats.pot.toFixed(2)}€
-                        </p>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Estat Global</span>
+                                <div className="h-px flex-1 bg-white/10"></div>
+                            </div>
+                            <h3 className="text-sm font-bold text-white/70 mb-1">Pot Real (Cobrat + Pagat)</h3>
+                            <p className="text-4xl font-black font-mono tracking-tighter tabular-nums">
+                                {stats.globalPotReal.toFixed(2)}€
+                            </p>
+                        </div>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight mt-4 relative z-10">Consolidat al banc + despeses manuals</p>
+                    </div>
+
+                    <div className="bg-emerald-950 text-white p-8 rounded-3xl shadow-xl border border-white/10 relative overflow-hidden flex flex-col justify-between min-h-[160px] group hover:scale-[1.01] transition-transform duration-300">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <span className="material-icons-outlined text-9xl">payments</span>
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[10px] font-black uppercase text-emerald-400 tracking-[0.2em]">Liquidesa</span>
+                                <div className="h-px flex-1 bg-white/10"></div>
+                            </div>
+                            <h3 className="text-sm font-bold text-emerald-400/80 mb-1">Diners a disposició</h3>
+                            <p className="text-4xl font-black font-mono tracking-tighter tabular-nums text-emerald-50">
+                                {stats.globalDinersDispo.toFixed(2)}€
+                            </p>
+                        </div>
+                        <p className="text-emerald-600 text-[10px] font-bold uppercase tracking-tight mt-4 relative z-10">Marges de bolos cobrats (Pendents de pagar)</p>
                     </div>
                 </div>
 
-                {/* Pot Real & Diners a disposició Cards */}
-                <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pot Real</span>
-                        <span className="material-icons-outlined text-slate-500 text-xs">savings</span>
+                {/* Annual Performance Metrics (Row 2 - Secondary) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Ingressos Year */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between group hover:shadow-md transition-shadow duration-300">
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ingressos {selectedYear}</span>
+                                <span className="material-icons-outlined text-emerald-500 text-lg group-hover:scale-110 transition-transform">trending_up</span>
+                            </div>
+                            <p className="text-3xl font-black text-slate-900 font-mono tracking-tight group-hover:text-emerald-600 transition-colors">
+                                {stats.ingressos.toFixed(2)}€
+                            </p>
+                        </div>
+                        {filterTipusIngres === 'tots' && (
+                            <div className="mt-4 pt-4 border-t border-gray-50 flex items-center gap-4 text-[10px] font-bold text-gray-400">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                    <span>FACTURA: {stats.ingressosFactura.toFixed(0)}€</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                    <span>EFECTIU: {stats.ingressosEfectiu.toFixed(0)}€</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <p className="text-3xl font-black font-mono tracking-tighter text-white">
-                        {stats.globalPotReal.toFixed(2)}€
-                    </p>
-                    <p className="text-[9px] text-slate-500 mt-2 font-medium uppercase tracking-tight">Cobrat + Pagat (+ Manuals)</p>
-                </div>
 
-                <div className="bg-emerald-950 text-white p-6 rounded-xl shadow-lg border border-emerald-900 flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Diners a disposició</span>
-                        <span className="material-icons-outlined text-emerald-500 text-xs">payments</span>
+                    {/* Cost Músics Year */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between group hover:shadow-md transition-shadow duration-300">
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cost Músics {selectedYear}</span>
+                                <span className="material-icons-outlined text-red-500 text-lg group-hover:scale-110 transition-transform">group</span>
+                            </div>
+                            <p className="text-3xl font-black text-slate-900 font-mono tracking-tight group-hover:text-red-500 transition-colors">
+                                {stats.despeses_musics.toFixed(2)}€
+                            </p>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-50">
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter italic">Suma de pagaments previstos i fets</p>
+                        </div>
                     </div>
-                    <p className="text-3xl font-black font-mono tracking-tighter text-white">
-                        {stats.globalDinersDispo.toFixed(2)}€
-                    </p>
-                    <p className="text-[9px] text-emerald-500 mt-2 font-medium uppercase tracking-tight">Cobrat (A punt de gastar)</p>
+
+                    {/* Marge Bolos Year (Renamed) */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm ring-2 ring-primary/5 flex flex-col justify-between group hover:shadow-md transition-all duration-300">
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] font-black uppercase text-primary tracking-widest">Rendiment {selectedYear}</span>
+                                <span className="material-icons-outlined text-primary text-lg animate-pulse-slow">account_balance_wallet</span>
+                            </div>
+                            <h3 className="text-xs font-bold text-slate-500 mb-1">Marge directe dels bolos</h3>
+                            <p className={`text-3xl font-black font-mono tracking-tight ${stats.pot >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                                {stats.pot.toFixed(2)}€
+                            </p>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-primary/10">
+                            <p className="text-[9px] font-bold text-primary/60 uppercase tracking-tighter italic">Som la polla (Marge net anual)</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
