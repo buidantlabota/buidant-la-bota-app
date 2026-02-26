@@ -2254,12 +2254,16 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                         type="checkbox"
                                         id="cobrat_eco"
                                         checked={economicData.cobrat || false}
-                                        onChange={(e) => {
+                                        onChange={async (e) => {
                                             e.stopPropagation();
-                                            setEconomicData({ ...economicData, cobrat: e.target.checked });
-                                            setBolo(prev => prev ? { ...prev, cobrat: e.target.checked } : null);
+                                            const val = e.target.checked;
+                                            // Update local state immediately
+                                            setEconomicData(prev => ({ ...prev, cobrat: val }));
+                                            setBolo(prev => prev ? { ...prev, cobrat: val } : null);
+                                            // Save directly to DB silently (no scroll, no loading)
+                                            await supabase.from('bolos').update({ cobrat: val }).eq('id', bolo.id);
                                         }}
-                                        disabled={isRebutjat}
+                                        disabled={isRebutjat || updating}
                                         className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
                                     />
                                     <label htmlFor="cobrat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
@@ -2272,12 +2276,16 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                         type="checkbox"
                                         id="pagat_eco"
                                         checked={economicData.pagaments_musics_fets || false}
-                                        onChange={(e) => {
+                                        onChange={async (e) => {
                                             e.stopPropagation();
-                                            setEconomicData({ ...economicData, pagaments_musics_fets: e.target.checked });
-                                            setBolo(prev => prev ? { ...prev, pagaments_musics_fets: e.target.checked } : null);
+                                            const val = e.target.checked;
+                                            // Update local state immediately
+                                            setEconomicData(prev => ({ ...prev, pagaments_musics_fets: val }));
+                                            setBolo(prev => prev ? { ...prev, pagaments_musics_fets: val } : null);
+                                            // Save directly to DB silently (no scroll, no loading)
+                                            await supabase.from('bolos').update({ pagaments_musics_fets: val }).eq('id', bolo.id);
                                         }}
-                                        disabled={isRebutjat}
+                                        disabled={isRebutjat || updating}
                                         className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
                                     />
                                     <label htmlFor="pagat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
