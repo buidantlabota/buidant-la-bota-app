@@ -83,12 +83,12 @@ export default function GestioPotPage() {
         // 3. All Manual Movements for global balance
         const { data: allMovements } = await supabase
             .from('despeses_ingressos')
-            .select('*, created_at, updated_at');
+            .select('*');
 
         // 4. All Advance Payments
         const { data: allAdvances } = await supabase
             .from('pagaments_anticipats')
-            .select('*, created_at, updated_at, bolos(estat, nom_poble, data_bolo)');
+            .select('*, bolos(estat, nom_poble, data_bolo)');
 
         // CALCULATIONS
         const potBase = 4560.21;
@@ -138,7 +138,7 @@ export default function GestioPotPage() {
         // 1. Manual Movements
         const manualLedgerEntries = manualMovements2025.map((m: any) => ({
             date: m.data,
-            timestamp: m.updated_at || m.created_at,
+            timestamp: m.updated_at || m.created_at || m.data,
             description: m.descripcio,
             amount: m.tipus === 'ingrés' ? m.import : -m.import,
             type: 'manual' as const,
@@ -150,7 +150,7 @@ export default function GestioPotPage() {
             .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
             .map((b: any) => ({
                 date: b.data_bolo,
-                timestamp: b.updated_at,
+                timestamp: b.updated_at || b.created_at || b.data_bolo,
                 description: `Bolo: ${b.nom_poble}`,
                 amount: b.pot_delta_final || 0,
                 type: 'bolo' as const,
@@ -162,7 +162,7 @@ export default function GestioPotPage() {
             .filter((p: any) => p.data_pagament >= cutoffDate)
             .map((p: any) => ({
                 date: p.data_pagament,
-                timestamp: p.updated_at || p.created_at,
+                timestamp: p.updated_at || p.created_at || p.creat_at || p.data_pagament,
                 description: `Anticipat: ${p.bolos?.nom_poble || 'Músic'}`,
                 amount: -p.import,
                 type: 'advance' as const,
@@ -380,7 +380,7 @@ export default function GestioPotPage() {
                                                         }`}>
                                                         {m.type === 'bolo' ? 'Bolo Tancat' : m.type === 'advance' ? 'Pagament Anticipat' : 'Manual'}
                                                     </span>
-                                                    {m.timestamp && m.timestamp.split('T')[0] !== m.date && (
+                                                    {m.timestamp && String(m.timestamp).includes('T') && String(m.timestamp).split('T')[0] !== m.date && (
                                                         <span className="text-[8px] text-gray-400 font-bold italic">
                                                             (Registrat: {new Date(m.timestamp).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit' })})
                                                         </span>
