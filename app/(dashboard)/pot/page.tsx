@@ -97,11 +97,19 @@ export default function GestioPotPage() {
         const manualBalance = manualMovements2025.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const potRealValue = bolos2025
-            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
+            .filter((b: any) => {
+                const year = b.data_bolo.split('-')[0];
+                if (year === '2025') return true;
+                return b.cobrat && b.pagaments_musics_fets;
+            })
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const dinersDispoValue = bolos2025
-            .filter((b: any) => b.cobrat)
+            .filter((b: any) => {
+                const year = b.data_bolo.split('-')[0];
+                if (year === '2025') return true;
+                return b.cobrat;
+            })
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const pendingAdvancesValue = (allAdvances || [])
@@ -137,9 +145,13 @@ export default function GestioPotPage() {
             originalId: m.id
         }));
 
-        // 2. Closed Bolos
+        // 2. All 2025+ Bolos (user wants to count them all as settled movements)
         const boloLedgerEntries = bolos2025
-            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
+            .filter((b: any) => {
+                const year = b.data_bolo.split('-')[0];
+                if (year === '2025') return true;
+                return b.cobrat && b.pagaments_musics_fets;
+            })
             .map((b: any) => ({
                 date: b.data_bolo,
                 description: `Bolo: ${b.nom_poble}`,

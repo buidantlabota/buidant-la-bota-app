@@ -164,10 +164,6 @@ export default function BolosPage() {
     const [sortBy, setSortBy] = useState<string>('data-desc');
     const [actuacioOptions, setActuacioOptions] = useState<{ value: string, label: string }[]>([]);
 
-    // Pot Stats for the header
-    const [potStats, setPotStats] = useState({ real: 0, dispo: 0 });
-    const [showPotRegistry, setShowPotRegistry] = useState(false);
-    const [potLedger, setPotLedger] = useState<any[]>([]);
     const [selectedBoloForConvocatoria, setSelectedBoloForConvocatoria] = useState<Bolo | null>(null);
     const [convocatoriaText, setConvocatoriaText] = useState('');
 
@@ -275,73 +271,10 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             const baseTypes = ['Festa Major', 'Cercavila', 'Concert', 'Correfoc', 'Privat', 'Casament'];
             const allTypes = Array.from(new Set([...baseTypes, ...types as string[]])).sort();
             setActuacioOptions(allTypes.map(t => ({ value: t, label: t })));
-
-            // Fetch Pot Stats silently
-            fetchPotStats(data || []);
         }
         setLoading(false);
     };
 
-    const fetchPotStats = async (allBolos: any[]) => {
-        const cutoffDate = '2025-01-01';
-        const potBase = 510;
-
-        // 1. Manual Movements
-        const { data: allMovements } = await supabase
-            .from('despeses_ingressos')
-            .select('*')
-            .gte('data', cutoffDate);
-
-        // 2. Advances
-        const { data: allAdvances } = await supabase
-            .from('pagaments_anticipats')
-            .select('*, bolos(estat, data_bolo)')
-            .gte('data_pagament', cutoffDate);
-
-        const bolos2025 = allBolos.filter((b: any) => b.data_bolo >= cutoffDate);
-        const manualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
-
-        const potRealValue = bolos2025
-            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
-            .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
-
-        const dinersDispoValue = bolos2025
-            .filter((b: any) => b.cobrat)
-            .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
-
-        const pendingAdvancesValue = (allAdvances || [])
-            .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat))
-            .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
-
-        const real = potBase + manualBalance + potRealValue - pendingAdvancesValue;
-        const dispo = potBase + manualBalance + dinersDispoValue - pendingAdvancesValue;
-
-        setPotStats({ real, dispo });
-
-        // Ledger for the registry view
-        const manualLedgerEntries = (allMovements || []).map((m: any) => ({
-            date: m.data,
-            description: m.descripcio,
-            amount: m.tipus === 'ingrés' ? m.import : -m.import,
-            type: 'manual'
-        }));
-        const boloLedgerEntries = bolos2025
-            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
-            .map((b: any) => ({
-                date: b.data_bolo,
-                description: `Bolo: ${b.nom_poble}`,
-                amount: b.pot_delta_final || 0,
-                type: 'bolo'
-            }));
-        const sorted = [...manualLedgerEntries, ...boloLedgerEntries].sort((a, b) => a.date.localeCompare(b.date));
-        let cur = potBase;
-        const withBalance = sorted.map(e => {
-            const before = cur;
-            cur += e.amount;
-            return { ...e, before, after: cur };
-        });
-        setPotLedger(withBalance.reverse().slice(0, 10)); // Just last 10 for the bolos page
-    };
 
     // Filter logic
     const filteredBolos = bolos.filter((bolo: Bolo) => {
@@ -439,23 +372,7 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gestió de bolos</h1>
-                    <div className="flex items-center gap-6 mt-2">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-900 text-white rounded-lg shadow-sm border border-slate-700">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pot Real</span>
-                            <span className="font-mono font-black text-sm">{potStats.real.toFixed(2)}€</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-950 text-white rounded-lg shadow-sm border border-emerald-900">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">En disposició</span>
-                            <span className="font-mono font-black text-sm">{potStats.dispo.toFixed(2)}€</span>
-                        </div>
-                        <button
-                            onClick={() => setShowPotRegistry(!showPotRegistry)}
-                            className="text-[10px] font-black uppercase text-primary hover:underline flex items-center gap-1"
-                        >
-                            <span className="material-icons-outlined text-sm">history</span>
-                            Registre
-                        </button>
-                    </div>
+                    <p className="text-gray-500 mt-1">Llista completa i seguiment d'actuacions</p>
                 </div>
                 <Link
                     href="/bolos/new"
@@ -466,46 +383,6 @@ _Es prega confirmació el més aviat possible!_ 🎺🥁`;
                 </Link>
             </div>
 
-            {/* Pot Registry View */}
-            {showPotRegistry && (
-                <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-inner animate-in slide-in-from-top duration-300">
-                    <div className="flex items-center justify-between mb-4 px-2">
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                            <span className="material-icons-outlined text-sm">account_balance</span>
-                            Últims moviments de Pot (Real)
-                        </h3>
-                        <Link href="/pot" className="text-[10px] font-bold text-primary hover:underline">Veure tot l'historial</Link>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-                        <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50 border-b border-slate-100 italic text-slate-400">
-                                <tr>
-                                    <th className="p-3 font-medium">Data</th>
-                                    <th className="p-3 font-medium">Concepte</th>
-                                    <th className="p-3 text-right font-medium">Anterior</th>
-                                    <th className="p-3 text-right font-medium">Diferència</th>
-                                    <th className="p-3 text-right font-medium">Nou</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {potLedger.map((m, i) => (
-                                    <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="p-3 font-mono text-slate-400">
-                                            {new Date(m.date).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit' })}
-                                        </td>
-                                        <td className="p-3 font-bold text-slate-700">{m.description}</td>
-                                        <td className="p-3 text-right text-slate-400 font-mono">{m.before.toFixed(2)}€</td>
-                                        <td className={`p-3 text-right font-mono font-black ${m.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                            {m.amount >= 0 ? '+' : ''}{m.amount.toFixed(2)}€
-                                        </td>
-                                        <td className="p-3 text-right font-mono font-black text-slate-900">{m.after.toFixed(2)}€</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
 
             {/* Filters Area */}
             <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-6">
