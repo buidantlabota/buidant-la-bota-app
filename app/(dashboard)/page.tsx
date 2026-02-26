@@ -104,19 +104,19 @@ export default function Dashboard() {
           setNumBolos(0);
         }
 
-        const potBase = 510;
-        const cutoffDate = '2025-01-01';
+        const potBase = 4560.21;
+        const cutoffDate = '2026-01-01';
 
         const totalManualBalance = (allMovements || [])
-          .filter((m: any) => m.data >= cutoffDate || !m.data) // Assuming older movements don't have date or are pre-2025
+          .filter((m: any) => m.data >= cutoffDate || !m.data)
           .reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
         const closedBolosPot = (allBolos || [])
-          .filter((b: any) => (b.estat === 'Tancades' || b.estat === 'Tancat') && b.data_bolo >= cutoffDate)
+          .filter((b: any) => (b.cobrat && b.pagaments_musics_fets) && b.data_bolo >= cutoffDate)
           .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
         const currentAdvances = (allAdvances || [])
-          .filter((a: any) => !['Tancades', 'Tancat'].includes(a.bolos?.estat) && a.data_pagament >= cutoffDate)
+          .filter((a: any) => !['Tancades', 'Tancat'].includes(a.bolos?.estat))
           .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
         const potReal = potBase + totalManualBalance + closedBolosPot - currentAdvances;
@@ -431,7 +431,7 @@ export default function Dashboard() {
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-icons-outlined text-9xl">payments</span>
           </div>
-          <p className="text-white/50 text-xs font-black uppercase tracking-[0.2em] mb-2">Diners en Caixa (Pot Reial)</p>
+          <p className="text-white/50 text-xs font-black uppercase tracking-[0.2em] mb-2">Diners en Caixa (Pot Real)</p>
           <div className="text-6xl font-black tracking-tighter">
             {loading ? '...' : <PrivacyMask value={finances.potReal} className="" />}
           </div>
