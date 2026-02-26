@@ -56,6 +56,9 @@ export default function GestioPotPage() {
     const [amountStr, setAmountStr] = useState('');
 
     const [bolos, setBolos] = useState<Bolo[]>([]);
+    const [distribution, setDistribution] = useState<{ name: string, amount: number }[]>([]);
+    const [isDistModalOpen, setIsDistModalOpen] = useState(false);
+    const [newDistItem, setNewDistItem] = useState({ name: '', amount: 0 });
 
     const fetchPot = async () => {
         setLoading(true);
@@ -190,6 +193,17 @@ export default function GestioPotPage() {
         setMovements(yearData || []);
         setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat)));
 
+        // Fetch Distribution from app_config
+        const { data: configData } = await supabase
+            .from('app_config')
+            .select('value')
+            .eq('key', 'pot_distribution')
+            .single();
+
+        if (configData) {
+            setDistribution((configData.value as any).items || []);
+        }
+
         setStats({
             totalPotReal,
             totalDinersDispo,
@@ -209,6 +223,16 @@ export default function GestioPotPage() {
         supabase.from('bolos').select('id, nom_poble, data_bolo').order('data_bolo', { ascending: false }).limit(20)
             .then(({ data }: { data: any }) => setBolos(data || []));
     }, [year]);
+
+    const handleSaveDist = async (items: { name: string, amount: number }[]) => {
+        const { error } = await supabase
+            .from('app_config')
+            .upsert({ key: 'pot_distribution', value: { items } });
+        if (!error) {
+            setDistribution(items);
+            setIsDistModalOpen(false);
+        }
+    };
 
     const handleAdd = async () => {
         if (!newMovement.import || !newMovement.descripcio) return;
@@ -268,6 +292,32 @@ export default function GestioPotPage() {
                         <p className="text-5xl font-black font-mono tracking-tighter">{stats.totalDinersDispo.toFixed(2)}€</p>
                     </div>
                     <p className="text-emerald-400/60 text-[10px] font-bold mt-4 italic">Inclou bolos cobrats (marge organització disponible).</p>
+
+                    {/* Distribution Summary */}
+                    <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase text-emerald-400/50">Distribució</span>
+                            <button onClick={() => setIsDistModalOpen(true)} className="text-[10px] font-bold text-white hover:underline flex items-center gap-1">
+                                <span className="material-icons-outlined text-xs">edit</span> Editar
+                            </button>
+                        </div>
+                        <div className="space-y-1">
+                            {distribution.map((d, i) => (
+                                <div key={i} className="flex justify-between items-center text-xs font-mono">
+                                    <span className="opacity-70">{d.name}</span>
+                                    <span className="font-bold">{d.amount.toFixed(2)}€</span>
+                                </div>
+                            ))}
+                            {distribution.length > 0 && (
+                                <div className="flex justify-between items-center text-[10px] font-bold border-t border-white/5 pt-1 mt-1">
+                                    <span className="opacity-50 uppercase tracking-tighter">Resta per assignar</span>
+                                    <span className={Math.abs(stats.totalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)) > 0.1 ? 'text-red-400' : 'text-emerald-400'}>
+                                        {(stats.totalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)).toFixed(2)}€
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -422,6 +472,87 @@ export default function GestioPotPage() {
                         <div className="flex gap-4 mt-10">
                             <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-xs font-black uppercase text-gray-400 hover:text-gray-600 transition-colors">Cancel·lar</button>
                             <button onClick={handleAdd} className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold uppercase text-xs shadow-lg shadow-gray-200 hover:bg-green-600 transition-all">Registrar Moviment</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Distribution Modal */}
+            {isDistModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md p-8 sm:p-10 relative animate-in zoom-in duration-300">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Editar Distribució</h2>
+                        <p className="text-slate-400 text-sm italic mb-8">Reparteix els {stats.totalDinersDispo.toFixed(2)}€ entre el banc i efectiu.</p>
+
+                        <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+                            {distribution.map((d, i) => (
+                                <div key={i} className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl group">
+                                    <input
+                                        type="text"
+                                        value={d.name}
+                                        onChange={e => {
+                                            const newD = [...distribution];
+                                            newD[i].name = e.target.value;
+                                            setDistribution(newD);
+                                        }}
+                                        className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold"
+                                        placeholder="Nom (Ex: Banc, En Pere...)"
+                                    />
+                                    <input
+                                        type="number"
+                                        value={d.amount}
+                                        onChange={e => {
+                                            const newD = [...distribution];
+                                            newD[i].amount = parseFloat(e.target.value) || 0;
+                                            setDistribution(newD);
+                                        }}
+                                        className="w-24 bg-transparent border-none focus:ring-0 text-sm font-mono font-bold text-right"
+                                    />
+                                    <button onClick={() => setDistribution(distribution.filter((_, idx) => idx !== i))} className="p-1 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="material-icons-outlined text-sm">remove_circle</span>
+                                    </button>
+                                </div>
+                            ))}
+
+                            <div className="flex gap-2 p-2 rounded-xl border-2 border-dashed border-gray-100 italic text-gray-400 hover:border-gray-200 transition-colors">
+                                <input
+                                    type="text"
+                                    placeholder="Nou responsable..."
+                                    className="flex-1 bg-transparent border-none focus:ring-0 text-xs"
+                                    value={newDistItem.name}
+                                    onChange={e => setNewDistItem({ ...newDistItem, name: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    className="w-20 bg-transparent border-none focus:ring-0 text-xs font-mono"
+                                    value={newDistItem.amount || ''}
+                                    onChange={e => setNewDistItem({ ...newDistItem, amount: parseFloat(e.target.value) || 0 })}
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (newDistItem.name) {
+                                            setDistribution([...distribution, newDistItem]);
+                                            setNewDistItem({ name: '', amount: 0 });
+                                        }
+                                    }}
+                                    className="p-1 text-primary"
+                                >
+                                    <span className="material-icons-outlined text-sm">add_circle</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold">
+                            <span className="text-gray-400 uppercase">Faltaria per assignar:</span>
+                            <span className={Math.abs(stats.totalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)) > 0.1 ? 'text-red-500' : 'text-emerald-600'}>
+                                {(stats.totalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)).toFixed(2)}€
+                            </span>
+                        </div>
+
+                        <div className="flex gap-4 mt-8">
+                            <button onClick={() => setIsDistModalOpen(false)} className="flex-1 py-3 text-xs font-black uppercase text-gray-400">Tancar</button>
+                            <button onClick={() => handleSaveDist(distribution)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs shadow-xl shadow-gray-200">Guardar</button>
                         </div>
                     </div>
                 </div>
