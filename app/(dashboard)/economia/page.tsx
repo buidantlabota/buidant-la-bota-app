@@ -134,67 +134,30 @@ export default function EconomiaPage() {
 
             const manualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
-            // ACCOUNTING ENGINE CORE FIX - STRICT CASH FLOW METHOD
-            let collectedIncomes = 0;
-            let fullCostOfUnpaidBolos = 0;
-            let totalAjustaments = 0;
+            const potRealCount = (allBolos || [])
+                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat && b.pagaments_musics_fets)
+                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-            const bolos2026 = (allBolos || []).filter((b: any) => b.data_bolo >= cutoffDate);
-            bolos2026.forEach((b: any) => {
-                const import_total = b.import_total || 0;
-                const cost_musics = b.cost_total_musics || 0;
+            const dinersDispoCount = (allBolos || [])
+                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat)
+                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-                totalAjustaments += (b.ajust_pot_manual || 0);
+            const pendingAdvancesForPotReal = (allAdvances || [])
+                .filter((a: any) => {
+                    const b = a.bolos;
+                    return !(b?.cobrat && b?.pagaments_musics_fets);
+                })
+                .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-                if (b.cobrat) {
-                    collectedIncomes += import_total;
-                }
+            const pendingAdvancesForDispo = (allAdvances || [])
+                .filter((a: any) => {
+                    const b = a.bolos;
+                    return !b?.cobrat;
+                })
+                .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-                if (!b.pagaments_musics_fets) {
-                    // We haven't paid them their final payout yet, so we still owe the bulk of this
-                    fullCostOfUnpaidBolos += cost_musics;
-                }
-            });
-
-            // Calculate advances
-            let totalAdvancesPaid = 0;
-            let advancesForUnpaidBolos = 0;
-
-            (allAdvances || []).forEach((a: any) => {
-                totalAdvancesPaid += (a.import || 0);
-
-                const b = a.bolos;
-                if (!b || !b.pagaments_musics_fets) {
-                    // This advance went towards a bolo we still consider 'unpaid' overall
-                    advancesForUnpaidBolos += (a.import || 0);
-                }
-            });
-
-            // POT REAL: Strict cash in the bank. 
-            // Base + Manual + Incomes Collected + Adjustments - ALL Advances Ever Paid - Remaining Payouts (Cost - Advances) for fully paid bolos
-            // To simplify Remaining Payouts for fully paid bolos: it is exactly (Total Cost of Paid bolos) - (Advances for Paid bolos).
-            // Actually, a simpler way for Pot Real:
-            // Pot Real = (Base + Manual) + (Incomes Collected + Adjustments) - X
-            // where X = Total Money left the bank to pay musicians = (Advances) + (Final Payouts).
-            // Final payouts = Sum of Costs of Paid Bolos - Advances for Paid bolos.
-            // So X = Advances + (Costs of Paid Bolos - Advances for Paid Bolos) = Advances for UNPAID bolos + Costs of PAID bolos.
-
-            let costsOfPaidBolos = 0;
-            bolos2026.forEach((b: any) => {
-                if (b.pagaments_musics_fets) {
-                    costsOfPaidBolos += (b.cost_total_musics || 0);
-                }
-            });
-
-            const moneySpentOnMusicians = advancesForUnpaidBolos + costsOfPaidBolos;
-
-            const finalPotReal = potBase + manualBalance + collectedIncomes + totalAjustaments - moneySpentOnMusicians;
-
-            // DINERS A DISPOSICIÓ:
-            // The money in the bank (Pot Real) MINUS the money we STILL owe to musicians.
-            // We owe them: (Full Cost of Unpaid Bolos) - (Advances already paid for them).
-            const stillOwedToMusicians = fullCostOfUnpaidBolos - advancesForUnpaidBolos;
-            const finalDinersDispo = finalPotReal - stillOwedToMusicians;
+            const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesForPotReal;
+            const finalDinersDispo = potBase + manualBalance + dinersDispoCount - pendingAdvancesForDispo;
 
             setStats(prev => ({
                 ...prev,

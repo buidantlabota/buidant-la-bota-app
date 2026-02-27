@@ -102,44 +102,30 @@ export default function GestioPotPage() {
         // A. Calc Pot Real and Diners Dispo
         const manualBalance = manualMovements2025.reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
-        // ACCOUNTING ENGINE CORE FIX
-        let potRealBoloImpact = 0;
-        let dinersDispoBoloImpact = 0;
+        const potRealValue = bolos2025
+            .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
+            .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        bolos2025.forEach((b: any) => {
-            const import_total = b.import_total || 0;
-            const cost_musics = b.cost_total_musics || 0;
-            const ajust = b.ajust_pot_manual || 0;
-            const trueMargin = import_total - cost_musics + ajust;
+        const dinersDispoValue = bolos2025
+            .filter((b: any) => b.cobrat)
+            .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-            if (b.cobrat && b.pagaments_musics_fets) {
-                potRealBoloImpact += trueMargin;
-            } else if (!b.cobrat && b.pagaments_musics_fets) {
-                potRealBoloImpact -= cost_musics;
-            }
+        const pendingAdvancesForPotReal = (allAdvances || [])
+            .filter((a: any) => {
+                const b = a.bolos;
+                return !(b?.cobrat && b?.pagaments_musics_fets);
+            })
+            .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-            if (b.cobrat) {
-                dinersDispoBoloImpact += trueMargin;
-            } else if (b.pagaments_musics_fets) {
-                dinersDispoBoloImpact -= cost_musics;
-            }
-        });
+        const pendingAdvancesForDispo = (allAdvances || [])
+            .filter((a: any) => {
+                const b = a.bolos;
+                return !b?.cobrat;
+            })
+            .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-        let currentAdvances = 0;
-        let dispoPendingAdvancesValue = 0;
-
-        advances2025.forEach((a: any) => {
-            const b = a.bolos;
-            if (!b || !b.pagaments_musics_fets) {
-                currentAdvances += (a.import || 0);
-            }
-            if (!b || (!b.cobrat && !b.pagaments_musics_fets)) {
-                dispoPendingAdvancesValue += (a.import || 0);
-            }
-        });
-
-        const totalPotReal = potBase + manualBalance + potRealBoloImpact - currentAdvances;
-        const totalDinersDispo = potBase + manualBalance + dinersDispoBoloImpact - dispoPendingAdvancesValue;
+        const totalPotReal = potBase + manualBalance + potRealValue - pendingAdvancesForPotReal;
+        const totalDinersDispo = potBase + manualBalance + dinersDispoValue - pendingAdvancesForDispo;
 
         // B. Pending entries (A cobrar / A pagar)
         const aCobrar = bolos2025

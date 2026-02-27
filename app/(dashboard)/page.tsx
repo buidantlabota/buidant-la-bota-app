@@ -111,52 +111,19 @@ export default function Dashboard() {
           .filter((m: any) => m.data >= cutoffDate || !m.data)
           .reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
-        // ACCOUNTING ENGINE CORE FIX - STRICT CASH FLOW METHOD
-        let collectedIncomes = 0;
-        let fullCostOfUnpaidBolos = 0;
-        let totalAjustaments = 0;
+        const potRealValue = (allBolos || [])
+          .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat && b.pagaments_musics_fets)
+          .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        const bolos2026 = (allBolos || []).filter((b: any) => b.data_bolo >= cutoffDate);
-        bolos2026.forEach((b: any) => {
-          const import_total = b.import_total || 0;
-          const cost_musics = b.cost_total_musics || 0;
-
-          totalAjustaments += (b.ajust_pot_manual || 0);
-
-          if (b.cobrat) {
-            collectedIncomes += import_total;
-          }
-
-          if (!b.pagaments_musics_fets) {
-            fullCostOfUnpaidBolos += cost_musics;
-          }
-        });
-
-        let totalAdvancesPaid = 0;
-        let advancesForUnpaidBolos = 0;
-
-        (allAdvances || [])
-          .filter((a: any) => !['Tancades', 'Tancat'].includes(a.bolos?.estat))
-          .forEach((a: any) => {
+        const pendingAdvancesForPotReal = (allAdvances || [])
+          .filter((a: any) => {
             const boloPageMatched = allBolos?.find((b: any) => b.id === a.bolo_id);
             const b = boloPageMatched || a.bolos;
+            return !(b?.cobrat && b?.pagaments_musics_fets);
+          })
+          .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
-            totalAdvancesPaid += (a.import || 0);
-
-            if (!b || !b.pagaments_musics_fets) {
-              advancesForUnpaidBolos += (a.import || 0);
-            }
-          });
-
-        let costsOfPaidBolos = 0;
-        bolos2026.forEach((b: any) => {
-          if (b.pagaments_musics_fets) {
-            costsOfPaidBolos += (b.cost_total_musics || 0);
-          }
-        });
-
-        const moneySpentOnMusicians = advancesForUnpaidBolos + costsOfPaidBolos;
-        const potReal = potBase + totalManualBalance + collectedIncomes + totalAjustaments - moneySpentOnMusicians;
+        const potReal = potBase + totalManualBalance + potRealValue - pendingAdvancesForPotReal;
 
         const aCobrar = (allBolos || [])
           .filter((b: any) => {
