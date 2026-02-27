@@ -105,15 +105,7 @@ export default function EconomiaPage() {
             const ingEfectiu = (data || []).filter((b: any) => b.tipus_ingres === 'Efectiu').reduce((acc: number, b: any) => acc + (b.import_total || 0), 0);
             const ingFactura = (data || []).filter((b: any) => b.tipus_ingres === 'Factura').reduce((acc: number, b: any) => acc + (b.import_total || 0), 0);
 
-            setStats({
-                ingressos: ing,
-                ingressosEfectiu: ingEfectiu,
-                ingressosFactura: ingFactura,
-                despeses_musics: cost,
-                pot: p,
-                globalPotReal: 0, // Will be set below
-                globalDinersDispo: 0
-            });
+
 
             // Calculate Global Pot (2026+)
             const cutoffDate = '2026-01-01';
