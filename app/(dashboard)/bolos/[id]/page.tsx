@@ -2257,10 +2257,11 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                         onChange={async (e) => {
                                             e.stopPropagation();
                                             const val = e.target.checked;
-                                            // Update local state immediately
+                                            // Preserve scroll position to avoid jumping to top on re-render
+                                            const scrollY = window.scrollY;
                                             setEconomicData(prev => ({ ...prev, cobrat: val }));
                                             setBolo(prev => prev ? { ...prev, cobrat: val } : null);
-                                            // Save directly to DB silently (no scroll, no loading)
+                                            requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: 'instant' }));
                                             await supabase.from('bolos').update({ cobrat: val }).eq('id', bolo.id);
                                         }}
                                         disabled={isRebutjat || updating}
@@ -2279,10 +2280,11 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                                         onChange={async (e) => {
                                             e.stopPropagation();
                                             const val = e.target.checked;
-                                            // Update local state immediately
+                                            // Preserve scroll position to avoid jumping to top on re-render
+                                            const scrollY = window.scrollY;
                                             setEconomicData(prev => ({ ...prev, pagaments_musics_fets: val }));
                                             setBolo(prev => prev ? { ...prev, pagaments_musics_fets: val } : null);
-                                            // Save directly to DB silently (no scroll, no loading)
+                                            requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: 'instant' }));
                                             await supabase.from('bolos').update({ pagaments_musics_fets: val }).eq('id', bolo.id);
                                         }}
                                         disabled={isRebutjat || updating}

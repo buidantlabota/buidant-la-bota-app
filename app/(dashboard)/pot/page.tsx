@@ -21,7 +21,7 @@ interface LedgerMovement {
     amount: number;
     balanceBefore: number;
     balanceAfter: number;
-    type: 'bolo' | 'manual' | 'advance';
+    type: 'bolo' | 'manual' | 'advance' | 'reversal';
     originalId: string | number;
     timestamp?: string;
 }
@@ -85,10 +85,10 @@ export default function GestioPotPage() {
             .from('despeses_ingressos')
             .select('*');
 
-        // 4. All Advance Payments (include bolo settled status)
+        // 4. All Advance Payments (include bolo settled status + updated_at for reversal timing)
         const { data: allAdvances } = await supabase
             .from('pagaments_anticipats')
-            .select('*, bolos(estat, nom_poble, data_bolo, cobrat, pagaments_musics_fets)');
+            .select('*, bolos(estat, nom_poble, data_bolo, cobrat, pagaments_musics_fets, updated_at)');
 
         // CALCULATIONS
         const potBase = 4560.21;
@@ -160,17 +160,10 @@ export default function GestioPotPage() {
                 originalId: b.id
             }));
 
-        // 3. Advance Payments - ONLY those from bolos that are NOT yet fully settled
-        // (cobrat=true AND pagaments_musics_fets=true means it's counted in pot_delta_final already)
+        // 3. Advance Payments - ALL of them appear in ledger chronologically
+        // For closed bolos (cobrat AND pagaments_musics_fets), a REVERSAL entry is added at bolo close time
         const advanceLedgerEntries = (allAdvances || [])
-            .filter((p: any) => {
-                if (p.data_pagament < cutoffDate) return false;
-                const b = p.bolos as any;
-                // If the bolo is fully settled (both cobrat AND pagats musics), exclude from ledger
-                // because the pot_delta_final of that bolo already accounts for the advance payments
-                if (b?.cobrat && b?.pagaments_musics_fets) return false;
-                return true;
-            })
+            .filter((p: any) => p.data_pagament >= cutoffDate)
             .map((p: any) => ({
                 date: p.data_pagament,
                 timestamp: p.updated_at || p.created_at || p.creat_at || p.data_pagament,
@@ -180,8 +173,31 @@ export default function GestioPotPage() {
                 originalId: p.id
             }));
 
+        // 4. Reversal entries: for each advance whose bolo is fully closed,
+        // add a +reversal entry timestamped at bolo closure (updated_at)
+        // so the ledger stays balanced when the bolo settlement entry appears
+        const reversalLedgerEntries = (allAdvances || [])
+            .filter((p: any) => {
+                if (p.data_pagament < cutoffDate) return false;
+                const b = p.bolos as any;
+                return b?.cobrat && b?.pagaments_musics_fets;
+            })
+            .map((p: any) => {
+                const b = p.bolos as any;
+                // Use bolo's updated_at as the reversal timestamp (when it was closed)
+                const reversalTs = b?.updated_at || p.updated_at || p.data_pagament;
+                return {
+                    date: p.data_pagament, // Shown date (same as advance for context)
+                    timestamp: reversalTs,  // Sort by bolo close time
+                    description: `Revisió: Anticipat ${p.bolos?.nom_poble || 'Músic'} (inclòs al bolo)`,
+                    amount: p.import, // Positive: cancels out the advance
+                    type: 'reversal' as const,
+                    originalId: `rev-${p.id}`
+                };
+            });
+
         // Combine and Sort ascending first (for running balance calc)
-        const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, ...advanceLedgerEntries]
+        const allSortedEntries = [...manualLedgerEntries, ...boloLedgerEntries, ...advanceLedgerEntries, ...reversalLedgerEntries]
             .map(e => ({
                 ...e,
                 sortTime: new Date(e.timestamp || e.date).getTime()
@@ -377,18 +393,19 @@ export default function GestioPotPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {ledger.map((m, i) => (
-                                        <tr key={i} className="hover:bg-gray-50 transition-colors">
-                                            <td className="p-4 text-xs font-mono text-gray-400 whitespace-nowrap">
+                                        <tr key={i} className={`hover:bg-gray-50 transition-colors ${m.type === 'reversal' ? 'opacity-50' : ''}`}>
+                                            <td className={`p-4 text-xs font-mono whitespace-nowrap ${m.type === 'reversal' ? 'text-gray-300' : 'text-gray-400'}`}>
                                                 {new Date(m.date).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                             </td>
                                             <td className="p-4">
-                                                <div className="font-bold text-sm text-gray-700">{m.description}</div>
+                                                <div className={`font-bold text-sm ${m.type === 'reversal' ? 'text-gray-400 italic' : 'text-gray-700'}`}>{m.description}</div>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[8px] px-1 rounded font-black uppercase tracking-widest ${m.type === 'bolo' ? 'bg-indigo-100 text-indigo-700' :
                                                         m.type === 'advance' ? 'bg-amber-100 text-amber-700' :
-                                                            'bg-gray-100 text-gray-500'
+                                                            m.type === 'reversal' ? 'bg-gray-100 text-gray-400' :
+                                                                'bg-gray-100 text-gray-500'
                                                         }`}>
-                                                        {m.type === 'bolo' ? 'Bolo Tancat' : m.type === 'advance' ? 'Pagament Anticipat' : 'Manual'}
+                                                        {m.type === 'bolo' ? 'Bolo Tancat' : m.type === 'advance' ? 'Pagament Anticipat' : m.type === 'reversal' ? 'Revisió Anticipat' : 'Manual'}
                                                     </span>
                                                     {m.timestamp && String(m.timestamp).includes('T') && String(m.timestamp).split('T')[0] !== m.date && (
                                                         <span className="text-[8px] text-gray-400 font-bold italic">
@@ -397,13 +414,13 @@ export default function GestioPotPage() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-right font-mono text-xs text-gray-400">
+                                            <td className={`p-4 text-right font-mono text-xs ${m.type === 'reversal' ? 'text-gray-300' : 'text-gray-400'}`}>
                                                 {m.balanceBefore.toFixed(2)}€
                                             </td>
-                                            <td className={`p-4 text-right font-mono font-black ${m.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                            <td className={`p-4 text-right font-mono font-black ${m.type === 'reversal' ? 'text-gray-400' : m.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                 {m.amount >= 0 ? '+' : ''}{m.amount.toFixed(2)}€
                                             </td>
-                                            <td className="p-4 text-right font-mono font-black text-gray-900 bg-gray-50/50">
+                                            <td className={`p-4 text-right font-mono font-black ${m.type === 'reversal' ? 'text-gray-400 bg-gray-50/30' : 'text-gray-900 bg-gray-50/50'}`}>
                                                 {m.balanceAfter.toFixed(2)}€
                                             </td>
                                         </tr>
