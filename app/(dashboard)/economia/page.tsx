@@ -134,20 +134,47 @@ export default function EconomiaPage() {
 
             const manualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
-            const pendingAdvancesValue = (allAdvances || [])
-                .filter((p: any) => !(p.bolos?.cobrat && p.bolos?.pagaments_musics_fets))
-                .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
+            // ACCOUNTING ENGINE CORE FIX
+            let potRealBoloImpact = 0;
+            let dinersDispoBoloImpact = 0;
 
-            const potRealCount = (allBolos || [])
-                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat && b.pagaments_musics_fets)
-                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+            const bolos2026 = (allBolos || []).filter((b: any) => b.data_bolo >= cutoffDate);
+            bolos2026.forEach((b: any) => {
+                const import_total = b.import_total || 0;
+                const cost_musics = b.cost_total_musics || 0;
+                const ajust = b.ajust_pot_manual || 0;
+                const trueMargin = import_total - cost_musics + ajust;
 
-            const dinersDispoCount = (allBolos || [])
-                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat)
-                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+                if (b.cobrat && b.pagaments_musics_fets) {
+                    potRealBoloImpact += trueMargin;
+                } else if (!b.cobrat && b.pagaments_musics_fets) {
+                    potRealBoloImpact -= cost_musics;
+                }
 
-            const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesValue;
-            const finalDinersDispo = potBase + manualBalance + dinersDispoCount - pendingAdvancesValue;
+                if (b.cobrat) {
+                    dinersDispoBoloImpact += trueMargin;
+                } else if (b.pagaments_musics_fets) {
+                    dinersDispoBoloImpact -= cost_musics;
+                }
+            });
+
+            let currentAdvances = 0;
+            let dispoPendingAdvancesValue = 0;
+
+            (allAdvances || []).forEach((a: any) => {
+                // Determine if we need to subtract the advance:
+                // If bolo is completely NOT associated or not pagat, it wasn't captured by the bolo loop's -cost reduction.
+                const b = a.bolos;
+                if (!b || !b.pagaments_musics_fets) {
+                    currentAdvances += (a.import || 0);
+                }
+                if (!b || (!b.cobrat && !b.pagaments_musics_fets)) {
+                    dispoPendingAdvancesValue += (a.import || 0);
+                }
+            });
+
+            const finalPotReal = potBase + manualBalance + potRealBoloImpact - currentAdvances;
+            const finalDinersDispo = potBase + manualBalance + dinersDispoBoloImpact - dispoPendingAdvancesValue;
 
             setStats(prev => ({
                 ...prev,

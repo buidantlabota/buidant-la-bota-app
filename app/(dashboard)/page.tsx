@@ -111,15 +111,37 @@ export default function Dashboard() {
           .filter((m: any) => m.data >= cutoffDate || !m.data)
           .reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
-        const closedBolosPot = (allBolos || [])
-          .filter((b: any) => (b.cobrat && b.pagaments_musics_fets) && b.data_bolo >= cutoffDate)
-          .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+        // ACCOUNTING ENGINE CORE FIX
+        let potRealBoloImpact = 0;
 
-        const currentAdvances = (allAdvances || [])
-          .filter((a: any) => !(a.bolos?.cobrat && a.bolos?.pagaments_musics_fets))
-          .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
+        const bolos2026 = (allBolos || []).filter((b: any) => b.data_bolo >= cutoffDate);
+        bolos2026.forEach((b: any) => {
+          const import_total = b.import_total || 0;
+          const cost_musics = b.cost_total_musics || 0;
+          const ajust = b.ajust_pot_manual || 0;
+          const trueMargin = import_total - cost_musics + ajust;
 
-        const potReal = potBase + totalManualBalance + closedBolosPot - currentAdvances;
+          if (b.cobrat && b.pagaments_musics_fets) {
+            potRealBoloImpact += trueMargin;
+          } else if (!b.cobrat && b.pagaments_musics_fets) {
+            potRealBoloImpact -= cost_musics;
+          }
+        });
+
+        let currentAdvances = 0;
+
+        (allAdvances || [])
+          .filter((a: any) => !['Tancades', 'Tancat'].includes(a.bolos?.estat))
+          .forEach((a: any) => {
+            const boloPageMatched = allBolos?.find((b: any) => b.id === a.bolo_id);
+            const b = boloPageMatched || a.bolos;
+
+            if (!b || !b.pagaments_musics_fets) {
+              currentAdvances += (a.import || 0);
+            }
+          });
+
+        const potReal = potBase + totalManualBalance + potRealBoloImpact - currentAdvances;
 
         const aCobrar = (allBolos || [])
           .filter((b: any) => {
