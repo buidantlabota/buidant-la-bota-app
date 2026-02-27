@@ -37,8 +37,14 @@ export default function EconomiaPage() {
         despeses_musics: 0,
         pot: 0,
         globalPotReal: 0,
-        globalDinersDispo: 0
+        globalDinersDispo: 0,
+        aCobrar: 0,
+        aPagar: 0
     });
+
+    const [distribution, setDistribution] = useState<{ name: string, amount: number }[]>([]);
+    const [isDistModalOpen, setIsDistModalOpen] = useState(false);
+    const [newDistItem, setNewDistItem] = useState({ name: '', amount: 0 });
 
     const fetchEconomia = async () => {
         setLoading(true);
@@ -116,7 +122,7 @@ export default function EconomiaPage() {
             // 1. All Bolos since 2026
             const { data: allBolos } = await supabase
                 .from('bolos')
-                .select('pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, estat')
+                .select('import_total, cost_total_musics, ajust_pot_manual, pot_delta_final, data_bolo, cobrat, pagaments_musics_fets, estat')
                 .gte('data_bolo', cutoffDate)
                 .not('estat', 'in', '("Cancel·lat","Cancel·lats","rebutjat","rebutjats")');
 
@@ -162,14 +168,40 @@ export default function EconomiaPage() {
                 })
                 .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
+            // 4. Pending totals
+            const aCobrarCount = (allBolos || [])
+                .filter((b: any) => !b.cobrat)
+                .reduce((sum: number, b: any) => sum + (b.import_total || 0), 0);
+
+            const aPagarCount = (allBolos || [])
+                .filter((b: any) => !b.pagaments_musics_fets)
+                .reduce((sum: number, b: any) => sum + (b.cost_total_musics || 0), 0);
+
             const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesForPotReal;
             const finalDinersDispo = potBase + manualBalance + dinersDispoImpact - pendingAdvancesForDispo;
 
-            setStats(prev => ({
-                ...prev,
+            setStats({
+                ingressos: ing,
+                ingressosEfectiu: ingEfectiu,
+                ingressosFactura: ingFactura,
+                despeses_musics: cost,
+                pot: p,
                 globalPotReal: finalPotReal,
-                globalDinersDispo: finalDinersDispo
-            }));
+                globalDinersDispo: finalDinersDispo,
+                aCobrar: aCobrarCount,
+                aPagar: aPagarCount
+            });
+
+            // Fetch Distribution Config
+            const { data: configData } = await supabase
+                .from('app_config')
+                .select('value')
+                .eq('key', 'pot_distribution')
+                .single();
+
+            if (configData) {
+                setDistribution((configData.value as any).items || []);
+            }
         }
         setLoading(false);
     };
@@ -195,6 +227,16 @@ export default function EconomiaPage() {
             setTimeout(() => {
                 fetchEconomia();
             }, 500);
+        }
+    };
+
+    const handleSaveDist = async (items: { name: string, amount: number }[]) => {
+        const { error } = await supabase
+            .from('app_config')
+            .upsert({ key: 'pot_distribution', value: { items } });
+        if (!error) {
+            setDistribution(items);
+            setIsDistModalOpen(false);
         }
     };
 
@@ -299,10 +341,18 @@ export default function EconomiaPage() {
                                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Estat Global</span>
                                 <div className="h-px flex-1 bg-white/10"></div>
                             </div>
-                            <h3 className="text-sm font-bold text-white/70 mb-1">Pot Real (Cobrat + Pagat)</h3>
-                            <p className="text-4xl font-black font-mono tracking-tighter tabular-nums">
-                                {stats.globalPotReal.toFixed(2)}€
-                            </p>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-sm font-bold text-white/70 mb-1">Pot Real (Al Banc)</h3>
+                                    <p className="text-4xl font-black font-mono tracking-tighter tabular-nums text-white">
+                                        {stats.globalPotReal.toFixed(2)}€
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] font-bold text-slate-500 uppercase">Pendent de pagar</div>
+                                    <div className="text-sm font-mono font-bold text-red-400">-{stats.aPagar.toFixed(0)}€</div>
+                                </div>
+                            </div>
                         </div>
                         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight mt-4 relative z-10">Consolidat al banc + despeses manuals</p>
                     </div>
@@ -316,12 +366,45 @@ export default function EconomiaPage() {
                                 <span className="text-[10px] font-black uppercase text-emerald-400 tracking-[0.2em]">Liquidesa</span>
                                 <div className="h-px flex-1 bg-white/10"></div>
                             </div>
-                            <h3 className="text-sm font-bold text-emerald-400/80 mb-1">Diners a disposició</h3>
-                            <p className="text-4xl font-black font-mono tracking-tighter tabular-nums text-emerald-50">
-                                {stats.globalDinersDispo.toFixed(2)}€
-                            </p>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-sm font-bold text-emerald-400/80 mb-1">Diners a disposició</h3>
+                                    <p className="text-4xl font-black font-mono tracking-tighter tabular-nums text-emerald-50">
+                                        {stats.globalDinersDispo.toFixed(2)}€
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] font-bold text-emerald-400/60 uppercase">Pendent de cobrar</div>
+                                    <div className="text-sm font-mono font-bold text-emerald-400">+{stats.aCobrar.toFixed(0)}€</div>
+                                </div>
+                            </div>
                         </div>
                         <p className="text-emerald-600 text-[10px] font-bold uppercase tracking-tight mt-4 relative z-10">Marges de bolos cobrats (Pendents de pagar)</p>
+
+                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2 relative z-10">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-emerald-400/50">Distribució Real</span>
+                                <button onClick={() => setIsDistModalOpen(true)} className="text-[10px] font-bold text-white hover:underline flex items-center gap-1">
+                                    <span className="material-icons-outlined text-xs">edit</span> Editar
+                                </button>
+                            </div>
+                            <div className="space-y-1">
+                                {distribution.map((d, i) => (
+                                    <div key={i} className="flex justify-between items-center text-xs font-mono">
+                                        <span className="opacity-70">{d.name}</span>
+                                        <span className="font-bold">{d.amount.toFixed(2)}€</span>
+                                    </div>
+                                ))}
+                                {distribution.length > 0 && (
+                                    <div className="flex justify-between items-center text-[10px] font-bold border-t border-white/5 pt-1 mt-1">
+                                        <span className="opacity-50 uppercase tracking-tighter">Resta per assignar</span>
+                                        <span className={Math.abs(stats.globalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)) > 0.1 ? 'text-red-400' : 'text-emerald-400'}>
+                                            {(stats.globalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)).toFixed(2)}€
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -536,6 +619,94 @@ export default function EconomiaPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Distribució Modal */}
+            {isDistModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl scale-in-center">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-black tracking-tight text-slate-800">Distribució de Diners a Disposició</h2>
+                            <button onClick={() => setIsDistModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+                                <span className="material-icons-outlined">close</span>
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-6 font-medium italic">Distribueix mentalment els calers que tens ingressats (i encara no pagats) per saber què hi ha a cada compte bancari o associació.</p>
+
+                        <div className="space-y-3">
+                            {distribution.map((item, index) => (
+                                <div key={index} className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    <input
+                                        type="text"
+                                        className="flex-1 bg-transparent border-none text-xs font-bold text-gray-700 focus:ring-0"
+                                        value={item.name}
+                                        onChange={(e) => {
+                                            const newDist = [...distribution];
+                                            newDist[index].name = e.target.value;
+                                            setDistribution(newDist);
+                                        }}
+                                    />
+                                    <input
+                                        type="number"
+                                        className="w-24 text-right bg-white border border-gray-200 rounded-lg text-xs font-mono font-bold text-gray-700 px-2 py-1 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        value={item.amount || ''}
+                                        onChange={(e) => {
+                                            const newDist = [...distribution];
+                                            newDist[index].amount = parseFloat(e.target.value) || 0;
+                                            setDistribution(newDist);
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => setDistribution(distribution.filter((_, i) => i !== index))}
+                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <span className="material-icons-outlined text-sm">delete</span>
+                                    </button>
+                                </div>
+                            ))}
+
+                            <div className="flex gap-2 p-2 rounded-xl border-2 border-dashed border-gray-100 italic text-gray-400 hover:border-gray-200 transition-colors">
+                                <input
+                                    type="text"
+                                    placeholder="Nou responsable..."
+                                    className="flex-1 bg-transparent border-none focus:ring-0 text-xs"
+                                    value={newDistItem.name}
+                                    onChange={e => setNewDistItem({ ...newDistItem, name: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    className="w-20 bg-transparent border-none focus:ring-0 text-xs font-mono"
+                                    value={newDistItem.amount || ''}
+                                    onChange={e => setNewDistItem({ ...newDistItem, amount: parseFloat(e.target.value) || 0 })}
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (newDistItem.name) {
+                                            setDistribution([...distribution, newDistItem]);
+                                            setNewDistItem({ name: '', amount: 0 });
+                                        }
+                                    }}
+                                    className="p-1 text-primary"
+                                >
+                                    <span className="material-icons-outlined text-sm">add_circle</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold">
+                            <span className="text-gray-400 uppercase">Faltaria per assignar:</span>
+                            <span className={Math.abs(stats.globalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)) > 0.1 ? 'text-red-500' : 'text-emerald-600'}>
+                                {(stats.globalDinersDispo - distribution.reduce((s, x) => s + x.amount, 0)).toFixed(2)}€
+                            </span>
+                        </div>
+
+                        <div className="flex gap-4 mt-8">
+                            <button onClick={() => setIsDistModalOpen(false)} className="flex-1 py-3 text-xs font-black uppercase text-gray-400">Tancar</button>
+                            <button onClick={() => handleSaveDist(distribution)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs shadow-xl shadow-gray-200">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
