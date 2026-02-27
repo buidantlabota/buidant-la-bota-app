@@ -138,9 +138,15 @@ export default function EconomiaPage() {
                 .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat && b.pagaments_musics_fets)
                 .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-            const dinersDispoCount = (allBolos || [])
-                .filter((b: any) => b.data_bolo >= cutoffDate && b.cobrat)
-                .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+            let dinersDispoImpact = 0;
+            (allBolos || []).filter((b: any) => b.data_bolo >= cutoffDate).forEach((b: any) => {
+                if (b.cobrat) {
+                    dinersDispoImpact += (b.import_total || 0) + (b.ajust_pot_manual || 0);
+                }
+                if (b.pagaments_musics_fets) {
+                    dinersDispoImpact -= (b.cost_total_musics || 0);
+                }
+            });
 
             const pendingAdvancesForPotReal = (allAdvances || [])
                 .filter((a: any) => {
@@ -152,12 +158,12 @@ export default function EconomiaPage() {
             const pendingAdvancesForDispo = (allAdvances || [])
                 .filter((a: any) => {
                     const b = a.bolos;
-                    return !b?.cobrat;
+                    return !b?.pagaments_musics_fets;
                 })
                 .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
             const finalPotReal = potBase + manualBalance + potRealCount - pendingAdvancesForPotReal;
-            const finalDinersDispo = potBase + manualBalance + dinersDispoCount - pendingAdvancesForDispo;
+            const finalDinersDispo = potBase + manualBalance + dinersDispoImpact - pendingAdvancesForDispo;
 
             setStats(prev => ({
                 ...prev,

@@ -106,9 +106,15 @@ export default function GestioPotPage() {
             .filter((b: any) => b.cobrat && b.pagaments_musics_fets)
             .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
 
-        const dinersDispoValue = bolos2025
-            .filter((b: any) => b.cobrat)
-            .reduce((sum: number, b: any) => sum + (b.pot_delta_final || 0), 0);
+        let dinersDispoImpact = 0;
+        bolos2025.forEach((b: any) => {
+            if (b.cobrat) {
+                dinersDispoImpact += (b.import_total || 0) + (b.ajust_pot_manual || 0);
+            }
+            if (b.pagaments_musics_fets) {
+                dinersDispoImpact -= (b.cost_total_musics || 0);
+            }
+        });
 
         const pendingAdvancesForPotReal = (allAdvances || [])
             .filter((a: any) => {
@@ -120,12 +126,12 @@ export default function GestioPotPage() {
         const pendingAdvancesForDispo = (allAdvances || [])
             .filter((a: any) => {
                 const b = a.bolos;
-                return !b?.cobrat;
+                return !b?.pagaments_musics_fets;
             })
             .reduce((sum: number, a: any) => sum + (a.import || 0), 0);
 
         const totalPotReal = potBase + manualBalance + potRealValue - pendingAdvancesForPotReal;
-        const totalDinersDispo = potBase + manualBalance + dinersDispoValue - pendingAdvancesForDispo;
+        const totalDinersDispo = potBase + manualBalance + dinersDispoImpact - pendingAdvancesForDispo;
 
         // B. Pending entries (A cobrar / A pagar)
         const aCobrar = bolos2025
