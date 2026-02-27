@@ -129,13 +129,13 @@ export default function EconomiaPage() {
             // 3. All Advance Payments
             const { data: allAdvances } = await supabase
                 .from('pagaments_anticipats')
-                .select('import, data_pagament, bolos(estat, data_bolo)')
+                .select('import, data_pagament, bolos(estat, data_bolo, cobrat, pagaments_musics_fets)')
                 .gte('data_pagament', cutoffDate);
 
             const manualBalance = (allMovements || []).reduce((sum: number, m: any) => sum + (m.tipus === 'ingrés' ? m.import : -m.import), 0);
 
             const pendingAdvancesValue = (allAdvances || [])
-                .filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat))
+                .filter((p: any) => !(p.bolos?.cobrat && p.bolos?.pagaments_musics_fets))
                 .reduce((sum: number, p: any) => sum + (p.import || 0), 0);
 
             const potRealCount = (allBolos || [])
