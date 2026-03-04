@@ -313,11 +313,10 @@ export default function EconomiaPage() {
           {/* Month Toggle */}
           <button
             onClick={() => setShowCurrentMonth(!showCurrentMonth)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-sm border ${
-              showCurrentMonth
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-sm border ${showCurrentMonth
                 ? "bg-primary text-white border-primary"
                 : "bg-white text-text-secondary border-border hover:bg-gray-50"
-            }`}
+              }`}
           >
             <span className="material-icons-outlined text-sm">
               calendar_month
@@ -475,7 +474,7 @@ export default function EconomiaPage() {
                       className={
                         Math.abs(
                           stats.globalDinersDispo -
-                            distribution.reduce((s, x) => s + x.amount, 0),
+                          distribution.reduce((s, x) => s + x.amount, 0),
                         ) > 0.1
                           ? "text-red-400"
                           : "text-emerald-400"
@@ -693,11 +692,23 @@ export default function EconomiaPage() {
                           {bolo.num_musics}
                         </span>
                       </td>
-                      <td className="p-4 text-right font-mono text-red-600">
-                        {bolo.cost_total_musics !== undefined
-                          ? bolo.cost_total_musics.toFixed(2)
-                          : "0.00"}
-                        €
+                      <td className="p-4 text-right">
+                        <div
+                          className={`font-mono text-sm font-bold ${bolo.pagaments_musics_fets
+                              ? "text-red-600"
+                              : "text-gray-400"
+                            }`}
+                        >
+                          {bolo.cost_total_musics !== undefined
+                            ? bolo.cost_total_musics.toFixed(2)
+                            : "0.00"}
+                          €
+                        </div>
+                        {!bolo.pagaments_musics_fets && (
+                          <div className="text-[9px] text-gray-400 italic font-bold uppercase tracking-wider">
+                            Previsió
+                          </div>
+                        )}
                       </td>
                       <td className="p-4 text-right">
                         <input
@@ -714,17 +725,31 @@ export default function EconomiaPage() {
                         />
                       </td>
                       <td
-                        className={`p-4 text-right font-mono font-bold flex items-center justify-end gap-1 ${bolo.pot_delta_final >= 0 ? "text-green-600" : "text-red-600"}`}
+                        className={`p-4 text-right font-mono font-bold ${bolo.cobrat && bolo.pagaments_musics_fets
+                            ? bolo.pot_delta_final >= 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                            : "text-gray-400"
+                          }`}
                       >
-                        {bolo.pot_delta_final >= 0 ? (
-                          <TrendingUp size={16} />
-                        ) : (
-                          <TrendingDown size={16} />
+                        <div className="flex items-center justify-end gap-1">
+                          {bolo.cobrat && bolo.pagaments_musics_fets ? (
+                            bolo.pot_delta_final >= 0 ? (
+                              <TrendingUp size={16} />
+                            ) : (
+                              <TrendingDown size={16} />
+                            )
+                          ) : null}
+                          {bolo.pot_delta_final !== undefined
+                            ? bolo.pot_delta_final.toFixed(2)
+                            : "0.00"}
+                          €
+                        </div>
+                        {!(bolo.cobrat && bolo.pagaments_musics_fets) && (
+                          <div className="text-[9px] text-gray-400 italic font-bold uppercase tracking-wider text-right">
+                            Previsió
+                          </div>
                         )}
-                        {bolo.pot_delta_final !== undefined
-                          ? bolo.pot_delta_final.toFixed(2)
-                          : "0.00"}
-                        €
                       </td>
                       <td className="p-4 text-center">
                         <input
@@ -785,14 +810,13 @@ export default function EconomiaPage() {
                                     </div>
                                     <div className="flex items-center space-x-2">
                                       <span
-                                        className={`px-1.5 py-0.5 rounded text-[10px] uppercase ${
-                                          bm.estat === "confirmat"
+                                        className={`px-1.5 py-0.5 rounded text-[10px] uppercase ${bm.estat === "confirmat"
                                             ? "bg-green-100 text-green-800"
                                             : bm.estat === "no" ||
-                                                bm.estat === "baixa"
+                                              bm.estat === "baixa"
                                               ? "bg-red-100 text-red-800"
                                               : "bg-yellow-100 text-yellow-800"
-                                        }`}
+                                          }`}
                                       >
                                         {bm.estat}
                                       </span>
@@ -946,7 +970,7 @@ export default function EconomiaPage() {
                 className={
                   Math.abs(
                     stats.globalDinersDispo -
-                      distribution.reduce((s, x) => s + x.amount, 0),
+                    distribution.reduce((s, x) => s + x.amount, 0),
                   ) > 0.1
                     ? "text-red-500"
                     : "text-emerald-600"

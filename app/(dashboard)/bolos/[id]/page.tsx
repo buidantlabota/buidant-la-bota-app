@@ -263,14 +263,14 @@ export default function BoloDetailPage() {
         setBolo((prev) =>
           prev
             ? {
-                ...prev,
-                num_musics: data.num_musics,
-                cost_total_musics: data.cost_total_musics,
-                pot_delta: data.pot_delta,
-                pot_delta_final: data.pot_delta_final,
-                cobrat: data.cobrat,
-                pagaments_musics_fets: data.pagaments_musics_fets,
-              }
+              ...prev,
+              num_musics: data.num_musics,
+              cost_total_musics: data.cost_total_musics,
+              pot_delta: data.pot_delta,
+              pot_delta_final: data.pot_delta_final,
+              cobrat: data.cobrat,
+              pagaments_musics_fets: data.pagaments_musics_fets,
+            }
             : null,
         );
         return; // Stop here, no need to reset form or navigation
@@ -954,9 +954,9 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
         dueDate:
           previewType === "factura"
             ? format(
-                new Date(new Date().setMonth(new Date().getMonth() + 3)),
-                "dd/MM/yyyy",
-              )
+              new Date(new Date().setMonth(new Date().getMonth() + 3)),
+              "dd/MM/yyyy",
+            )
             : undefined,
         client: {
           nom: selectedClient.nom,
@@ -1796,8 +1796,7 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
           </button>
 
           <div
-            className={`px-4 py-2 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all duration-300 ${
-              isRebutjat
+            className={`px-4 py-2 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all duration-300 ${isRebutjat
                 ? "bg-red-600 text-white"
                 : bolo.estat === "Nova"
                   ? "bg-red-600 text-white"
@@ -1812,7 +1811,7 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
                           : bolo.estat === "Tancades"
                             ? "bg-red-900 text-white"
                             : "bg-gray-400 text-white"
-            }`}
+              }`}
           >
             {isRebutjat
               ? "Cancel·lada"
@@ -1829,7 +1828,7 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
             disabled={
               updating ||
               BOLO_STATES.indexOf(bolo.estat as BoloStatus) >=
-                BOLO_STATES.length - 1 ||
+              BOLO_STATES.length - 1 ||
               isRebutjat
             }
             className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -1965,9 +1964,8 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
             </div>
 
             <div
-              className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm font-bold border-none ${
-                (bolo.estat as string) === "Sol·licitat" ||
-                (bolo.estat as string) === "Nova"
+              className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm font-bold border-none ${(bolo.estat as string) === "Sol·licitat" ||
+                  (bolo.estat as string) === "Nova"
                   ? "bg-red-600 text-white shadow-md"
                   : (bolo.estat as string) === "Pendent de confirmació"
                     ? "bg-orange-500 text-white shadow-md"
@@ -1978,7 +1976,7 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
                         : (bolo.estat as string) === "Per pagar"
                           ? "bg-lime-500 text-gray-900"
                           : "bg-gray-600 text-white shadow-md"
-              }`}
+                }`}
             >
               <span className="material-icons-outlined text-lg">
                 {(bolo.estat as string) === "Confirmada"
@@ -2234,11 +2232,10 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
                     )
                   }
                   disabled={isRebutjat}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                    bolo[item.id as keyof Bolo]
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${bolo[item.id as keyof Bolo]
                       ? "bg-primary text-white border-primary shadow-sm"
                       : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
-                  }`}
+                    }`}
                 >
                   <span className="material-icons-outlined text-sm">
                     {item.icon}
@@ -2540,19 +2537,28 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
                   <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">
                     Cost Músics
                   </p>
-                  <p className="text-xl font-black text-red-700 leading-none">
+                  <p className={`text-xl font-black leading-none ${bolo.pagaments_musics_fets ? 'text-red-700' : 'text-gray-400'}`}>
                     <PrivacyMask value={bolo.cost_total_musics || 0} />
                   </p>
+                  {!bolo.pagaments_musics_fets && (
+                    <p className="text-[9px] font-bold text-gray-400 italic uppercase tracking-wider mt-1">Previsió</p>
+                  )}
                 </div>
                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
                   <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">
                     Marge (Pot)
                   </p>
                   <div
-                    className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? "text-green-700" : "text-red-700"}`}
+                    className={`text-xl font-black flex items-center gap-1 leading-none ${bolo.cobrat && bolo.pagaments_musics_fets
+                        ? (bolo.pot_delta || 0) >= 0 ? "text-green-700" : "text-red-700"
+                        : "text-gray-400"
+                      }`}
                   >
                     <PrivacyMask value={bolo.pot_delta || 0} />
                   </div>
+                  {!(bolo.cobrat && bolo.pagaments_musics_fets) && (
+                    <p className="text-[9px] font-bold text-gray-400 italic uppercase tracking-wider mt-1">Previsió</p>
+                  )}
                 </div>
                 <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm flex flex-col justify-between">
                   <div>
@@ -2561,10 +2567,16 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
                     </span>
                   </div>
                   <div
-                    className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? "text-green-700" : "text-red-700"}`}
+                    className={`text-xl font-black flex items-center gap-1 leading-none ${bolo.cobrat && bolo.pagaments_musics_fets
+                        ? (bolo.pot_delta_final || 0) >= 0 ? "text-green-700" : "text-red-700"
+                        : "text-gray-400"
+                      }`}
                   >
                     <PrivacyMask value={bolo.pot_delta_final || 0} />
                   </div>
+                  {!(bolo.cobrat && bolo.pagaments_musics_fets) && (
+                    <p className="text-[9px] font-bold text-gray-400 italic uppercase tracking-wider mt-1">Previsió</p>
+                  )}
                 </div>
               </div>
             </div>
