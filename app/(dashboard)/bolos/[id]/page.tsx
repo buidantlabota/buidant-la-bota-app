@@ -1,699 +1,808 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
-import Link from 'next/link';
-import { Music, BoloMusic, Client, BoloComentari, Bolo, BoloStatus, BoloTasca, AdvancePayment } from '@/types';
-import AssistenciaMusics from './AssistenciaMusics';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import { useMaterialRequest } from '@/app/hooks/useMaterialRequest';
-import { TasquesPerFase } from '@/components/TasquesPerFase';
-import { generateDescriptionText } from '@/lib/pdf-utils';
-import { format, addMonths } from 'date-fns';
-import { ca } from 'date-fns/locale';
-import { PrivacyMask } from '@/components/PrivacyMask';
-import { MunicipiSelector } from '@/components/MunicipiSelector';
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
+import {
+  Music,
+  BoloMusic,
+  Client,
+  BoloComentari,
+  Bolo,
+  BoloStatus,
+  BoloTasca,
+  AdvancePayment,
+} from "@/types";
+import AssistenciaMusics from "./AssistenciaMusics";
+import { TrendingUp, TrendingDown } from "lucide-react";
+import { useMaterialRequest } from "@/app/hooks/useMaterialRequest";
+import { TasquesPerFase } from "@/components/TasquesPerFase";
+import { generateDescriptionText } from "@/lib/pdf-utils";
+import { format, addMonths } from "date-fns";
+import { ca } from "date-fns/locale";
+import { PrivacyMask } from "@/components/PrivacyMask";
+import { MunicipiSelector } from "@/components/MunicipiSelector";
 
 const BOLO_STATES: BoloStatus[] = [
-    'Nova',
-    'Pendent de confirmació',
-    'Confirmada',
-    'Pendents de cobrar',
-    'Per pagar',
-    'Tancades',
-    'Cancel·lats'
+  "Nova",
+  "Pendent de confirmació",
+  "Confirmada",
+  "Pendents de cobrar",
+  "Per pagar",
+  "Tancades",
+  "Cancel·lats",
 ];
 
 export default function BoloDetailPage() {
-    const router = useRouter();
-    const params = useParams();
-    const supabase = createClient();
-    const [bolo, setBolo] = useState<Bolo | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState(false);
+  const router = useRouter();
+  const params = useParams();
+  const supabase = createClient();
+  const [bolo, setBolo] = useState<Bolo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
-    const { requestMaterial, loading: requestingMaterial } = useMaterialRequest();
+  const { requestMaterial, loading: requestingMaterial } = useMaterialRequest();
 
-    const handleRequestMaterial = async () => {
-        if (!bolo) return;
-        await requestMaterial({
-            id: String(bolo.id),
-            nom_poble: bolo.nom_poble,
-            data_bolo: bolo.data_bolo,
-            estat: bolo.estat,
-            import_total: bolo.import_total || 0,
-            tipus_ingres: bolo.tipus_ingres
-        });
-    };
-
-    // Google Sync Helper
-    const triggerGoogleSync = () => {
-        if (!bolo) return;
-        // Launch sync regardless of state (lib handles create/update/delete logic)
-        fetch(`/api/bolos/${bolo.id}/sync`, { method: 'POST' })
-            .then(res => {
-                if (res.ok) console.log('Sync launched');
-                else console.error('Sync failed trigger');
-            })
-            .catch(console.error);
-    };
-
-    // Economic Data State
-    const [economicData, setEconomicData] = useState<Partial<Bolo>>({
-        import_total: 0,
-        preu_per_musica: 0,
-        tipus_ingres: 'B',
-        ajust_pot_manual: 0,
-        comentari_ajust_pot: '',
+  const handleRequestMaterial = async () => {
+    if (!bolo) return;
+    await requestMaterial({
+      id: String(bolo.id),
+      nom_poble: bolo.nom_poble,
+      data_bolo: bolo.data_bolo,
+      estat: bolo.estat,
+      import_total: bolo.import_total || 0,
+      tipus_ingres: bolo.tipus_ingres,
     });
+  };
 
+  // Google Sync Helper
+  const triggerGoogleSync = () => {
+    if (!bolo) return;
+    // Launch sync regardless of state (lib handles create/update/delete logic)
+    fetch(`/api/bolos/${bolo.id}/sync`, { method: "POST" })
+      .then((res) => {
+        if (res.ok) console.log("Sync launched");
+        else console.error("Sync failed trigger");
+      })
+      .catch(console.error);
+  };
 
-    // Rejection Modal State
-    const [showRejectionModal, setShowRejectionModal] = useState(false);
-    const [rejectionData, setRejectionData] = useState({
-        motiu: '',
-        origen: 'client'
-    });
+  // Economic Data State
+  const [economicData, setEconomicData] = useState<Partial<Bolo>>({
+    import_total: 0,
+    preu_per_musica: 0,
+    tipus_ingres: "B",
+    ajust_pot_manual: 0,
+    comentari_ajust_pot: "",
+  });
 
-    // Attendance State
-    const [musics, setMusics] = useState<Music[]>([]);
-    const [boloMusics, setBoloMusics] = useState<BoloMusic[]>([]);
-    const [loadingMusics, setLoadingMusics] = useState(true);
-    const [selectedSubstitut, setSelectedSubstitut] = useState<string>('');
+  // Rejection Modal State
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionData, setRejectionData] = useState({
+    motiu: "",
+    origen: "client",
+  });
 
-    // PDF Preview state
-    const [showPreview, setShowPreview] = useState(false);
-    const [previewType, setPreviewType] = useState<'pressupost' | 'factura' | null>(null);
-    const [descriptionText, setDescriptionText] = useState('');
-    const [manualNumber, setManualNumber] = useState('');
-    const [pdfGenerating, setPdfGenerating] = useState(false);
-    const [articles, setArticles] = useState<{ descripcio: string; preu: number; quantitat: number }[]>([]);
+  // Attendance State
+  const [musics, setMusics] = useState<Music[]>([]);
+  const [boloMusics, setBoloMusics] = useState<BoloMusic[]>([]);
+  const [loadingMusics, setLoadingMusics] = useState(true);
+  const [selectedSubstitut, setSelectedSubstitut] = useState<string>("");
 
-    // Client State
-    const [clients, setClients] = useState<Client[]>([]);
-    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  // PDF Preview state
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewType, setPreviewType] = useState<
+    "pressupost" | "factura" | null
+  >(null);
+  const [descriptionText, setDescriptionText] = useState("");
+  const [manualNumber, setManualNumber] = useState("");
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [articles, setArticles] = useState<
+    { descripcio: string; preu: number; quantitat: number }[]
+  >([]);
 
-    // Navigation State
-    const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const [tempTitol, setTempTitol] = useState('');
-    const [tempTitle, setTempTitle] = useState('');
-    const [tempDate, setTempDate] = useState('');
-    const [tempMunicipi, setTempMunicipi] = useState<{
-        municipi_id?: string | null;
-        municipi_custom_id?: string | null;
-        municipi_text: string;
-    } | null>(null);
-    const [nextBoloId, setNextBoloId] = useState<number | null>(null);
-    const [prevBoloId, setPrevBoloId] = useState<number | null>(null);
+  // Client State
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-    // Toast state
-    const [toast, setToast] = useState<{ show: boolean, message: string, type: 'success' | 'error' }>({
-        show: false,
-        message: '',
-        type: 'success'
-    });
+  // Navigation State
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitol, setTempTitol] = useState("");
+  const [tempTitle, setTempTitle] = useState("");
+  const [tempDate, setTempDate] = useState("");
+  const [tempMunicipi, setTempMunicipi] = useState<{
+    municipi_id?: string | null;
+    municipi_custom_id?: string | null;
+    municipi_text: string;
+  } | null>(null);
+  const [nextBoloId, setNextBoloId] = useState<number | null>(null);
+  const [prevBoloId, setPrevBoloId] = useState<number | null>(null);
 
-    // Comments State
-    const [comentaris, setComentaris] = useState<BoloComentari[]>([]);
-    const [loadingComentaris, setLoadingComentaris] = useState(false);
-    const [newComentari, setNewComentari] = useState({ autor: '', text: '' });
+  // Toast state
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
-    // Sections Expanded State
-    const [isPhasesExpanded, setIsPhasesExpanded] = useState(true);
-    const [isMusicsExpanded, setIsMusicsExpanded] = useState(true); // Matches component usage
+  // Comments State
+  const [comentaris, setComentaris] = useState<BoloComentari[]>([]);
+  const [loadingComentaris, setLoadingComentaris] = useState(false);
+  const [newComentari, setNewComentari] = useState({ autor: "", text: "" });
 
-    const [isEconomicsExpanded, setIsEconomicsExpanded] = useState(false);
-    const [isClientExpanded, setIsClientExpanded] = useState(false);
-    const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
+  // Sections Expanded State
+  const [isPhasesExpanded, setIsPhasesExpanded] = useState(true);
+  const [isMusicsExpanded, setIsMusicsExpanded] = useState(true); // Matches component usage
 
-    const [tasques, setTasques] = useState<BoloTasca[]>([]);
-    const [loadingTasques, setLoadingTasques] = useState(false);
+  const [isEconomicsExpanded, setIsEconomicsExpanded] = useState(false);
+  const [isClientExpanded, setIsClientExpanded] = useState(false);
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
 
-    useEffect(() => {
-        if (params.id) {
-            fetchBolo(params.id as string);
-            fetchMusicsAndAttendance(params.id as string);
-            fetchClients();
-            fetchComentaris(params.id as string);
-            fetchTasques(params.id as string);
-            fetchAdvancePayments(params.id as string);
-        }
-    }, [params.id]);
+  const [tasques, setTasques] = useState<BoloTasca[]>([]);
+  const [loadingTasques, setLoadingTasques] = useState(false);
 
-    const [advancePayments, setAdvancePayments] = useState<AdvancePayment[]>([]);
-    const [loadingAdvancePayments, setLoadingAdvancePayments] = useState(false);
-    const [showAdvancePaymentModal, setShowAdvancePaymentModal] = useState(false);
-    const [showWhatsappConvoModal, setShowWhatsappConvoModal] = useState(false);
-    const [whatsappConvoText, setWhatsappConvoText] = useState('');
-    const [newAdvancePayment, setNewAdvancePayment] = useState<Partial<AdvancePayment>>({
-        music_id: '',
+  useEffect(() => {
+    if (params.id) {
+      fetchBolo(params.id as string);
+      fetchMusicsAndAttendance(params.id as string);
+      fetchClients();
+      fetchComentaris(params.id as string);
+      fetchTasques(params.id as string);
+      fetchAdvancePayments(params.id as string);
+    }
+  }, [params.id]);
+
+  const [advancePayments, setAdvancePayments] = useState<AdvancePayment[]>([]);
+  const [loadingAdvancePayments, setLoadingAdvancePayments] = useState(false);
+  const [showAdvancePaymentModal, setShowAdvancePaymentModal] = useState(false);
+  const [showWhatsappConvoModal, setShowWhatsappConvoModal] = useState(false);
+  const [whatsappConvoText, setWhatsappConvoText] = useState("");
+  const [newAdvancePayment, setNewAdvancePayment] = useState<
+    Partial<AdvancePayment>
+  >({
+    music_id: "",
+    import: 0,
+    data_pagament: new Date().toISOString().split("T")[0],
+    notes: "",
+  });
+
+  const fetchAdvancePayments = async (boloId: string) => {
+    setLoadingAdvancePayments(true);
+    const { data, error } = await supabase
+      .from("pagaments_anticipats")
+      .select("*")
+      .eq("bolo_id", Number(boloId))
+      .order("data_pagament", { ascending: false });
+
+    if (error) console.error("Error fetching advance payments:", error);
+    else setAdvancePayments(data || []);
+    setLoadingAdvancePayments(false);
+  };
+
+  const handleAddAdvancePayment = async () => {
+    if (!bolo || !newAdvancePayment.music_id || !newAdvancePayment.import)
+      return;
+    setUpdating(true);
+    try {
+      const { error } = await supabase.from("pagaments_anticipats").insert([
+        {
+          bolo_id: bolo.id,
+          music_id: newAdvancePayment.music_id,
+          import: newAdvancePayment.import,
+          data_pagament: newAdvancePayment.data_pagament,
+          notes: newAdvancePayment.notes,
+        },
+      ]);
+
+      if (error) throw error;
+      setShowAdvancePaymentModal(false);
+      setNewAdvancePayment({
+        music_id: "",
         import: 0,
-        data_pagament: new Date().toISOString().split('T')[0],
-        notes: ''
-    });
+        data_pagament: new Date().toISOString().split("T")[0],
+        notes: "",
+      });
+      await fetchAdvancePayments(String(bolo.id));
+      await fetchBolo(String(bolo.id), false);
+    } catch (error) {
+      console.error("Error adding advance payment:", error);
+      showToastMessage("Error en afegir el pagament", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-    const fetchAdvancePayments = async (boloId: string) => {
-        setLoadingAdvancePayments(true);
-        const { data, error } = await supabase
-            .from('pagaments_anticipats')
-            .select('*')
-            .eq('bolo_id', Number(boloId))
-            .order('data_pagament', { ascending: false });
+  const handleDeleteAdvancePayment = async (id: string) => {
+    if (!bolo) return;
+    if (!confirm("Segur que vols eliminar aquest pagament anticipat?")) return;
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("pagaments_anticipats")
+        .delete()
+        .eq("id", id);
 
-        if (error) console.error('Error fetching advance payments:', error);
-        else setAdvancePayments(data || []);
-        setLoadingAdvancePayments(false);
-    };
+      if (error) throw error;
+      await fetchAdvancePayments(String(bolo!.id));
+      await fetchBolo(String(bolo!.id), false);
+    } catch (error) {
+      console.error("Error deleting advance payment:", error);
+      showToastMessage("Error en eliminar el pagament", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-    const handleAddAdvancePayment = async () => {
-        if (!bolo || !newAdvancePayment.music_id || !newAdvancePayment.import) return;
-        setUpdating(true);
-        try {
-            const { error } = await supabase
-                .from('pagaments_anticipats')
-                .insert([{
-                    bolo_id: bolo.id,
-                    music_id: newAdvancePayment.music_id,
-                    import: newAdvancePayment.import,
-                    data_pagament: newAdvancePayment.data_pagament,
-                    notes: newAdvancePayment.notes
-                }]);
+  const showToastMessage = (message: string, type: "success" | "error") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ ...toast, show: false }), 3000);
+  };
 
-            if (error) throw error;
-            setShowAdvancePaymentModal(false);
-            setNewAdvancePayment({ music_id: '', import: 0, data_pagament: new Date().toISOString().split('T')[0], notes: '' });
-            await fetchAdvancePayments(String(bolo.id));
-            await fetchBolo(String(bolo.id), false);
-        } catch (error) {
-            console.error('Error adding advance payment:', error);
-            showToastMessage('Error en afegir el pagament', 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
+  const fetchBolo = async (
+    id: string,
+    showLoading = true,
+    onlyCalculatedFields = false,
+  ) => {
+    if (showLoading) setLoading(true);
+    const { data, error } = await supabase
+      .from("bolos")
+      .select("*")
+      .eq("id", Number(id))
+      .single();
 
-    const handleDeleteAdvancePayment = async (id: string) => {
-        if (!bolo) return;
-        if (!confirm('Segur que vols eliminar aquest pagament anticipat?')) return;
-        setUpdating(true);
-        try {
-            const { error } = await supabase
-                .from('pagaments_anticipats')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-            await fetchAdvancePayments(String(bolo!.id));
-            await fetchBolo(String(bolo!.id), false);
-        } catch (error) {
-            console.error('Error deleting advance payment:', error);
-            showToastMessage('Error en eliminar el pagament', 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const showToastMessage = (message: string, type: 'success' | 'error') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ ...toast, show: false }), 3000);
-    };
-
-    const fetchBolo = async (id: string, showLoading = true, onlyCalculatedFields = false) => {
-        if (showLoading) setLoading(true);
-        const { data, error } = await supabase
-            .from('bolos')
-            .select('*')
-            .eq('id', Number(id))
-            .single();
-
-        if (error) {
-            console.error('Error fetching bolo:', error);
-        } else {
-            if (onlyCalculatedFields) {
-                // Only update the calculated fields to avoid resetting form state or causing scroll
-                setBolo(prev => prev ? {
-                    ...prev,
-                    num_musics: data.num_musics,
-                    cost_total_musics: data.cost_total_musics,
-                    pot_delta: data.pot_delta,
-                    pot_delta_final: data.pot_delta_final,
-                    cobrat: data.cobrat,
-                    pagaments_musics_fets: data.pagaments_musics_fets
-                } : null);
-                return; // Stop here, no need to reset form or navigation
-            }
-            setBolo(data);
-            setEconomicData({
-                import_total: data.import_total || 0,
-                tipus_ingres: data.tipus_ingres || 'B',
+    if (error) {
+      console.error("Error fetching bolo:", error);
+    } else {
+      if (onlyCalculatedFields) {
+        // Only update the calculated fields to avoid resetting form state or causing scroll
+        setBolo((prev) =>
+          prev
+            ? {
+                ...prev,
+                num_musics: data.num_musics,
+                cost_total_musics: data.cost_total_musics,
+                pot_delta: data.pot_delta,
+                pot_delta_final: data.pot_delta_final,
                 cobrat: data.cobrat,
-                pagaments_musics_fets: data.pagaments_musics_fets || false || false,
-                ajust_pot_manual: data.ajust_pot_manual || 0,
-                comentari_ajust_pot: data.comentari_ajust_pot || '',
-                preu_per_musica: data.preu_per_musica || 0
-            });
-
-            // If client_id exists, fetch client details
-            if (data.client_id) {
-                const { data: clientData } = await supabase
-                    .from('clients')
-                    .select('*')
-                    .eq('id', data.client_id)
-                    .single();
-
-                if (clientData) setSelectedClient(clientData);
-            }
-
-        }
-
-        // Fetch Next/Prev
-        // Previous: DATE < Current OR (DATE = Current AND ID < Current) -> Order DESC
-        const { data: prev } = await supabase
-            .from('bolos')
-            .select('id')
-            .or(`data_bolo.lt.${data.data_bolo},and(data_bolo.eq.${data.data_bolo},id.lt.${data.id})`)
-            .order('data_bolo', { ascending: false })
-            .order('id', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        // Next: DATE > Current OR (DATE = Current AND ID > Current) -> Order ASC
-        const { data: next } = await supabase
-            .from('bolos')
-            .select('id')
-            .or(`data_bolo.gt.${data.data_bolo},and(data_bolo.eq.${data.data_bolo},id.gt.${data.id})`)
-            .order('data_bolo', { ascending: true })
-            .order('id', { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
-        if (prev) setPrevBoloId(prev.id); else setPrevBoloId(null);
-        if (next) setNextBoloId(next.id); else setNextBoloId(null);
-
-        if (showLoading) setLoading(false);
-    };
-
-    const fetchClients = async () => {
-        const { data } = await supabase.from('clients').select('*').order('nom');
-        setClients(data || []);
-    };
-
-    const fetchComentaris = async (boloId: string, silent = false) => {
-        if (!silent) setLoadingComentaris(true);
-        const { data, error } = await supabase
-            .from('bolo_comentaris')
-            .select('*')
-            .eq('bolo_id', Number(boloId))
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching comments:', error);
-        } else {
-            setComentaris(data || []);
-        }
-        setLoadingComentaris(false);
-    };
-
-    const handleAddComentari = async () => {
-        if (!newComentari.text.trim() || !bolo) return;
-
-        try {
-            const { error } = await supabase
-                .from('bolo_comentaris')
-                .insert([{
-                    bolo_id: bolo.id,
-                    autor: newComentari.autor || 'Anònim',
-                    text: newComentari.text
-                }]);
-
-            if (error) throw error;
-
-            showToastMessage('Comentari afegit correctament', 'success');
-            setNewComentari({ autor: '', text: '' });
-            fetchComentaris(String(bolo.id), true);
-        } catch (error) {
-            console.error('Error adding comment:', error);
-            showToastMessage('Error en afegir el comentari', 'error');
-        }
-    };
-
-    const handleDeleteComentari = async (id: number | string) => {
-        if (!bolo) return;
-        if (!confirm('Segur que vols eliminar aquest comentari?')) return;
-
-        try {
-            const { error } = await supabase
-                .from('bolo_comentaris')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-
-            showToastMessage('Comentari eliminat correctament', 'success');
-            fetchComentaris(String(bolo.id), true);
-        } catch (error) {
-            console.error('Error deleting comment:', error);
-            showToastMessage('Error en eliminar el comentari', 'error');
-        }
-    };
-
-    const fetchTasques = async (boloId: string, silent = false) => {
-        if (!silent) setLoadingTasques(true);
-        try {
-            const { data, error } = await supabase
-                .from('bolo_tasques')
-                .select('*')
-                .eq('bolo_id', boloId)
-                .order('ordre', { ascending: true });
-
-            if (error) throw error;
-            setTasques(data || []);
-        } catch (error) {
-            console.error('Error fetching tasques:', error);
-        } finally {
-            setLoadingTasques(false);
-        }
-    };
-
-    const fetchMusicsAndAttendance = async (boloId: string, silent = false) => {
-        if (!silent) setLoadingMusics(true);
-        // Fetch all musicians
-        const { data: musicsData, error: musicsError } = await supabase
-            .from('musics')
-            .select('*')
-            .order('nom');
-
-        if (musicsError) console.error('Error fetching musics:', musicsError);
-        else setMusics(musicsData || []);
-
-        // Fetch existing attendance
-        const { data: attendanceData, error: attendanceError } = await supabase
-            .from('bolo_musics')
-            .select('*, music:musics(nom)')
-            .eq('bolo_id', boloId);
-
-        if (attendanceError) console.error('Error fetching attendance:', attendanceError);
-        else setBoloMusics(attendanceData || []);
-
-        setLoadingMusics(false);
-    };
-
-    const handleAddMusicians = async (musicIds: string[], type: 'titular' | 'substitut') => {
-        if (!bolo) return;
-        setUpdating(true);
-        try {
-            const rows = musicIds.map(mid => {
-                const music = musics.find(m => m.id === mid);
-                // Prioritize principal instrument, fallback to first in list
-                const defaultInst = music?.instrument_principal || (music?.instruments ? music.instruments.split(',')[0].trim() : null);
-
-                return {
-                    bolo_id: Number(bolo.id),
-                    music_id: mid,
-                    tipus: type,
-                    estat: 'confirmat' as const,
-                    import_assignat: 0,
-                    instrument: defaultInst
-                };
-            });
-
-            const { error } = await supabase
-                .from('bolo_musics')
-                .insert(rows);
-
-            if (error) throw error;
-
-            showToastMessage(`${musicIds.length} músics afegits correctament`, 'success');
-            await fetchMusicsAndAttendance(String(bolo.id), true);
-            await fetchBolo(String(bolo.id), false); // Update economics silently
-        } catch (error) {
-            console.error('Error adding musicians:', error);
-            showToastMessage('Error en afegir els músics', 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const handleUpdateMusicianStatus = async (musicId: string, status: string) => {
-        if (!bolo) return;
-
-        // Optimistic Update
-        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, estat: status as any } : bm));
-
-        try {
-            const { error } = await supabase
-                .from('bolo_musics')
-                .update({ estat: status })
-                .eq('bolo_id', bolo.id)
-                .eq('music_id', musicId);
-
-            if (error) throw error;
-
-            await fetchBolo(String(bolo.id), false); // Update economics silently
-        } catch (error) {
-            console.error('Error updating status:', error);
-            showToastMessage('Error en actualitzar estat', 'error');
-            await fetchMusicsAndAttendance(String(bolo.id), true); // Revert silently
-        }
-    };
-
-    const handleUpdateMusicianComment = async (musicId: string, comment: string) => {
-        if (!bolo) return;
-
-        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, comentari: comment } : bm));
-
-        try {
-            const { error } = await supabase
-                .from('bolo_musics')
-                .update({ comentari: comment })
-                .eq('bolo_id', bolo.id)
-                .eq('music_id', musicId);
-
-            if (error) throw error;
-        } catch (error) {
-            console.error('Error updating comment:', error);
-            showToastMessage('Error en desar el comentari', 'error');
-        }
-    };
-
-    const handleUpdateMusicianInstrument = async (musicId: string, instrument: string) => {
-        if (!bolo) return;
-
-        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, instrument } : bm));
-
-        try {
-            const { error } = await supabase
-                .from('bolo_musics')
-                .update({ instrument })
-                .eq('bolo_id', bolo.id)
-                .eq('music_id', musicId);
-
-            if (error) throw error;
-        } catch (error) {
-            console.error('Error updating instrument:', error);
-            showToastMessage('Error en desar l\'instrument', 'error');
-        }
-    };
-
-    const handleUpdateMusicianPrice = async (musicId: string, price: number | null) => {
-        if (!bolo) return;
-
-        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, preu_personalitzat: price } : bm));
-
-        try {
-            const { error } = await supabase
-                .from('bolo_musics')
-                .update({ preu_personalitzat: price })
-                .eq('bolo_id', bolo.id)
-                .eq('music_id', musicId);
-
-            if (error) throw error;
-            await fetchBolo(String(bolo.id), false);
-        } catch (error) {
-            console.error('Error updating price:', error);
-            showToastMessage('Error en actualitzar el preu', 'error');
-            await fetchMusicsAndAttendance(String(bolo.id), true);
-        }
-    };
-
-    const handleUpdateMusicianConductor = async (musicId: string, conductor: boolean) => {
-        if (!bolo) return;
-
-        setBoloMusics(prev => prev.map(bm => bm.music_id === musicId ? { ...bm, conductor } : bm));
-
-        try {
-            const { error } = await supabase
-                .from('bolo_musics')
-                .update({ conductor })
-                .eq('bolo_id', bolo.id)
-                .eq('music_id', musicId);
-
-            if (error) throw error;
-        } catch (error) {
-            console.error('Error updating conductor:', error);
-            showToastMessage('Error en desar el conductor', 'error');
-            await fetchMusicsAndAttendance(String(bolo.id), true);
-        }
-    };
-
-    const handleRemoveMusician = async (attendanceId: string, musicId: string) => {
-        if (!bolo) return;
-        if (!confirm('Segur que vols eliminar aquest músic del bolo?')) return;
-
-        // Optimistic
-        setBoloMusics(prev => prev.filter(bm => bm.music_id !== musicId));
-
-        try {
-            const { error } = await supabase
-                .from('bolo_musics')
-                .delete()
-                .eq('id', attendanceId);
-
-            if (error) throw error;
-
-            showToastMessage('Músic eliminat', 'success');
-            await fetchBolo(String(bolo.id), false); // Update economics silently
-        } catch (error) {
-            console.error('Error removing musician:', error);
-            showToastMessage('Error al eliminar', 'error');
-            await fetchMusicsAndAttendance(String(bolo.id), true); // Revert silently
-        }
-    };
-
-    const handleSaveEconomicData = async () => {
-        if (!bolo) return;
-        setUpdating(true);
-        try {
-            // Prepare data: if Altres, we might want to force 0s if they were leftover
-            const dataToSave = {
-                import_total: economicData.tipus_ingres === 'Altres' ? 0 : (economicData.import_total || 0),
-                preu_per_musica: economicData.tipus_ingres === 'Altres' ? 0 : (economicData.preu_per_musica || 0),
-                tipus_ingres: economicData.tipus_ingres || 'Factura',
-                cobrat: economicData.tipus_ingres === 'Altres' ? false : !!economicData.cobrat,
-                pagaments_musics_fets: economicData.tipus_ingres === 'Altres' ? false : !!economicData.pagaments_musics_fets,
-                ajust_pot_manual: economicData.tipus_ingres === 'Altres' ? 0 : (economicData.ajust_pot_manual || 0),
-                comentari_ajust_pot: economicData.comentari_ajust_pot || ''
-            };
-
-            const { error } = await supabase
-                .from('bolos')
-                .update(dataToSave)
-                .eq('id', bolo.id);
-
-            if (error) throw error;
-
-            // Updated bolo state to match the type exactly
-            setBolo(prev => prev ? { ...prev, ...dataToSave } : null);
-
-            // Update local state too
-            setEconomicData({
-                ...economicData,
-                import_total: dataToSave.import_total,
-                preu_per_musica: dataToSave.preu_per_musica,
-                ajust_pot_manual: dataToSave.ajust_pot_manual,
-                cobrat: dataToSave.cobrat,
-                pagaments_musics_fets: dataToSave.pagaments_musics_fets
-            });
-
-            showToastMessage('Dades econòmiques desades', 'success');
-            // Refresh only the calculated fields (pot_delta etc.) without resetting form or scrolling
-            await fetchBolo(String(bolo.id), false, true);
-        } catch (error) {
-            console.error('Error saving economic data:', error);
-            showToastMessage('Error en desar les dades econòmiques', 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const handleChecklistChange = async (field: keyof Bolo, value: boolean) => {
-        if (!bolo) return;
-
-        // Optimistic update
-        const updatedBolo = { ...bolo, [field]: value };
-        setBolo(updatedBolo);
-
-        // If it's 'cobrat', also update economicData
-        if (field === 'cobrat') {
-            setEconomicData(prev => ({ ...prev, cobrat: value }));
-        }
-
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ [field]: value })
-                .eq('id', bolo.id);
-
-            if (error) throw error;
-        } catch (error) {
-            console.error(`Error updating ${field}:`, error);
-            showToastMessage("Error al desar la tasca", 'error');
-            // Revert on error
-            setBolo(bolo);
-        }
-    };
-
-    const getInstrumentPriority = (inst: string): number => {
-        const i = (inst || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        if (i.includes('percussio') || i.includes('bateria') || i.includes('timbal') || i.includes('bombo') || i.includes('plat') || i.includes('caixa')) return 1;
-        if (i.includes('trompeta')) return 2;
-        if (i.includes('trombo')) return 3;
-        if (i.includes('tuba') || i.includes('bombardi')) return 4;
-        if (i.includes('saxo') && i.includes('alt')) return 5;
-        if (i.includes('saxo') && i.includes('tenor')) return 6;
-        if (i.includes('saxo')) return 7;
-        if (i.includes('flabiol')) return 8;
-        if (i.includes('tible')) return 9;
-        if (i.includes('tenora')) return 10;
-        if (i.includes('fiscorn')) return 11;
-        if (i.includes('clarinet')) return 12;
-        return 99;
-    };
-
-    const handleGenerateWhatsappConvo = () => {
-        if (!bolo) return;
-
-        let dateStr = 'XX/XX/XXXX';
-        try {
-            if (bolo.data_bolo) {
-                dateStr = format(new Date(bolo.data_bolo), 'dd/MM/yyyy');
-            }
-        } catch (e) {
-            console.error("Error formatting date:", e);
-        }
-
-        const horaStr = (bolo.hora_inici || '').substring(0, 5) || 'XX:XX';
-        const horaConvoStr = (bolo.hora_convocatoria || '').substring(0, 5) || calculateDefaultConvoTime(horaStr) || 'XX:XX';
-
-        // Filter and sort musicians by instrument priority
-        const sortedMusicians = [...(boloMusics || [])]
-            .filter(m => m.estat === 'confirmat' || m.estat === 'pendent') // Only relevant musicians
-            .sort((a, b) => {
-                const priorityA = getInstrumentPriority(a.instrument || '');
-                const priorityB = getInstrumentPriority(b.instrument || '');
-                if (priorityA !== priorityB) return priorityA - priorityB;
-                return (a.music?.nom || '').localeCompare(b.music?.nom || '');
-            });
-
-        const musicianNames = sortedMusicians.length > 0
-            ? sortedMusicians.map(m => m.music?.nom || 'Músic').join(', ')
-            : 'Cap músic assignat encara';
-
-        const text = `🥁🎷🎺🎤🍷🇧🇷🥳🥾
-
-🎉 *${(bolo.titol || bolo.nom_poble || 'SENSE TÍTOL').toUpperCase()} 🗓️ ${dateStr}*
+                pagaments_musics_fets: data.pagaments_musics_fets,
+              }
+            : null,
+        );
+        return; // Stop here, no need to reset form or navigation
+      }
+      setBolo(data);
+      setEconomicData({
+        import_total: data.import_total || 0,
+        tipus_ingres: data.tipus_ingres || "B",
+        cobrat: data.cobrat,
+        pagaments_musics_fets: data.pagaments_musics_fets || false || false,
+        ajust_pot_manual: data.ajust_pot_manual || 0,
+        comentari_ajust_pot: data.comentari_ajust_pot || "",
+        preu_per_musica: data.preu_per_musica || 0,
+      });
+
+      // If client_id exists, fetch client details
+      if (data.client_id) {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("id", data.client_id)
+          .single();
+
+        if (clientData) setSelectedClient(clientData);
+      }
+    }
+
+    // Fetch Next/Prev
+    // Previous: DATE < Current OR (DATE = Current AND ID < Current) -> Order DESC
+    const { data: prev } = await supabase
+      .from("bolos")
+      .select("id")
+      .or(
+        `data_bolo.lt.${data.data_bolo},and(data_bolo.eq.${data.data_bolo},id.lt.${data.id})`,
+      )
+      .order("data_bolo", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Next: DATE > Current OR (DATE = Current AND ID > Current) -> Order ASC
+    const { data: next } = await supabase
+      .from("bolos")
+      .select("id")
+      .or(
+        `data_bolo.gt.${data.data_bolo},and(data_bolo.eq.${data.data_bolo},id.gt.${data.id})`,
+      )
+      .order("data_bolo", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (prev) setPrevBoloId(prev.id);
+    else setPrevBoloId(null);
+    if (next) setNextBoloId(next.id);
+    else setNextBoloId(null);
+
+    if (showLoading) setLoading(false);
+  };
+
+  const fetchClients = async () => {
+    const { data } = await supabase.from("clients").select("*").order("nom");
+    setClients(data || []);
+  };
+
+  const fetchComentaris = async (boloId: string, silent = false) => {
+    if (!silent) setLoadingComentaris(true);
+    const { data, error } = await supabase
+      .from("bolo_comentaris")
+      .select("*")
+      .eq("bolo_id", Number(boloId))
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching comments:", error);
+    } else {
+      setComentaris(data || []);
+    }
+    setLoadingComentaris(false);
+  };
+
+  const handleAddComentari = async () => {
+    if (!newComentari.text.trim() || !bolo) return;
+
+    try {
+      const { error } = await supabase.from("bolo_comentaris").insert([
+        {
+          bolo_id: bolo.id,
+          autor: newComentari.autor || "Anònim",
+          text: newComentari.text,
+        },
+      ]);
+
+      if (error) throw error;
+
+      showToastMessage("Comentari afegit correctament", "success");
+      setNewComentari({ autor: "", text: "" });
+      fetchComentaris(String(bolo.id), true);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      showToastMessage("Error en afegir el comentari", "error");
+    }
+  };
+
+  const handleDeleteComentari = async (id: number | string) => {
+    if (!bolo) return;
+    if (!confirm("Segur que vols eliminar aquest comentari?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("bolo_comentaris")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      showToastMessage("Comentari eliminat correctament", "success");
+      fetchComentaris(String(bolo.id), true);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      showToastMessage("Error en eliminar el comentari", "error");
+    }
+  };
+
+  const fetchTasques = async (boloId: string, silent = false) => {
+    if (!silent) setLoadingTasques(true);
+    try {
+      const { data, error } = await supabase
+        .from("bolo_tasques")
+        .select("*")
+        .eq("bolo_id", boloId)
+        .order("ordre", { ascending: true });
+
+      if (error) throw error;
+      setTasques(data || []);
+    } catch (error) {
+      console.error("Error fetching tasques:", error);
+    } finally {
+      setLoadingTasques(false);
+    }
+  };
+
+  const fetchMusicsAndAttendance = async (boloId: string, silent = false) => {
+    if (!silent) setLoadingMusics(true);
+    // Fetch all musicians
+    const { data: musicsData, error: musicsError } = await supabase
+      .from("musics")
+      .select("*")
+      .order("nom");
+
+    if (musicsError) console.error("Error fetching musics:", musicsError);
+    else setMusics(musicsData || []);
+
+    // Fetch existing attendance
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .from("bolo_musics")
+      .select("*, music:musics(nom)")
+      .eq("bolo_id", boloId);
+
+    if (attendanceError)
+      console.error("Error fetching attendance:", attendanceError);
+    else setBoloMusics(attendanceData || []);
+
+    setLoadingMusics(false);
+  };
+
+  const handleAddMusicians = async (
+    musicIds: string[],
+    type: "titular" | "substitut",
+  ) => {
+    if (!bolo) return;
+    setUpdating(true);
+    try {
+      const rows = musicIds.map((mid) => {
+        const music = musics.find((m) => m.id === mid);
+        // Prioritize principal instrument, fallback to first in list
+        const defaultInst =
+          music?.instrument_principal ||
+          (music?.instruments ? music.instruments.split(",")[0].trim() : null);
+
+        return {
+          bolo_id: Number(bolo.id),
+          music_id: mid,
+          tipus: type,
+          estat: "confirmat" as const,
+          import_assignat: 0,
+          instrument: defaultInst,
+        };
+      });
+
+      const { error } = await supabase.from("bolo_musics").insert(rows);
+
+      if (error) throw error;
+
+      showToastMessage(
+        `${musicIds.length} músics afegits correctament`,
+        "success",
+      );
+      await fetchMusicsAndAttendance(String(bolo.id), true);
+      await fetchBolo(String(bolo.id), false); // Update economics silently
+    } catch (error) {
+      console.error("Error adding musicians:", error);
+      showToastMessage("Error en afegir els músics", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleUpdateMusicianStatus = async (
+    musicId: string,
+    status: string,
+  ) => {
+    if (!bolo) return;
+
+    // Optimistic Update
+    setBoloMusics((prev) =>
+      prev.map((bm) =>
+        bm.music_id === musicId ? { ...bm, estat: status as any } : bm,
+      ),
+    );
+
+    try {
+      const { error } = await supabase
+        .from("bolo_musics")
+        .update({ estat: status })
+        .eq("bolo_id", bolo.id)
+        .eq("music_id", musicId);
+
+      if (error) throw error;
+
+      await fetchBolo(String(bolo.id), false); // Update economics silently
+    } catch (error) {
+      console.error("Error updating status:", error);
+      showToastMessage("Error en actualitzar estat", "error");
+      await fetchMusicsAndAttendance(String(bolo.id), true); // Revert silently
+    }
+  };
+
+  const handleUpdateMusicianComment = async (
+    musicId: string,
+    comment: string,
+  ) => {
+    if (!bolo) return;
+
+    setBoloMusics((prev) =>
+      prev.map((bm) =>
+        bm.music_id === musicId ? { ...bm, comentari: comment } : bm,
+      ),
+    );
+
+    try {
+      const { error } = await supabase
+        .from("bolo_musics")
+        .update({ comentari: comment })
+        .eq("bolo_id", bolo.id)
+        .eq("music_id", musicId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating comment:", error);
+      showToastMessage("Error en desar el comentari", "error");
+    }
+  };
+
+  const handleUpdateMusicianInstrument = async (
+    musicId: string,
+    instrument: string,
+  ) => {
+    if (!bolo) return;
+
+    setBoloMusics((prev) =>
+      prev.map((bm) => (bm.music_id === musicId ? { ...bm, instrument } : bm)),
+    );
+
+    try {
+      const { error } = await supabase
+        .from("bolo_musics")
+        .update({ instrument })
+        .eq("bolo_id", bolo.id)
+        .eq("music_id", musicId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating instrument:", error);
+      showToastMessage("Error en desar l'instrument", "error");
+    }
+  };
+
+  const handleUpdateMusicianPrice = async (
+    musicId: string,
+    price: number | null,
+  ) => {
+    if (!bolo) return;
+
+    setBoloMusics((prev) =>
+      prev.map((bm) =>
+        bm.music_id === musicId ? { ...bm, preu_personalitzat: price } : bm,
+      ),
+    );
+
+    try {
+      const { error } = await supabase
+        .from("bolo_musics")
+        .update({ preu_personalitzat: price })
+        .eq("bolo_id", bolo.id)
+        .eq("music_id", musicId);
+
+      if (error) throw error;
+      await fetchBolo(String(bolo.id), false);
+    } catch (error) {
+      console.error("Error updating price:", error);
+      showToastMessage("Error en actualitzar el preu", "error");
+      await fetchMusicsAndAttendance(String(bolo.id), true);
+    }
+  };
+
+  const handleUpdateMusicianConductor = async (
+    musicId: string,
+    conductor: boolean,
+  ) => {
+    if (!bolo) return;
+
+    setBoloMusics((prev) =>
+      prev.map((bm) => (bm.music_id === musicId ? { ...bm, conductor } : bm)),
+    );
+
+    try {
+      const { error } = await supabase
+        .from("bolo_musics")
+        .update({ conductor })
+        .eq("bolo_id", bolo.id)
+        .eq("music_id", musicId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating conductor:", error);
+      showToastMessage("Error en desar el conductor", "error");
+      await fetchMusicsAndAttendance(String(bolo.id), true);
+    }
+  };
+
+  const handleRemoveMusician = async (
+    attendanceId: string,
+    musicId: string,
+  ) => {
+    if (!bolo) return;
+    if (!confirm("Segur que vols eliminar aquest músic del bolo?")) return;
+
+    // Optimistic
+    setBoloMusics((prev) => prev.filter((bm) => bm.music_id !== musicId));
+
+    try {
+      const { error } = await supabase
+        .from("bolo_musics")
+        .delete()
+        .eq("id", attendanceId);
+
+      if (error) throw error;
+
+      showToastMessage("Músic eliminat", "success");
+      await fetchBolo(String(bolo.id), false); // Update economics silently
+    } catch (error) {
+      console.error("Error removing musician:", error);
+      showToastMessage("Error al eliminar", "error");
+      await fetchMusicsAndAttendance(String(bolo.id), true); // Revert silently
+    }
+  };
+
+  const handleSaveEconomicData = async () => {
+    if (!bolo) return;
+    setUpdating(true);
+    try {
+      // Prepare data: if Altres, we might want to force 0s if they were leftover
+      const dataToSave = {
+        import_total:
+          economicData.tipus_ingres === "Altres"
+            ? 0
+            : economicData.import_total || 0,
+        preu_per_musica:
+          economicData.tipus_ingres === "Altres"
+            ? 0
+            : economicData.preu_per_musica || 0,
+        tipus_ingres: economicData.tipus_ingres || "Factura",
+        cobrat:
+          economicData.tipus_ingres === "Altres"
+            ? false
+            : !!economicData.cobrat,
+        pagaments_musics_fets:
+          economicData.tipus_ingres === "Altres"
+            ? false
+            : !!economicData.pagaments_musics_fets,
+        ajust_pot_manual:
+          economicData.tipus_ingres === "Altres"
+            ? 0
+            : economicData.ajust_pot_manual || 0,
+        comentari_ajust_pot: economicData.comentari_ajust_pot || "",
+      };
+
+      const { error } = await supabase
+        .from("bolos")
+        .update(dataToSave)
+        .eq("id", bolo.id);
+
+      if (error) throw error;
+
+      // Updated bolo state to match the type exactly
+      setBolo((prev) => (prev ? { ...prev, ...dataToSave } : null));
+
+      // Update local state too
+      setEconomicData({
+        ...economicData,
+        import_total: dataToSave.import_total,
+        preu_per_musica: dataToSave.preu_per_musica,
+        ajust_pot_manual: dataToSave.ajust_pot_manual,
+        cobrat: dataToSave.cobrat,
+        pagaments_musics_fets: dataToSave.pagaments_musics_fets,
+      });
+
+      showToastMessage("Dades econòmiques desades", "success");
+      // Refresh only the calculated fields (pot_delta etc.) without resetting form or scrolling
+      await fetchBolo(String(bolo.id), false, true);
+    } catch (error) {
+      console.error("Error saving economic data:", error);
+      showToastMessage("Error en desar les dades econòmiques", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleChecklistChange = async (field: keyof Bolo, value: boolean) => {
+    if (!bolo) return;
+
+    // Optimistic update
+    const updatedBolo = { ...bolo, [field]: value };
+    setBolo(updatedBolo);
+
+    // If it's 'cobrat', also update economicData
+    if (field === "cobrat") {
+      setEconomicData((prev) => ({ ...prev, cobrat: value }));
+    }
+
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ [field]: value })
+        .eq("id", bolo.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
+      showToastMessage("Error al desar la tasca", "error");
+      // Revert on error
+      setBolo(bolo);
+    }
+  };
+
+  const getInstrumentPriority = (inst: string): number => {
+    const i = (inst || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (
+      i.includes("percussio") ||
+      i.includes("bateria") ||
+      i.includes("timbal") ||
+      i.includes("bombo") ||
+      i.includes("plat") ||
+      i.includes("caixa")
+    )
+      return 1;
+    if (i.includes("trompeta")) return 2;
+    if (i.includes("trombo")) return 3;
+    if (i.includes("tuba") || i.includes("bombardi")) return 4;
+    if (i.includes("saxo") && i.includes("alt")) return 5;
+    if (i.includes("saxo") && i.includes("tenor")) return 6;
+    if (i.includes("saxo")) return 7;
+    if (i.includes("flabiol")) return 8;
+    if (i.includes("tible")) return 9;
+    if (i.includes("tenora")) return 10;
+    if (i.includes("fiscorn")) return 11;
+    if (i.includes("clarinet")) return 12;
+    return 99;
+  };
+
+  const handleGenerateWhatsappConvo = () => {
+    if (!bolo) return;
+
+    let dateStr = "XX/XX/XXXX";
+    try {
+      if (bolo.data_bolo) {
+        dateStr = format(new Date(bolo.data_bolo), "dd/MM/yyyy");
+      }
+    } catch (e) {
+      console.error("Error formatting date:", e);
+    }
+
+    const horaStr = (bolo.hora_inici || "").substring(0, 5) || "XX:XX";
+    const horaConvoStr =
+      (bolo.hora_convocatoria || "").substring(0, 5) ||
+      calculateDefaultConvoTime(horaStr) ||
+      "XX:XX";
+
+    // Filter and sort musicians by instrument priority
+    const sortedMusicians = [...(boloMusics || [])]
+      .filter((m) => m.estat === "confirmat" || m.estat === "pendent") // Only relevant musicians
+      .sort((a, b) => {
+        const priorityA = getInstrumentPriority(a.instrument || "");
+        const priorityB = getInstrumentPriority(b.instrument || "");
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        return (a.music?.nom || "").localeCompare(b.music?.nom || "");
+      });
+
+    const musicianNames =
+      sortedMusicians.length > 0
+        ? sortedMusicians.map((m) => m.music?.nom || "Músic").join(", ")
+        : "Cap músic assignat encara";
+
+    const text = `🥁🎷🎺🎤🍷🇧🇷🥳🥾
+
+🎉 *${(bolo.titol || bolo.nom_poble || "SENSE TÍTOL").toUpperCase()} 🗓️ ${dateStr}*
 ⏰ *Inici:* ${horaStr} h
 🕒 *Convocatòria:* ${horaConvoStr} h
 
 📒 *CONCEPTE*
-${bolo.concepte || 'Cercavila'}
+${bolo.concepte || "Cercavila"}
 
 *❗️CONVOCATÒRIA❗️*
 🕒 *${horaConvoStr}* (Hora de quedada)
-🏟️ *LLOC de quedada:* ${bolo.ubicacio_inici || 'Per confirmar'}${bolo.maps_inici ? ` (${bolo.maps_inici})` : ''}
-🧳 *FUNDES:* ${bolo.notes_fundes || 'Per confirmar'}${bolo.maps_fundes ? ` (${bolo.maps_fundes})` : ''}
-🅿️ *APARCAMENT:* ${bolo.ubicacio_aparcament || 'Per confirmar'}${bolo.maps_aparcament ? ` (${bolo.maps_aparcament})` : ''}
+🏟️ *LLOC de quedada:* ${bolo.ubicacio_inici || "Per confirmar"}${bolo.maps_inici ? ` (${bolo.maps_inici})` : ""}
+🧳 *FUNDES:* ${bolo.notes_fundes || "Per confirmar"}${bolo.maps_fundes ? ` (${bolo.maps_fundes})` : ""}
+🅿️ *APARCAMENT:* ${bolo.ubicacio_aparcament || "Per confirmar"}${bolo.maps_aparcament ? ` (${bolo.maps_aparcament})` : ""}
 
 👨‍👩‍👧‍👧 *NÚMERO DE MÚSICS*
 ${sortedMusicians.length} músics
@@ -702,2112 +811,2750 @@ ${sortedMusicians.length} músics
 💵 *Sou Individual*
 ${bolo.preu_per_musica || 0} €
 
-${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
+${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ""}
 *A Buidar-la fortíssim*🍷🍷🥳🇧🇷🥾`;
 
-        setWhatsappConvoText(text);
-        setShowWhatsappConvoModal(true);
-    };
+    setWhatsappConvoText(text);
+    setShowWhatsappConvoModal(true);
+  };
 
-    const handleCopyWhatsappConvo = () => {
-        navigator.clipboard.writeText(whatsappConvoText);
-        showToastMessage('Convocatòria copiada al porta-retalls', 'success');
-        setShowWhatsappConvoModal(false);
-    };
+  const handleCopyWhatsappConvo = () => {
+    navigator.clipboard.writeText(whatsappConvoText);
+    showToastMessage("Convocatòria copiada al porta-retalls", "success");
+    setShowWhatsappConvoModal(false);
+  };
 
-    const handleSolicitarConvocatoria = async () => {
-        if (!bolo) return;
+  const handleSolicitarConvocatoria = async () => {
+    if (!bolo) return;
 
-        const webhookUrl = process.env.NEXT_PUBLIC_N8N_CONVOCATORIA_WEBHOOK_URL;
+    const webhookUrl = process.env.NEXT_PUBLIC_N8N_CONVOCATORIA_WEBHOOK_URL;
 
-        if (!webhookUrl) {
-            console.warn("Webhook URL not configured.");
-            showToastMessage("URL de convocatòria no configurada.", 'error');
-            return;
+    if (!webhookUrl) {
+      console.warn("Webhook URL not configured.");
+      showToastMessage("URL de convocatòria no configurada.", "error");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const localHora = (bolo.hora_inici || bolo.hora || "").substring(0, 5);
+      const payload = {
+        id: bolo.id,
+        nom_poble: bolo.nom_poble,
+        data_bolo: bolo.data_bolo,
+        hora: localHora,
+        concepte: bolo.concepte,
+        ubicacio: bolo.ubicacio_detallada,
+        num_musics: bolo.num_musics,
+        sou_individual: bolo.preu_per_musica,
+        vestimenta: bolo.vestimenta,
+        partitures: bolo.partitures,
+        ubicacio_inici: bolo.ubicacio_inici,
+        notes_fundes: bolo.notes_fundes,
+      };
+
+      const response = await fetch("/api/n8n", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: webhookUrl, payload }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Webhook call failed");
+      }
+
+      showToastMessage(
+        "S'ha sol·licitat la convocatòria als músics.",
+        "success",
+      );
+
+      if (!bolo.convocatoria_enviada) {
+        handleChecklistChange("convocatoria_enviada", true);
+      }
+    } catch (error: any) {
+      console.error("Error requesting convocatoria:", error);
+      showToastMessage(
+        error.message || "Error en sol·licitar la convocatòria.",
+        "error",
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleOpenPreview = async (type: "pressupost" | "factura") => {
+    if (!bolo || !selectedClient) {
+      showToastMessage("Falten dades del bolo o client.", "error");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      let instrumentsCount = undefined;
+      const instrData = await getInstrumentsData(bolo.id);
+      instrumentsCount = instrData.counts;
+
+      const initialText = generateDescriptionText(
+        type,
+        bolo,
+        selectedClient,
+        instrumentsCount,
+      );
+      setDescriptionText(initialText);
+      setPreviewType(type);
+
+      // Fetch next number from registry
+      const currentYearPrefix = new Date().getFullYear().toString().slice(-2);
+      const { data: lastRecord } = await supabase
+        .from("invoice_records")
+        .select("invoice_number")
+        .eq("type", type)
+        .like("invoice_number", `${currentYearPrefix}/%`)
+        .order("invoice_number", { ascending: false })
+        .limit(1);
+
+      let nextNumStr = "001";
+      if (lastRecord && lastRecord.length > 0) {
+        const parts = lastRecord[0].invoice_number.split("/");
+        if (parts.length === 2) {
+          const lastNum = parseInt(parts[1]);
+          if (!isNaN(lastNum)) {
+            nextNumStr = (lastNum + 1).toString().padStart(3, "0");
+          }
         }
+      }
+      setManualNumber(`${currentYearPrefix}/${nextNumStr}`);
 
-        setUpdating(true);
-        try {
-            const localHora = (bolo.hora_inici || bolo.hora || '').substring(0, 5);
-            const payload = {
-                id: bolo.id,
-                nom_poble: bolo.nom_poble,
-                data_bolo: bolo.data_bolo,
-                hora: localHora,
-                concepte: bolo.concepte,
-                ubicacio: bolo.ubicacio_detallada,
-                num_musics: bolo.num_musics,
-                sou_individual: bolo.preu_per_musica,
-                vestimenta: bolo.vestimenta,
-                partitures: bolo.partitures,
-                ubicacio_inici: bolo.ubicacio_inici,
-                notes_fundes: bolo.notes_fundes
-            };
+      // Initialize articles
+      setArticles([
+        { descripcio: "Actuació", preu: bolo.import_total || 0, quantitat: 1 },
+      ]);
 
-            const response = await fetch('/api/n8n', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: webhookUrl, payload })
-            });
+      setShowPreview(true);
+    } catch (error: any) {
+      showToastMessage("Error al carregar la previsualització.", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-            const result = await response.json();
+  const handleGeneratePDF = async () => {
+    if (!bolo || !selectedClient || !previewType) return;
+    setPdfGenerating(true);
+    try {
+      const { generateClientPDF } =
+        await import("@/utils/pdf-client-generator");
 
-            if (!response.ok) {
-                throw new Error(result.error || 'Webhook call failed');
-            }
+      const payload = {
+        type: previewType,
+        number: manualNumber,
+        date: format(new Date(), "dd/MM/yyyy"),
+        dueDate:
+          previewType === "factura"
+            ? format(
+                new Date(new Date().setMonth(new Date().getMonth() + 3)),
+                "dd/MM/yyyy",
+              )
+            : undefined,
+        client: {
+          nom: selectedClient.nom,
+          nif: selectedClient.nif,
+          adreca: selectedClient.adreca,
+          poblacio: selectedClient.poblacio,
+          codi_postal: selectedClient.codi_postal,
+        },
+        bolo: {
+          nom_poble: bolo.nom_poble,
+          concepte: bolo.concepte,
+          durada: bolo.durada,
+          data: bolo.data_bolo,
+          hora: bolo.hora_inici,
+          nombre_musics: bolo.num_musics,
+        },
+        articles,
+        total: articles.reduce(
+          (acc: number, art: any) => acc + art.preu * art.quantitat,
+          0,
+        ),
+        descriptionText: descriptionText,
+      };
 
-            showToastMessage("S'ha sol·licitat la convocatòria als músics.", 'success');
+      // 1. Generar instantàniament al client
+      const doc = await generateClientPDF(payload);
 
-            if (!bolo.convocatoria_enviada) {
-                handleChecklistChange('convocatoria_enviada', true);
-            }
+      // Filename formats:
+      // Budgets: ANY_MES_DIA_LLOC_PRESSUPOSTBUIDANTLABOTA
+      // Invoices: NUMERO-FACTURA_LLOC_FACTURABUIDANTLABOTA
+      let finalFileName = "";
+      const lloc = (bolo.nom_poble || "Buidantlabota").replace(/\s+/g, "_");
+      const dataBolo = bolo.data_bolo
+        ? bolo.data_bolo.replace(/-/g, "_")
+        : format(new Date(), "yyyy_MM_dd");
 
-        } catch (error: any) {
-            console.error('Error requesting convocatoria:', error);
-            showToastMessage(error.message || "Error en sol·licitar la convocatòria.", 'error');
-        } finally {
-            setUpdating(false);
+      if (previewType === "pressupost") {
+        finalFileName = `${dataBolo}_${lloc}_PRESSUPOSTBUIDANTLABOTA.pdf`;
+      } else {
+        const num = manualNumber.replace(/\//g, "_");
+        finalFileName = `${num}_${lloc}_FACTURABUIDANTLABOTA.pdf`;
+      }
+
+      doc.save(finalFileName);
+      // 2. Registrar a la DB directament (Client-side)
+      const today = new Date();
+      console.log("PROCESSANT REGISTRE A DB...", {
+        manualNumber,
+        client: selectedClient.id,
+        bolo: bolo.id,
+      });
+
+      // Defineix el tipus de document (factura per defecte, pressupost si previewType ho diu)
+      const docType = previewType === "pressupost" ? "pressupost" : "factura";
+      const dueDate =
+        previewType === "factura" ? addMonths(today, 3) : addMonths(today, 1); // Pressupost validesa 1 mes
+
+      // Prepara el payload unificat (ora tot a invoice_records)
+      const insertPayload = {
+        invoice_number: manualNumber,
+        client_name: selectedClient.nom,
+        client_id: selectedClient.id,
+        bolo_id: Number(bolo.id),
+        creation_date: format(today, "yyyy-MM-dd"),
+        due_date: format(dueDate, "yyyy-MM-dd"),
+        total_amount: payload.total,
+        paid: false,
+        articles: articles,
+        notes: descriptionText,
+        type: docType, // NOU CAMP IMPORTANT
+        status: "sent",
+      };
+
+      // Insereix a la taula unificada
+      const { error: insertError } = await supabase
+        .from("invoice_records")
+        .insert(insertPayload);
+
+      if (insertError) {
+        console.error("ERROR DB INSERT:", insertError);
+        // Si l'error es duplicate key, avisem que ja existeix
+        if (insertError.code === "23505") {
+          showToastMessage(
+            `El document ${manualNumber} ja existeix registrat.`,
+            "success",
+          );
+        } else {
+          alert(
+            `ERROR CRÍTIC GUARDANT EL REGISTRE:\n${insertError.message}\n\nEl PDF s'ha descarregat, però NO està a la base de dades.`,
+          );
+          throw new Error(`Error BD: ${insertError.message}`);
         }
-    };
+      } else {
+        console.log("Document guardat correctament a DB:", insertPayload);
+        showToastMessage(
+          `${docType === "factura" ? "Factura" : "Pressupost"} registrat correctament!`,
+          "success",
+        );
+      }
 
-    const handleOpenPreview = async (type: 'pressupost' | 'factura') => {
-        if (!bolo || !selectedClient) {
-            showToastMessage("Falten dades del bolo o client.", 'error');
-            return;
-        }
+      showToastMessage("Document generat correctament!", "success");
 
-        setUpdating(true);
-        try {
-            let instrumentsCount = undefined;
-            const instrData = await getInstrumentsData(bolo.id);
-            instrumentsCount = instrData.counts;
+      // Actualitzar checklist
+      if (previewType === "pressupost" && !bolo.pressupost_enviat) {
+        handleChecklistChange("pressupost_enviat", true);
+      } else if (previewType === "factura" && !bolo.factura_enviada) {
+        handleChecklistChange("factura_enviada", true);
+      }
 
-            const initialText = generateDescriptionText(type, bolo, selectedClient, instrumentsCount);
-            setDescriptionText(initialText);
-            setPreviewType(type);
+      setShowPreview(false);
+    } catch (error: any) {
+      showToastMessage(error.message || "Error en generar el PDF.", "error");
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
 
-            // Fetch next number from registry
-            const currentYearPrefix = new Date().getFullYear().toString().slice(-2);
-            const { data: lastRecord } = await supabase
-                .from('invoice_records')
-                .select('invoice_number')
-                .eq('type', type)
-                .like('invoice_number', `${currentYearPrefix}/%`)
-                .order('invoice_number', { ascending: false })
-                .limit(1);
+  const getInstrumentsData = async (boloId: number) => {
+    const { data, error } = await supabase
+      .from("bolo_musics")
+      .select("musics(instruments)")
+      .eq("bolo_id", boloId)
+      .eq("estat", "si");
 
-            let nextNumStr = '001';
-            if (lastRecord && lastRecord.length > 0) {
-                const parts = lastRecord[0].invoice_number.split('/');
-                if (parts.length === 2) {
-                    const lastNum = parseInt(parts[1]);
-                    if (!isNaN(lastNum)) {
-                        nextNumStr = (lastNum + 1).toString().padStart(3, '0');
-                    }
-                }
-            }
-            setManualNumber(`${currentYearPrefix}/${nextNumStr}`);
+    if (error || !data)
+      return { total: 0, counts: {} as Record<string, number> };
 
-            // Initialize articles
-            setArticles([{ descripcio: 'Actuació', preu: bolo.import_total || 0, quantitat: 1 }]);
+    const counts: Record<string, number> = {};
+    data.forEach((row: any) => {
+      if (row.musics && row.musics.instruments) {
+        const instr = row.musics.instruments.toLowerCase();
+        counts[instr] = (counts[instr] || 0) + 1;
+      }
+    });
+    return { total: data.length, counts };
+  };
 
-            setShowPreview(true);
-        } catch (error: any) {
-            showToastMessage("Error al carregar la previsualització.", 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const handleGeneratePDF = async () => {
-        if (!bolo || !selectedClient || !previewType) return;
-        setPdfGenerating(true);
-        try {
-            const { generateClientPDF } = await import('@/utils/pdf-client-generator');
-
-            const payload = {
-                type: previewType,
-                number: manualNumber,
-                date: format(new Date(), 'dd/MM/yyyy'),
-                dueDate: previewType === 'factura' ? format(new Date(new Date().setMonth(new Date().getMonth() + 3)), 'dd/MM/yyyy') : undefined,
-                client: {
-                    nom: selectedClient.nom,
-                    nif: selectedClient.nif,
-                    adreca: selectedClient.adreca,
-                    poblacio: selectedClient.poblacio,
-                    codi_postal: selectedClient.codi_postal
-                },
-                bolo: {
-                    nom_poble: bolo.nom_poble,
-                    concepte: bolo.concepte,
-                    durada: bolo.durada,
-                    data: bolo.data_bolo,
-                    hora: bolo.hora_inici,
-                    nombre_musics: bolo.num_musics
-                },
-                articles,
-                total: articles.reduce((acc: number, art: any) => acc + (art.preu * art.quantitat), 0),
-                descriptionText: descriptionText
-            };
-
-            // 1. Generar instantàniament al client
-            const doc = await generateClientPDF(payload);
-
-            // Filename formats:
-            // Budgets: ANY_MES_DIA_LLOC_PRESSUPOSTBUIDANTLABOTA
-            // Invoices: NUMERO-FACTURA_LLOC_FACTURABUIDANTLABOTA
-            let finalFileName = "";
-            const lloc = (bolo.nom_poble || 'Buidantlabota').replace(/\s+/g, '_');
-            const dataBolo = bolo.data_bolo ? bolo.data_bolo.replace(/-/g, '_') : format(new Date(), 'yyyy_MM_dd');
-
-            if (previewType === 'pressupost') {
-                finalFileName = `${dataBolo}_${lloc}_PRESSUPOSTBUIDANTLABOTA.pdf`;
-            } else {
-                const num = manualNumber.replace(/\//g, '_');
-                finalFileName = `${num}_${lloc}_FACTURABUIDANTLABOTA.pdf`;
-            }
-
-            doc.save(finalFileName);
-            // 2. Registrar a la DB directament (Client-side)
-            const today = new Date();
-            console.log("PROCESSANT REGISTRE A DB...", { manualNumber, client: selectedClient.id, bolo: bolo.id });
-
-            // Defineix el tipus de document (factura per defecte, pressupost si previewType ho diu)
-            const docType = previewType === 'pressupost' ? 'pressupost' : 'factura';
-            const dueDate = previewType === 'factura'
-                ? addMonths(today, 3)
-                : addMonths(today, 1); // Pressupost validesa 1 mes
-
-            // Prepara el payload unificat (ora tot a invoice_records)
-            const insertPayload = {
-                invoice_number: manualNumber,
-                client_name: selectedClient.nom,
-                client_id: selectedClient.id,
-                bolo_id: Number(bolo.id),
-                creation_date: format(today, 'yyyy-MM-dd'),
-                due_date: format(dueDate, 'yyyy-MM-dd'),
-                total_amount: payload.total,
-                paid: false,
-                articles: articles,
-                notes: descriptionText,
-                type: docType, // NOU CAMP IMPORTANT
-                status: 'sent'
-            };
-
-            // Insereix a la taula unificada
-            const { error: insertError } = await supabase
-                .from('invoice_records')
-                .insert(insertPayload);
-
-            if (insertError) {
-                console.error("ERROR DB INSERT:", insertError);
-                // Si l'error es duplicate key, avisem que ja existeix
-                if (insertError.code === '23505') {
-                    showToastMessage(`El document ${manualNumber} ja existeix registrat.`, 'success');
-                } else {
-                    alert(`ERROR CRÍTIC GUARDANT EL REGISTRE:\n${insertError.message}\n\nEl PDF s'ha descarregat, però NO està a la base de dades.`);
-                    throw new Error(`Error BD: ${insertError.message}`);
-                }
-            } else {
-                console.log("Document guardat correctament a DB:", insertPayload);
-                showToastMessage(`${docType === 'factura' ? 'Factura' : 'Pressupost'} registrat correctament!`, 'success');
-            }
-
-
-            showToastMessage("Document generat correctament!", 'success');
-
-            // Actualitzar checklist
-            if (previewType === 'pressupost' && !bolo.pressupost_enviat) {
-                handleChecklistChange('pressupost_enviat', true);
-            } else if (previewType === 'factura' && !bolo.factura_enviada) {
-                handleChecklistChange('factura_enviada', true);
-            }
-
-            setShowPreview(false);
-        } catch (error: any) {
-            showToastMessage(error.message || "Error en generar el PDF.", 'error');
-        } finally {
-            setPdfGenerating(false);
-        }
-    };
-
-    const getInstrumentsData = async (boloId: number) => {
-        const { data, error } = await supabase
-            .from('bolo_musics')
-            .select('musics(instruments)')
-            .eq('bolo_id', boloId)
-            .eq('estat', 'si');
-
-        if (error || !data) return { total: 0, counts: {} as Record<string, number> };
-
-        const counts: Record<string, number> = {};
-        data.forEach((row: any) => {
-            if (row.musics && row.musics.instruments) {
-                const instr = row.musics.instruments.toLowerCase();
-                counts[instr] = (counts[instr] || 0) + 1;
-            }
+  const handleUpdateTitle = async () => {
+    if (!bolo || !tempMunicipi?.municipi_text || !tempDate) return;
+    setUpdating(true);
+    try {
+      // 1. Resoldre el municipi si és necessari
+      let finalMunicipi = tempMunicipi;
+      if (
+        tempMunicipi &&
+        !tempMunicipi.municipi_id &&
+        !tempMunicipi.municipi_custom_id
+      ) {
+        const res = await fetch("/api/municipis/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ value: tempMunicipi.municipi_text }),
         });
-        return { total: data.length, counts };
-    };
-
-
-    const handleUpdateTitle = async () => {
-        if (!bolo || !tempMunicipi?.municipi_text || !tempDate) return;
-        setUpdating(true);
-        try {
-            // 1. Resoldre el municipi si és necessari
-            let finalMunicipi = tempMunicipi;
-            if (tempMunicipi && !tempMunicipi.municipi_id && !tempMunicipi.municipi_custom_id) {
-                const res = await fetch('/api/municipis/resolve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ value: tempMunicipi.municipi_text })
-                });
-                if (res.ok) {
-                    finalMunicipi = await res.json();
-                }
-            }
-
-            const { error } = await supabase
-                .from('bolos')
-                .update({
-                    titol: tempTitol.trim() || null,
-                    nom_poble: (finalMunicipi?.municipi_text || tempTitle).trim(),
-                    data_bolo: tempDate,
-                    municipi_id: finalMunicipi?.municipi_id || null,
-                    municipi_custom_id: finalMunicipi?.municipi_custom_id || null,
-                    municipi_text: finalMunicipi?.municipi_text || null
-                })
-                .eq('id', bolo.id);
-
-            if (error) throw error;
-
-            setBolo({
-                ...bolo,
-                titol: tempTitol.trim() || null,
-                nom_poble: (finalMunicipi?.municipi_text || tempTitle).trim(),
-                data_bolo: tempDate,
-                municipi_id: finalMunicipi?.municipi_id || null,
-                municipi_custom_id: finalMunicipi?.municipi_custom_id || null,
-                municipi_text: finalMunicipi?.municipi_text || null
-            });
-            setIsEditingTitle(false);
-            showToastMessage('Dades principals actualitzades', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating main data:', error);
-            showToastMessage('Error en actualitzar', 'error');
-        } finally {
-            setUpdating(false);
+        if (res.ok) {
+          finalMunicipi = await res.json();
         }
-    };
+      }
 
-    const handleClientChange = async (clientId: string) => {
-        if (!bolo) return;
+      const { error } = await supabase
+        .from("bolos")
+        .update({
+          titol: tempTitol.trim() || null,
+          nom_poble: (finalMunicipi?.municipi_text || tempTitle).trim(),
+          data_bolo: tempDate,
+          municipi_id: finalMunicipi?.municipi_id || null,
+          municipi_custom_id: finalMunicipi?.municipi_custom_id || null,
+          municipi_text: finalMunicipi?.municipi_text || null,
+        })
+        .eq("id", bolo.id);
 
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ client_id: clientId || null })
-                .eq('id', bolo.id);
+      if (error) throw error;
 
-            if (error) throw error;
+      setBolo({
+        ...bolo,
+        titol: tempTitol.trim() || null,
+        nom_poble: (finalMunicipi?.municipi_text || tempTitle).trim(),
+        data_bolo: tempDate,
+        municipi_id: finalMunicipi?.municipi_id || null,
+        municipi_custom_id: finalMunicipi?.municipi_custom_id || null,
+        municipi_text: finalMunicipi?.municipi_text || null,
+      });
+      setIsEditingTitle(false);
+      showToastMessage("Dades principals actualitzades", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating main data:", error);
+      showToastMessage("Error en actualitzar", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-            setBolo({ ...bolo, client_id: clientId || null });
+  const handleClientChange = async (clientId: string) => {
+    if (!bolo) return;
 
-            if (clientId) {
-                const client = clients.find(c => c.id === clientId);
-                setSelectedClient(client || null);
-            } else {
-                setSelectedClient(null);
-            }
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ client_id: clientId || null })
+        .eq("id", bolo.id);
 
-            showToastMessage('Client assignat correctament', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating client:', error);
-            showToastMessage("Error en assignar el client", 'error');
+      if (error) throw error;
+
+      setBolo({ ...bolo, client_id: clientId || null });
+
+      if (clientId) {
+        const client = clients.find((c) => c.id === clientId);
+        setSelectedClient(client || null);
+      } else {
+        setSelectedClient(null);
+      }
+
+      showToastMessage("Client assignat correctament", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating client:", error);
+      showToastMessage("Error en assignar el client", "error");
+    }
+  };
+
+  const [localHora, setLocalHora] = useState<string>("");
+  const [localHoraConvocatoria, setLocalHoraConvocatoria] =
+    useState<string>("");
+
+  useEffect(() => {
+    setLocalHora(bolo?.hora_inici || "");
+    setLocalHoraConvocatoria(bolo?.hora_convocatoria || "");
+  }, [bolo?.hora_inici, bolo?.hora_convocatoria]);
+
+  const calculateDefaultConvoTime = (startTime: string): string => {
+    if (!startTime) return "";
+    try {
+      const [h, m] = startTime.split(":").map(Number);
+      const date = new Date();
+      date.setHours(h);
+      date.setMinutes(m - 30);
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const handleDataBoloChange = async (newVal: string) => {
+    if (!bolo) return;
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ data_bolo: newVal })
+        .eq("id", bolo.id);
+
+      if (error) throw error;
+      setBolo({ ...bolo, data_bolo: newVal });
+      showToastMessage("Data actualitzada", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating data:", error);
+      showToastMessage("Error en actualitzar la data", "error");
+    }
+  };
+
+  const handleUpdateHora = async (newHora: string) => {
+    if (!bolo) return;
+
+    // Don't update if value hasn't changed
+    if (newHora === bolo.hora_inici) return;
+
+    try {
+      const updates: any = { hora_inici: newHora || null };
+
+      // If convo time is not set, calculate default (half hour before)
+      if (!bolo.hora_convocatoria && newHora) {
+        const defaultConvo = calculateDefaultConvoTime(newHora);
+        if (defaultConvo) {
+          updates.hora_convocatoria = defaultConvo;
         }
-    };
+      }
 
+      const { error } = await supabase
+        .from("bolos")
+        .update(updates)
+        .eq("id", bolo.id);
 
-    const [localHora, setLocalHora] = useState<string>('');
-    const [localHoraConvocatoria, setLocalHoraConvocatoria] = useState<string>('');
-
-    useEffect(() => {
-        setLocalHora(bolo?.hora_inici || '');
-        setLocalHoraConvocatoria(bolo?.hora_convocatoria || '');
-    }, [bolo?.hora_inici, bolo?.hora_convocatoria]);
-
-    const calculateDefaultConvoTime = (startTime: string): string => {
-        if (!startTime) return '';
-        try {
-            const [h, m] = startTime.split(':').map(Number);
-            const date = new Date();
-            date.setHours(h);
-            date.setMinutes(m - 30);
-            const pad = (n: number) => n.toString().padStart(2, '0');
-            return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-        } catch (e) {
-            return '';
+      if (error) {
+        // Check specifically for missing column error
+        if (error.code === "42703") {
+          alert(
+            'ERROR CRÍTIC: La columna "hora_inici" no existeix a la base de dades.\n\nSi us plau, executa aquest SQL al teu Panell de Supabase:\n\nALTER TABLE bolos ADD COLUMN hora_inici time;',
+          );
         }
-    };
+        throw error;
+      }
 
-    const handleDataBoloChange = async (newVal: string) => {
-        if (!bolo) return;
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ data_bolo: newVal })
-                .eq('id', bolo.id);
+      setBolo({ ...bolo, ...updates });
+      showToastMessage("Hora actualitzada", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating hora:", error);
+      showToastMessage("Error en actualitzar l'hora", "error");
+    }
+  };
 
-            if (error) throw error;
-            setBolo({ ...bolo, data_bolo: newVal });
-            showToastMessage('Data actualitzada', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating data:', error);
-            showToastMessage('Error en actualitzar la data', 'error');
+  const handleUpdateHoraConvocatoria = async (newHora: string) => {
+    if (!bolo) return;
+    if (newHora === bolo.hora_convocatoria) return;
+
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ hora_convocatoria: newHora || null })
+        .eq("id", bolo.id);
+
+      if (error) {
+        if (error.code === "42703") {
+          alert(
+            'ERROR: La columna "hora_convocatoria" no existeix. SQL:\n\nALTER TABLE bolos ADD COLUMN hora_convocatoria time;',
+          );
         }
-    };
+        throw error;
+      }
 
-    const handleUpdateHora = async (newHora: string) => {
-        if (!bolo) return;
+      setBolo({ ...bolo, hora_convocatoria: newHora || null });
+      showToastMessage("Hora de convocatòria actualitzada", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating hora convocatoria:", error);
+      showToastMessage("Error en actualitzar l'hora de convocatòria", "error");
+    }
+  };
 
-        // Don't update if value hasn't changed
-        if (newHora === bolo.hora_inici) return;
+  // Fix: Removed extra braces/semicolons that were causing build errors
 
-        try {
-            const updates: any = { hora_inici: newHora || null };
+  const handlePobleChange = async (newVal: string) => {
+    if (!bolo) return;
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ nom_poble: newVal })
+        .eq("id", bolo.id);
 
-            // If convo time is not set, calculate default (half hour before)
-            if (!bolo.hora_convocatoria && newHora) {
-                const defaultConvo = calculateDefaultConvoTime(newHora);
-                if (defaultConvo) {
-                    updates.hora_convocatoria = defaultConvo;
-                }
-            }
+      if (error) throw error;
+      setBolo({ ...bolo, nom_poble: newVal });
+      showToastMessage("Població actualitzada", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating poble:", error);
+      showToastMessage("Error en actualitzar la població", "error");
+    }
+  };
 
-            const { error } = await supabase
-                .from('bolos')
-                .update(updates)
-                .eq('id', bolo.id);
+  const handleTipusActuacioChange = async (newVal: string) => {
+    if (!bolo) return;
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ tipus_actuacio: newVal || null })
+        .eq("id", bolo.id);
 
-            if (error) {
-                // Check specifically for missing column error
-                if (error.code === '42703') {
-                    alert('ERROR CRÍTIC: La columna "hora_inici" no existeix a la base de dades.\n\nSi us plau, executa aquest SQL al teu Panell de Supabase:\n\nALTER TABLE bolos ADD COLUMN hora_inici time;');
-                }
-                throw error;
-            }
+      if (error) throw error;
+      setBolo({ ...bolo, tipus_actuacio: newVal });
+      showToastMessage("Tipus d'actuació actualitzat", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating tipus actuacio:", error);
+      showToastMessage("Error en actualitzar el tipus", "error");
+    }
+  };
 
-            setBolo({ ...bolo, ...updates });
-            showToastMessage('Hora actualitzada', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating hora:', error);
-            showToastMessage('Error en actualitzar l\'hora', 'error');
-        }
-    };
+  const handleConcepteChange = async (newVal: string) => {
+    if (!bolo) return;
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ concepte: newVal || null })
+        .eq("id", bolo.id);
 
-    const handleUpdateHoraConvocatoria = async (newHora: string) => {
-        if (!bolo) return;
-        if (newHora === bolo.hora_convocatoria) return;
+      if (error) throw error;
+      setBolo({ ...bolo, concepte: newVal });
+      showToastMessage("Concepte actualitzat", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating concepte:", error);
+      showToastMessage("Error en actualitzar el concepte", "error");
+    }
+  };
 
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ hora_convocatoria: newHora || null })
-                .eq('id', bolo.id);
+  const handleDuradaChange = async (newVal: number) => {
+    if (!bolo) return;
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ durada: newVal || null })
+        .eq("id", bolo.id);
 
-            if (error) {
-                if (error.code === '42703') {
-                    alert('ERROR: La columna "hora_convocatoria" no existeix. SQL:\n\nALTER TABLE bolos ADD COLUMN hora_convocatoria time;');
-                }
-                throw error;
-            }
+      if (error) throw error;
+      setBolo({ ...bolo, durada: newVal });
+      showToastMessage("Durada actualitzada", "success");
+      triggerGoogleSync();
+    } catch (error) {
+      console.error("Error updating durada:", error);
+      showToastMessage("Error en actualitzar la durada", "error");
+    }
+  };
 
-            setBolo({ ...bolo, hora_convocatoria: newHora || null });
-            showToastMessage('Hora de convocatòria actualitzada', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating hora convocatoria:', error);
-            showToastMessage('Error en actualitzar l\'hora de convocatòria', 'error');
-        }
-    };
+  const handleAutomationFieldChange = async (field: keyof Bolo, value: any) => {
+    if (!bolo) return;
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ [field]: value })
+        .eq("id", bolo.id);
 
-    // Fix: Removed extra braces/semicolons that were causing build errors
+      if (error) throw error;
+      setBolo({ ...bolo, [field]: value });
+      showToastMessage("Camp actualitzat", "success");
 
+      // Sync if it's one of the fields in the calendar description
+      const calendarFields: (keyof Bolo)[] = [
+        "ubicacio_inici",
+        "vestimenta",
+        "partitures",
+        "notes_fundes",
+        "notes",
+        "ubicacio_detallada",
+        "maps_inici",
+        "maps_fundes",
+        "ubicacio_aparcament",
+        "maps_aparcament",
+      ];
+      if (calendarFields.includes(field)) {
+        triggerGoogleSync();
+      }
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
+      showToastMessage("Error en actualitzar el camp", "error");
+    }
+  };
 
-    const handlePobleChange = async (newVal: string) => {
-        if (!bolo) return;
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ nom_poble: newVal })
-                .eq('id', bolo.id);
+  const handleStatusTransition = async (direction: "next" | "prev") => {
+    if (!bolo) return;
+    let currentIndex = BOLO_STATES.indexOf(bolo.estat as BoloStatus);
 
-            if (error) throw error;
-            setBolo({ ...bolo, nom_poble: newVal });
-            showToastMessage('Població actualitzada', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating poble:', error);
-            showToastMessage('Error en actualitzar la població', 'error');
-        }
-    };
+    // Fallback for legacy states
+    if (currentIndex === -1) {
+      if ((bolo.estat as string) === "Sol·licitat") currentIndex = 0;
+      else if ((bolo.estat as string) === "Confirmat") currentIndex = 2;
+      else if ((bolo.estat as string) === "Tancat") currentIndex = 5;
+    }
 
-    const handleTipusActuacioChange = async (newVal: string) => {
-        if (!bolo) return;
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ tipus_actuacio: newVal || null })
-                .eq('id', bolo.id);
+    let nextIndex = currentIndex;
+    if (direction === "next" && currentIndex < BOLO_STATES.length - 1) {
+      nextIndex++;
+    } else if (direction === "prev" && currentIndex > 0) {
+      nextIndex--;
+    }
 
-            if (error) throw error;
-            setBolo({ ...bolo, tipus_actuacio: newVal });
-            showToastMessage('Tipus d\'actuació actualitzat', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating tipus actuacio:', error);
-            showToastMessage('Error en actualitzar el tipus', 'error');
-        }
-    };
+    if (nextIndex === currentIndex || nextIndex === -1) return;
 
-    const handleConcepteChange = async (newVal: string) => {
-        if (!bolo) return;
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ concepte: newVal || null })
-                .eq('id', bolo.id);
+    const newStatus = BOLO_STATES[nextIndex];
 
-            if (error) throw error;
-            setBolo({ ...bolo, concepte: newVal });
-            showToastMessage('Concepte actualitzat', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating concepte:', error);
-            showToastMessage('Error en actualitzar el concepte', 'error');
-        }
-    };
+    // Confirmation if going back from deep states
+    if (direction === "prev" && currentIndex >= 2) {
+      // From Confirmada onwards
+      if (
+        !window.confirm(
+          `Segur que vols tornar el bolo a l'estat anterior ("${newStatus}")?`,
+        )
+      ) {
+        return;
+      }
+    }
 
-    const handleDuradaChange = async (newVal: number) => {
-        if (!bolo) return;
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ durada: newVal || null })
-                .eq('id', bolo.id);
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ estat: newStatus })
+        .eq("id", bolo.id);
 
-            if (error) throw error;
-            setBolo({ ...bolo, durada: newVal });
-            showToastMessage('Durada actualitzada', 'success');
-            triggerGoogleSync();
-        } catch (error) {
-            console.error('Error updating durada:', error);
-            showToastMessage('Error en actualitzar la durada', 'error');
-        }
-    };
+      if (error) throw error;
+      setBolo({ ...bolo, estat: newStatus });
+      showToastMessage(`Estat actualitzat a ${newStatus}`, "success");
 
-    const handleAutomationFieldChange = async (field: keyof Bolo, value: any) => {
-        if (!bolo) return;
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ [field]: value })
-                .eq('id', bolo.id);
+      if (newStatus === "Confirmada" || bolo.estat === "Confirmada") {
+        fetch(`/api/bolos/${bolo.id}/sync`, { method: "POST" }).catch(
+          console.error,
+        );
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      showToastMessage("Error al canviar l'estat", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-            if (error) throw error;
-            setBolo({ ...bolo, [field]: value });
-            showToastMessage('Camp actualitzat', 'success');
+  const updateStatus = async (newStatus: string) => {
+    if (!bolo) return;
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("bolos")
+        .update({ estat: newStatus })
+        .eq("id", bolo.id);
 
-            // Sync if it's one of the fields in the calendar description
-            const calendarFields: (keyof Bolo)[] = ['ubicacio_inici', 'vestimenta', 'partitures', 'notes_fundes', 'notes', 'ubicacio_detallada', 'maps_inici', 'maps_fundes', 'ubicacio_aparcament', 'maps_aparcament'];
-            if (calendarFields.includes(field)) {
-                triggerGoogleSync();
-            }
-        } catch (error) {
-            console.error(`Error updating ${field}:`, error);
-            showToastMessage('Error en actualitzar el camp', 'error');
-        }
-    };
+      if (error) throw error;
+      setBolo({ ...bolo, estat: newStatus as BoloStatus });
+      showToastMessage(`Estat actualitzat a ${newStatus}`, "success");
+      if (newStatus === "Confirmada" || bolo.estat === "Confirmada") {
+        fetch(`/api/bolos/${bolo.id}/sync`, { method: "POST" }).catch(
+          console.error,
+        );
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      showToastMessage("Error al canviar l'estat", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
+  const handleRejection = async () => {
+    if (!bolo) return;
 
-    const handleStatusTransition = async (direction: 'next' | 'prev') => {
-        if (!bolo) return;
-        let currentIndex = BOLO_STATES.indexOf(bolo.estat as BoloStatus);
+    if (
+      !window.confirm(
+        "Segur que vols marcar aquest bolo com rebutjat / cancel·lat? Aquesta acció no es pot desfer fàcilment.",
+      )
+    ) {
+      return;
+    }
 
-        // Fallback for legacy states
-        if (currentIndex === -1) {
-            if ((bolo.estat as string) === 'Sol·licitat') currentIndex = 0;
-            else if ((bolo.estat as string) === 'Confirmat') currentIndex = 2;
-            else if ((bolo.estat as string) === 'Tancat') currentIndex = 5;
-        }
+    setUpdating(true);
+    try {
+      // TODO: Trigger n8n webhook for rejection
+      const updates = {
+        estat: "Cancel·lats" as BoloStatus, // Standardized plural
+        estat_rebuig: "rebutjat",
+        motiu_rebuig: rejectionData.motiu,
+        origen_rebuig: rejectionData.origen,
+        data_rebuig: new Date().toISOString(),
+      };
 
-        let nextIndex = currentIndex;
-        if (direction === 'next' && currentIndex < BOLO_STATES.length - 1) {
-            nextIndex++;
-        } else if (direction === 'prev' && currentIndex > 0) {
-            nextIndex--;
-        }
+      const { error } = await supabase
+        .from("bolos")
+        .update(updates)
+        .eq("id", bolo.id);
 
-        if (nextIndex === currentIndex || nextIndex === -1) return;
+      if (error) throw error;
 
-        const newStatus = BOLO_STATES[nextIndex];
+      setBolo({ ...bolo, ...updates });
+      setShowRejectionModal(false);
+      showToastMessage("Bolo marcat com a cancel·lat", "success");
+      triggerGoogleSync();
+      router.refresh();
+    } catch (error) {
+      console.error("Error rejecting bolo:", error);
+      showToastMessage("Error al rebutjar el bolo.", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-        // Confirmation if going back from deep states
-        if (direction === 'prev' && currentIndex >= 2) { // From Confirmada onwards
-            if (!window.confirm(`Segur que vols tornar el bolo a l'estat anterior ("${newStatus}")?`)) {
-                return;
-            }
-        }
+  const handleRecover = async () => {
+    if (!bolo) return;
 
-        setUpdating(true);
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ estat: newStatus })
-                .eq('id', bolo.id);
+    if (
+      !window.confirm(
+        "Vols recuperar aquest bolo? Tornarà a l'estat 'Pendent de confirmació'.",
+      )
+    ) {
+      return;
+    }
 
-            if (error) throw error;
-            setBolo({ ...bolo, estat: newStatus });
-            showToastMessage(`Estat actualitzat a ${newStatus}`, 'success');
+    setUpdating(true);
+    try {
+      const updates = {
+        estat: "Pendent de confirmació" as BoloStatus,
+        estat_rebuig: null,
+        motiu_rebuig: null,
+        origen_rebuig: null,
+        data_rebuig: null,
+      };
 
-            if (newStatus === 'Confirmada' || bolo.estat === 'Confirmada') {
-                fetch(`/api/bolos/${bolo.id}/sync`, { method: 'POST' }).catch(console.error);
-            }
-        } catch (error) {
-            console.error('Error updating status:', error);
-            showToastMessage("Error al canviar l'estat", 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
+      const { error } = await supabase
+        .from("bolos")
+        .update(updates)
+        .eq("id", bolo.id);
 
-    const updateStatus = async (newStatus: string) => {
-        if (!bolo) return;
-        setUpdating(true);
-        try {
-            const { error } = await supabase
-                .from('bolos')
-                .update({ estat: newStatus })
-                .eq('id', bolo.id);
+      if (error) throw error;
 
-            if (error) throw error;
-            setBolo({ ...bolo, estat: newStatus as BoloStatus });
-            showToastMessage(`Estat actualitzat a ${newStatus}`, 'success');
-            if (newStatus === 'Confirmada' || bolo.estat === 'Confirmada') {
-                fetch(`/api/bolos/${bolo.id}/sync`, { method: 'POST' }).catch(console.error);
-            }
-        } catch (error) {
-            console.error('Error updating status:', error);
-            showToastMessage("Error al canviar l'estat", 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-    const handleRejection = async () => {
-        if (!bolo) return;
+      setBolo({ ...bolo, ...updates });
+      showToastMessage("Bolo recuperat correctament", "success");
+      triggerGoogleSync();
+      router.refresh();
+    } catch (error) {
+      console.error("Error recovering bolo:", error);
+      showToastMessage("Error al recuperar el bolo.", "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-        if (!window.confirm("Segur que vols marcar aquest bolo com rebutjat / cancel·lat? Aquesta acció no es pot desfer fàcilment.")) {
-            return;
-        }
-
-        setUpdating(true);
-        try {
-            // TODO: Trigger n8n webhook for rejection
-            const updates = {
-                estat: 'Cancel·lats' as BoloStatus, // Standardized plural
-                estat_rebuig: 'rebutjat',
-                motiu_rebuig: rejectionData.motiu,
-                origen_rebuig: rejectionData.origen,
-                data_rebuig: new Date().toISOString()
-            };
-
-            const { error } = await supabase
-                .from('bolos')
-                .update(updates)
-                .eq('id', bolo.id);
-
-            if (error) throw error;
-
-            setBolo({ ...bolo, ...updates });
-            setShowRejectionModal(false);
-            showToastMessage("Bolo marcat com a cancel·lat", "success");
-            triggerGoogleSync();
-            router.refresh();
-        } catch (error) {
-            console.error('Error rejecting bolo:', error);
-            showToastMessage("Error al rebutjar el bolo.", 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const handleRecover = async () => {
-        if (!bolo) return;
-
-        if (!window.confirm("Vols recuperar aquest bolo? Tornarà a l'estat 'Pendent de confirmació'.")) {
-            return;
-        }
-
-        setUpdating(true);
-        try {
-            const updates = {
-                estat: 'Pendent de confirmació' as BoloStatus,
-                estat_rebuig: null,
-                motiu_rebuig: null,
-                origen_rebuig: null,
-                data_rebuig: null
-            };
-
-            const { error } = await supabase
-                .from('bolos')
-                .update(updates)
-                .eq('id', bolo.id);
-
-            if (error) throw error;
-
-            setBolo({ ...bolo, ...updates });
-            showToastMessage("Bolo recuperat correctament", "success");
-            triggerGoogleSync();
-            router.refresh();
-        } catch (error) {
-            console.error('Error recovering bolo:', error);
-            showToastMessage("Error al recuperar el bolo.", 'error');
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-
-
-    if (loading && !bolo) return <div className="p-8 text-center text-gray-500 dark:text-text-secondary-dark">Carregant...</div>;
-    if (!bolo) return <div className="p-8 text-center text-gray-500 dark:text-text-secondary-dark">No s'ha trobat el bolo.</div>;
-
-    const isRebutjat = bolo.estat_rebuig === 'rebutjat' || (bolo.estat as string) === 'Cancel·lats' || (bolo.estat as string) === 'Cancel·lat';
-
+  if (loading && !bolo)
     return (
-        <div className="p-2 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 relative">
-            {/* Toast */}
-            {toast.show && (
-                <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white z-[110] font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300 ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
-                    <span className="material-icons-outlined text-base">
-                        {toast.type === 'success' ? 'check_circle' : 'error'}
-                    </span>
-                    {toast.message}
-                </div>
-            )}
-
-            {/* Rejection Modal */}
-            {showRejectionModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white dark:bg-card-dark p-6 rounded-xl max-w-md w-full shadow-xl border border-gray-200 dark:border-border-dark my-auto max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-text-primary-dark">Rebutjar / Cancel·lar Bolo</h3>
-                        <p className="mb-4 text-sm text-gray-500 dark:text-text-secondary-dark">
-                            Aquesta acció aturarà el flux de treball del bolo.
-                        </p>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Motiu</label>
-                                <textarea
-                                    className="w-full p-2 rounded border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-gray-900 dark:text-text-primary-dark"
-                                    rows={3}
-                                    value={rejectionData.motiu}
-                                    onChange={e => setRejectionData({ ...rejectionData, motiu: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">Qui ha pres la decisió?</label>
-                                <select
-                                    className="w-full p-2 rounded border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-gray-900 dark:text-text-primary-dark"
-                                    value={rejectionData.origen}
-                                    onChange={e => setRejectionData({ ...rejectionData, origen: e.target.value })}
-                                >
-                                    <option value="client">Client</option>
-                                    <option value="xaranga">Xaranga</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button
-                                onClick={() => setShowRejectionModal(false)}
-                                className="px-4 py-2 rounded text-gray-500 dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-gray-800"
-                            >
-                                Cancel·lar
-                            </button>
-                            <button
-                                onClick={handleRejection}
-                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-bold"
-                            >
-                                Continuar amb el rebuig
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
-                    <Link href="/bolos" className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">arrow_back</span>
-                    </Link>
-
-                    {/* Navigation Arrows */}
-                    <div className="flex items-center space-x-1">
-                        <button
-                            onClick={() => prevBoloId && router.push(`/bolos/${prevBoloId}`)}
-                            disabled={!prevBoloId}
-                            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title="Bolo anterior"
-                        >
-                            <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">chevron_left</span>
-                        </button>
-                        <button
-                            onClick={() => nextBoloId && router.push(`/bolos/${nextBoloId}`)}
-                            disabled={!nextBoloId}
-                            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title="Bolo següent"
-                        >
-                            <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">chevron_right</span>
-                        </button>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        {isEditingTitle ? (
-                            <div className="flex flex-col gap-3 w-full">
-                                <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                                    <div className="flex-1 w-full">
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Títol del Bolo</label>
-                                        <input
-                                            type="text"
-                                            value={tempTitol}
-                                            onChange={(e) => setTempTitol(e.target.value)}
-                                            placeholder="Títol del bolo"
-                                            className="w-full p-2 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none font-bold"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                                    <div className="flex-1 w-full">
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Poble / Municipi</label>
-                                        <MunicipiSelector
-                                            value={tempMunicipi}
-                                            onChange={setTempMunicipi}
-                                            placeholder="Poble"
-                                        />
-                                    </div>
-                                    <div className="w-full sm:w-auto">
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Data</label>
-                                        <input
-                                            type="date"
-                                            value={tempDate}
-                                            onChange={(e) => setTempDate(e.target.value)}
-                                            className="w-full sm:w-auto p-1.5 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex gap-1 shrink-0 w-full sm:w-auto justify-end pt-5">
-                                        <button onClick={handleUpdateTitle} className="p-2 rounded bg-green-100 text-green-700 hover:bg-green-200">
-                                            <span className="material-icons-outlined text-xl">check</span>
-                                        </button>
-                                        <button onClick={() => setIsEditingTitle(false)} className="p-2 rounded bg-red-100 text-red-700 hover:bg-red-200">
-                                            <span className="material-icons-outlined text-xl">close</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-text-primary-dark flex items-center gap-2 group truncate">
-                                <span className="truncate">{bolo.titol || bolo.nom_poble}</span>
-                                {!isRebutjat && (bolo.estat as string) !== 'Tancat' && (
-                                    <button
-                                        onClick={() => {
-                                            setTempTitol(bolo.titol || '');
-                                            setTempTitle(bolo.nom_poble);
-                                            setTempDate(bolo.data_bolo);
-                                            setTempMunicipi({
-                                                municipi_id: bolo.municipi_id || null,
-                                                municipi_custom_id: bolo.municipi_custom_id || null,
-                                                municipi_text: bolo.municipi_text || bolo.nom_poble
-                                            });
-                                            setIsEditingTitle(true);
-                                        }}
-                                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-text-secondary-dark"
-                                        title="Editar nom i data"
-                                    >
-                                        <span className="material-icons-outlined text-lg">edit</span>
-                                    </button>
-                                )}
-                            </h1>
-                        )}
-                    </div>
-                </div>
-
-                {/* State Control Pipeline */}
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                    <button
-                        onClick={() => handleStatusTransition('prev')}
-                        disabled={updating || BOLO_STATES.indexOf(bolo.estat as BoloStatus) <= 0 || isRebutjat}
-                        className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title="Estat anterior"
-                    >
-                        <span className="material-icons-outlined text-lg">west</span>
-                    </button>
-
-                    <div className={`px-4 py-2 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all duration-300 ${isRebutjat ? 'bg-red-600 text-white' :
-                        bolo.estat === 'Nova' ? 'bg-red-600 text-white' :
-                            bolo.estat === 'Pendent de confirmació' ? 'bg-orange-500 text-white' :
-                                bolo.estat === 'Confirmada' ? 'bg-emerald-600 text-white' :
-                                    bolo.estat === 'Pendents de cobrar' ? 'bg-yellow-400 text-gray-900' :
-                                        bolo.estat === 'Per pagar' ? 'bg-lime-500 text-gray-900' :
-                                            bolo.estat === 'Tancades' ? 'bg-red-900 text-white' :
-                                                'bg-gray-400 text-white'
-                        }`}>
-                        {isRebutjat ? 'Cancel·lada' : (bolo.estat === 'Confirmada' ? 'En curs' : bolo.estat)}
-                        {updating && <div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div>}
-                    </div>
-
-                    <button
-                        onClick={() => handleStatusTransition('next')}
-                        disabled={updating || BOLO_STATES.indexOf(bolo.estat as BoloStatus) >= BOLO_STATES.length - 1 || isRebutjat}
-                        className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title="Següent estat"
-                    >
-                        <span className="material-icons-outlined text-lg">east</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Actions for Status Rejection */}
-            {!isRebutjat && (bolo.estat as string) !== 'Tancat' && (
-                <div className="flex justify-end">
-                    <button
-                        onClick={() => setShowRejectionModal(true)}
-                        className="text-red-500 hover:text-red-700 text-xs font-bold flex items-center bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                        <span className="material-icons-outlined text-sm mr-1">block</span>
-                        CANCEL·LAR BOLO
-                    </button>
-                </div>
-            )}
-
-            {/* Rejection Info Panel */}
-            {isRebutjat && (
-                <div className="bg-red-600 border-2 border-red-800 rounded-xl p-4 sm:p-5 shadow-lg">
-                    <h3 className="text-white font-black flex items-center mb-3 text-base sm:text-lg">
-                        <span className="material-icons-outlined mr-2 text-2xl">error_outline</span>
-                        BOLO REBUTJAT / CANCEL·LAT
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-white/10 p-4 rounded-lg border border-white/20">
-                        <div className="sm:col-span-2">
-                            <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">Motiu / Qui:</span>
-                            <p className="text-white font-medium text-base">
-                                <span className="capitalize opacity-80 mr-2">[{bolo.origen_rebuig || '-'}]</span>
-                                {bolo.motiu_rebuig || 'No s\'ha especificat cap motiu'}
-                            </p>
-                        </div>
-                        <div className="flex flex-row sm:flex-col justify-between items-end sm:items-end gap-2">
-                            <div className="text-right">
-                                <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">Data:</span>
-                                <p className="text-white font-medium text-sm">
-                                    {bolo.data_rebuig ? format(new Date(bolo.data_rebuig), 'dd/MM/yyyy') : '-'}
-                                </p>
-                            </div>
-                            <button
-                                onClick={handleRecover}
-                                disabled={updating}
-                                className="bg-white text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-black text-xs shadow-md transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
-                            >
-                                <span className="material-icons-outlined text-sm">restore</span>
-                                RECUPERAR
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Main Details Card */}
-            <div className="bg-gradient-to-br from-white to-gray-50 dark:from-[#8B1538] dark:to-[#5D0E26] rounded-xl border border-gray-200 dark:border-[#A01D47] p-4 sm:p-6 shadow-md relative overflow-hidden text-gray-900 dark:text-white">
-                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                    <span className="material-icons-outlined text-8xl text-current">event</span>
-                </div>
-
-                <div className="relative z-10 flex flex-col gap-6">
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                        <div className="flex flex-col sm:flex-row items-baseline gap-2 sm:gap-4 w-full lg:w-auto">
-                            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight leading-none uppercase">
-                                {format(new Date(bolo.data_bolo), 'dd MMMM', { locale: ca })} <span className="text-lg sm:text-2xl font-normal opacity-60 ml-1">{new Date(bolo.data_bolo).getFullYear()}</span>
-                            </h2>
-
-                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">Inici</span>
-                                        <div className="flex items-center">
-                                            <span className="material-icons-outlined text-gray-500 text-sm mr-1">schedule</span>
-                                            <input
-                                                type="time"
-                                                value={localHora}
-                                                onChange={(e) => setLocalHora(e.target.value)}
-                                                onBlur={(e) => handleUpdateHora(e.target.value)}
-                                                className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[80px]"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">Quedada</span>
-                                        <div className="flex items-center">
-                                            <span className="material-icons-outlined text-gray-500 text-sm mr-1">group</span>
-                                            <input
-                                                type="time"
-                                                value={localHoraConvocatoria}
-                                                onChange={(e) => setLocalHoraConvocatoria(e.target.value)}
-                                                onBlur={(e) => handleUpdateHoraConvocatoria(e.target.value)}
-                                                placeholder="HH:MM"
-                                                className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[80px]"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm font-bold border-none ${(bolo.estat as string) === 'Sol·licitat' || (bolo.estat as string) === 'Nova' ? 'bg-red-600 text-white shadow-md' :
-                            (bolo.estat as string) === 'Pendent de confirmació' ? 'bg-orange-500 text-white shadow-md' :
-                                (bolo.estat as string) === 'Confirmada' ? 'bg-green-600 text-white shadow-md' :
-                                    (bolo.estat as string) === 'Pendents de cobrar' ? 'bg-yellow-400 text-gray-900' :
-                                        (bolo.estat as string) === 'Per pagar' ? 'bg-lime-500 text-gray-900' :
-                                            'bg-gray-600 text-white shadow-md'
-                            }`}>
-                            <span className="material-icons-outlined text-lg">
-                                {(bolo.estat as string) === 'Confirmada' ? 'check_circle' : 'pending'}
-                            </span>
-                            <span className="font-bold uppercase tracking-wider text-xs whitespace-nowrap">
-                                {(bolo.estat as string) === 'Confirmada' ? 'En curs' : (isRebutjat ? 'Cancel·lada' : bolo.estat)}
-                            </span>
-                        </div>
-
-                        {!isRebutjat && (
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <button
-                                    onClick={triggerGoogleSync}
-                                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95 border border-gray-300"
-                                >
-                                    <span className="material-icons-outlined text-sm text-blue-600">sync</span>
-                                    ACTUALITZA GOOGLE CALENDAR
-                                </button>
-                                <button
-                                    onClick={handleGenerateWhatsappConvo}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95"
-                                >
-                                    <span className="material-icons-outlined text-sm">chat</span>
-                                    CONVOCATÒRIA
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 dark:border-white/10">
-                        {/* 1. Type */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Tipus</label>
-                            <select
-                                value={bolo.tipus_actuacio || ''}
-                                onChange={(e) => handleTipusActuacioChange(e.target.value)}
-                                disabled={isRebutjat}
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            >
-                                <option value="">Selecciona...</option>
-                                <option value="Carnestoltes">Carnestoltes</option>
-                                <option value="Festa Major">Festa Major</option>
-                                <option value="Correbars">Correbars</option>
-                                <option value="Gegants">Gegants</option>
-                                <option value="Cercavila">Cercavila</option>
-                                <option value="Casament">Casament</option>
-                                <option value="Concerts">Concerts</option>
-                                <option value="Fires">Fires</option>
-                            </select>
-                        </div>
-
-                        {/* 2. Concepte */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Concepte</label>
-                            <input
-                                type="text"
-                                value={bolo.concepte || ''}
-                                onChange={(e) => handleConcepteChange(e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Ex: Cercavila..."
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 3. Durada */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Durada (min)</label>
-                            <input
-                                type="number"
-                                value={bolo.durada || ''}
-                                onChange={(e) => handleDuradaChange(Number(e.target.value))}
-                                disabled={isRebutjat}
-                                placeholder="Ex: 120"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 4. Ubicació Inici */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Inici convocatòria</label>
-                            <input
-                                type="text"
-                                value={bolo.ubicacio_inici || ''}
-                                onChange={(e) => handleAutomationFieldChange('ubicacio_inici', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Ex: Artés"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 4b. MAPS Inici */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">MAPS: inici</label>
-                            <input
-                                type="text"
-                                value={bolo.maps_inici || ''}
-                                onChange={(e) => handleAutomationFieldChange('maps_inici', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Enllaç Google Maps"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Vestimenta</label>
-                            <input
-                                type="text"
-                                value={bolo.vestimenta || ''}
-                                onChange={(e) => handleAutomationFieldChange('vestimenta', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Ex: Samarreta BLB + Pantalons Beige"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Partitures</label>
-                            <input
-                                type="text"
-                                value={bolo.partitures || ''}
-                                onChange={(e) => handleAutomationFieldChange('partitures', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Ex: Les de sempre"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 7. Fundes */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">On deixem les fundes?</label>
-                            <input
-                                type="text"
-                                value={bolo.notes_fundes || ''}
-                                onChange={(e) => handleAutomationFieldChange('notes_fundes', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Ex: Al cotxe"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 7b. MAPS Fundes */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">MAPS: fundes</label>
-                            <input
-                                type="text"
-                                value={bolo.maps_fundes || ''}
-                                onChange={(e) => handleAutomationFieldChange('maps_fundes', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Enllaç Google Maps"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 8. Aparcament */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Aparcament</label>
-                            <input
-                                type="text"
-                                value={bolo.ubicacio_aparcament || ''}
-                                onChange={(e) => handleAutomationFieldChange('ubicacio_aparcament', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Ex: Pàrquing de la fageda"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {/* 8b. MAPS Aparcament */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">MAPS: Aparcament</label>
-                            <input
-                                type="text"
-                                value={bolo.maps_aparcament || ''}
-                                onChange={(e) => handleAutomationFieldChange('maps_aparcament', e.target.value)}
-                                disabled={isRebutjat}
-                                placeholder="Enllaç Google Maps"
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    {/* NEW: Servies de Menjar (Informatiu) */}
-                    <div className="pt-6 mt-6 border-t border-gray-100">
-                        <div className="flex flex-wrap gap-2">
-                            {[
-                                { id: 'menjar_esmorzar', label: 'Esmorzar', icon: 'bakery_dining' },
-                                { id: 'menjar_dinar', label: 'Dinar', icon: 'lunch_dining' },
-                                { id: 'menjar_sopar', label: 'Sopar', icon: 'dinner_dining' },
-                                { id: 'menjar_barra_lliure', label: 'Barra lliure', icon: 'local_bar' },
-                            ].map((item) => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => handleAutomationFieldChange(item.id as keyof Bolo, !bolo[item.id as keyof Bolo])}
-                                    disabled={isRebutjat}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${bolo[item.id as keyof Bolo]
-                                        ? 'bg-primary text-white border-primary shadow-sm'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                                        }`}
-                                >
-                                    <span className="material-icons-outlined text-sm">{item.icon}</span>
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* CHECKLISTS */}
-            <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer" onClick={() => setIsPhasesExpanded(!isPhasesExpanded)}>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
-                        <button
-                            className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none"
-                        >
-                            <span className="material-icons-outlined transform transition-transform duration-200" style={{ transform: isPhasesExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                chevron_right
-                            </span>
-                        </button>
-                        <span className="material-icons-outlined mr-2">checklist</span>
-                        Seguiment de Fases
-                    </h2>
-                </div>
-
-                {/* Seguiment de Fases - Sistema de Tasques */}
-                {isPhasesExpanded && (
-                    <div className="p-6">
-                        {loadingTasques && tasques.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500">
-                                Carregant tasques...
-                            </div>
-                        ) : (
-                            <TasquesPerFase
-                                boloId={bolo.id}
-                                bolo={bolo}
-                                faseActual={bolo.estat}
-                                tasques={tasques}
-                                onTasquesChange={() => fetchTasques(String(bolo.id))}
-                                onSystemTaskToggle={handleAutomationFieldChange}
-                                isEditable={!isRebutjat}
-                            />
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Client Section */}
-            <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden mb-6">
-                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer" onClick={() => setIsClientExpanded(!isClientExpanded)}>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
-                        <button
-                            className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none"
-                        >
-                            <span className="material-icons-outlined transform transition-transform duration-200" style={{ transform: isClientExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                chevron_right
-                            </span>
-                        </button>
-                        <span className="material-icons-outlined mr-2">business</span>
-                        Client
-                    </h2>
-                    {selectedClient && isClientExpanded && (
-                        <Link href="/clients" className="text-xs text-primary hover:underline">
-                            Veure tots els clients
-                        </Link>
-                    )}
-                </div>
-                {isClientExpanded && (
-                    <div className="p-6">
-                        {selectedClient ? (
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-text-primary-dark">{selectedClient.nom}</h3>
-                                    <div className="mt-2 text-sm space-y-1 text-gray-500 dark:text-text-secondary-dark">
-                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">phone</span> {selectedClient.telefon || selectedClient.telefon_contacte || 'Sense telèfon'}</p>
-                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">email</span> {selectedClient.correu || selectedClient.correu_contacte || 'Sense correu'}</p>
-                                        <p className="flex items-center"><span className="material-icons-outlined text-xs mr-2">badge</span> {selectedClient.nif || 'Sense NIF'}</p>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end space-y-2">
-                                    <Link
-                                        href={`/clients?edit=${selectedClient.id}`}
-                                        className="text-sm border border-border hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-1 rounded transition-colors text-text-primary"
-                                    >
-                                        Editar fitxa client
-                                    </Link>
-                                    <button
-                                        onClick={() => handleClientChange('')} // Unassign
-                                        className="text-sm text-red-500 hover:text-red-700 hover:underline"
-                                    >
-                                        Canviar client
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <p className="text-gray-500 dark:text-text-secondary-dark text-sm">Aquest bolo no té cap client assignat. Selecciona'n un o crea'n un de nou.</p>
-                                <div className="flex gap-4">
-                                    <select
-                                        className="flex-1 p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
-                                        onChange={(e) => handleClientChange(e.target.value)}
-                                        value=""
-                                    >
-                                        <option value="">Selecciona un client existent...</option>
-                                        {clients.map(client => (
-                                            <option key={client.id} value={client.id}>{client.nom}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        onClick={() => router.push(`/clients?new=true&callback=/bolos/${bolo.id}`)}
-                                        className="bg-primary hover:bg-red-900 text-white font-medium py-2 px-4 rounded transition-colors whitespace-nowrap"
-                                    >
-                                        Afegir nou client
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Attendance Section */}
-            <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer" onClick={() => setIsMusicsExpanded(!isMusicsExpanded)}>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
-                        <button
-                            className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none"
-                        >
-                            <span className="material-icons-outlined transform transition-transform duration-200" style={{ transform: isMusicsExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                chevron_right
-                            </span>
-                        </button>
-                        <span className="material-icons-outlined mr-2">people</span>
-                        Assistència dels músics
-                    </h2>
-                </div>
-
-                {isMusicsExpanded && (
-                    <div className="p-6">
-                        {loadingMusics && musics.length === 0 ? (
-                            <div className="text-center text-gray-500 py-8">Carregant músics...</div>
-                        ) : (
-                            <AssistenciaMusics
-                                boloId={Number(bolo.id)}
-                                musics={musics}
-                                attendance={boloMusics}
-                                onAdd={handleAddMusicians}
-                                onUpdateStatus={handleUpdateMusicianStatus}
-                                onUpdateComment={handleUpdateMusicianComment}
-                                onUpdateInstrument={handleUpdateMusicianInstrument}
-                                onUpdatePrice={handleUpdateMusicianPrice}
-                                onUpdateConductor={handleUpdateMusicianConductor}
-                                onRemove={handleRemoveMusician}
-                                onRequestMaterial={handleRequestMaterial}
-                                isEditable={!isRebutjat && (bolo.estat as string) !== 'Tancat'}
-                            />
-                        )}
-                    </div>
-                )}
-            </div>
-
-
-
-            {/* Economic Information Card */}
-            <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
-                <div
-                    className="px-6 py-4 border-b border-gray-200 dark:border-border-dark flex justify-between items-center bg-white cursor-pointer select-none"
-                    onClick={() => setIsEconomicsExpanded(!isEconomicsExpanded)}
-                >
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
-                        <button
-                            className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none"
-                        >
-                            <span className="material-icons-outlined transform transition-transform duration-200" style={{ transform: isEconomicsExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                chevron_right
-                            </span>
-                        </button>
-                        <span className="material-icons-outlined mr-2">payments</span>
-                        Informació econòmica
-                    </h2>
-
-                    {/* Contextual Actions */}
-                    <div className="flex flex-wrap gap-2">
-                        {economicData.tipus_ingres !== 'Altres' && (bolo.estat as string) === 'Sol·licitat' && !isRebutjat && (
-                            <button
-                                onClick={() => handleOpenPreview('pressupost')}
-                                disabled={updating}
-                                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-bold transition-all shadow-sm flex items-center gap-2"
-                                title="Previsualitzar i generar pressupost"
-                            >
-                                <span className="material-icons-outlined text-sm">description</span>
-                                Generar Pressupost
-                            </button>
-                        )}
-                        {economicData.tipus_ingres !== 'Altres' && ((bolo.estat as string) === 'Confirmada' || (bolo.estat as string) === 'Tancat') && !isRebutjat && (
-                            <button
-                                onClick={() => handleOpenPreview('factura')}
-                                disabled={updating}
-                                className="text-sm bg-primary hover:bg-red-900 text-white px-4 py-1.5 rounded-lg font-bold transition-all shadow-sm flex items-center gap-2"
-                                title="Previsualitzar i generar factura"
-                            >
-                                <span className="material-icons-outlined text-sm">receipt_long</span>
-                                Generar Factura
-                            </button>
-                        )}
-                    </div>
-                </div>
-                {isEconomicsExpanded && (
-                    <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Automatic Summary */}
-                        <div className="md:col-span-2 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
-                            <h3 className="text-[10px] uppercase font-bold text-gray-700 dark:text-white/60 mb-4 tracking-[0.2em]">Resultat Econòmic (Automàtic)</h3>
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Músics</p>
-                                    <p className="text-xl font-black text-gray-900 leading-none">{bolo.num_musics || 0}</p>
-                                </div>
-                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Cost Músics</p>
-                                    <p className="text-xl font-black text-red-700 leading-none">
-                                        <PrivacyMask value={bolo.cost_total_musics || 0} />
-                                    </p>
-                                </div>
-                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
-                                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">Marge (Pot)</p>
-                                    <div className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                        <PrivacyMask value={bolo.pot_delta || 0} />
-                                    </div>
-                                </div>
-                                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm flex flex-col justify-between">
-                                    <div>
-                                        <span className="bg-primary text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 inline-block">
-                                            Pot Final (+Ajust)
-                                        </span>
-                                    </div>
-                                    <div className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                        <PrivacyMask value={bolo.pot_delta_final || 0} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Advance Payments List (New Section) */}
-                        <div className="md:col-span-2 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20 shadow-sm mt-2">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[10px] uppercase font-black text-amber-700 tracking-[0.2em]">Pagaments Anticipats</h3>
-                                <button
-                                    onClick={() => {
-                                        setNewAdvancePayment({ ...newAdvancePayment, music_id: boloMusics[0]?.music_id || '' });
-                                        setShowAdvancePaymentModal(true);
-                                    }}
-                                    className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
-                                >
-                                    <span className="material-icons-outlined text-sm">add</span> Nou Pagament
-                                </button>
-                            </div>
-
-                            {loadingAdvancePayments ? (
-                                <p className="text-sm text-amber-900 font-medium animate-pulse">Carregant pagaments...</p>
-                            ) : advancePayments.length === 0 ? (
-                                <p className="text-sm text-amber-900/70 dark:text-amber-400/50 italic font-medium">No s'han registrat pagaments anticipats per aquest bolo.</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {advancePayments.map(p => {
-                                        const music = musics.find(m => m.id === p.music_id);
-                                        return (
-                                            <div key={p.id} className="bg-white dark:bg-card-dark p-2 rounded-lg border border-amber-200 dark:border-amber-900/30 flex justify-between items-center shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="material-icons-outlined text-amber-500 text-sm">payments</span>
-                                                    <div>
-                                                        <p className="text-sm font-black text-gray-900 dark:text-gray-900 leading-tight">{music?.nom || 'Músic desconegut'}</p>
-                                                        <p className="text-[10px] text-gray-700 dark:text-gray-700 font-bold">{format(new Date(p.data_pagament), 'dd/MM/yyyy')} {p.notes ? `• ${p.notes}` : ''}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">-{p.import.toFixed(2)}€</p>
-                                                    <button
-                                                        onClick={() => handleDeleteAdvancePayment(p.id)}
-                                                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                                    >
-                                                        <span className="material-icons-outlined text-sm">delete</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    <div className="pt-2 border-t border-amber-200 dark:border-amber-900/30 flex justify-end">
-                                        <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Total Anticipat: {advancePayments.reduce((sum, p) => sum + p.import, 0).toFixed(2)}€</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Edit Fields */}
-                        {/* Edit Fields - Hidden if Altres */}
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Tipus d’ingrés</label>
-                            <select
-                                value={economicData.tipus_ingres}
-                                onChange={(e) => setEconomicData({ ...economicData, tipus_ingres: e.target.value })}
-                                disabled={isRebutjat}
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            >
-                                <option value="Efectiu">Efectiu</option>
-                                <option value="Factura">Factura</option>
-                                <option value="Altres">Altres (Gratuït/Intercanvi)</option>
-                            </select>
-                        </div>
-
-                        {economicData.tipus_ingres !== 'Altres' && (
-                            <>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Import total / Pressupost (€)</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={economicData.import_total}
-                                        onChange={(e) => setEconomicData({ ...economicData, import_total: parseFloat(e.target.value) || 0 })}
-                                        disabled={isRebutjat}
-                                        className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Preu per músic (€)</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={economicData.preu_per_musica}
-                                        onChange={(e) => setEconomicData({ ...economicData, preu_per_musica: parseFloat(e.target.value) || 0 })}
-                                        disabled={isRebutjat}
-                                        className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                                    />
-                                </div>
-                            </>
-                        )}
-
-                        {economicData.tipus_ingres !== 'Altres' && (
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">Ajust Manual Pot (€)</label>
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={economicData.ajust_pot_manual}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (val === '' || val === '-' || !isNaN(Number(val))) {
-                                            setEconomicData({ ...economicData, ajust_pot_manual: val as any });
-                                        }
-                                    }}
-                                    onBlur={() => {
-                                        let final = parseFloat(String(economicData.ajust_pot_manual));
-                                        if (isNaN(final)) final = 0;
-                                        setEconomicData({ ...economicData, ajust_pot_manual: final });
-                                    }}
-                                    disabled={isRebutjat}
-                                    className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none font-mono"
-                                />
-                            </div>
-                        )}
-                        <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
-                                {economicData.tipus_ingres === 'Altres' ? 'Motiu / Observacions Econòmiques' : 'Motiu Ajust'}
-                            </label>
-                            <input
-                                type="text"
-                                value={economicData.comentari_ajust_pot || ''}
-                                onChange={(e) => setEconomicData({ ...economicData, comentari_ajust_pot: e.target.value })}
-                                disabled={isRebutjat}
-                                placeholder={economicData.tipus_ingres === 'Altres' ? "Ex: Intercanvi amb X, Solidaritat..." : "Ex: Propina, Taxi, Despesa extra..."}
-                                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
-                        </div>
-
-                        {economicData.tipus_ingres !== 'Altres' && (
-                            // Stop propagation to prevent section header toggle on checkbox click
-                            <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                                    <input
-                                        type="checkbox"
-                                        id="cobrat_eco"
-                                        checked={economicData.cobrat || false}
-                                        onChange={async (e) => {
-                                            e.stopPropagation();
-                                            const val = e.target.checked;
-                                            // Preserve scroll position to avoid jumping to top on re-render
-                                            const scrollY = window.scrollY;
-                                            setEconomicData(prev => ({ ...prev, cobrat: val }));
-                                            setBolo(prev => prev ? { ...prev, cobrat: val } : null);
-                                            requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: 'instant' }));
-                                            await supabase.from('bolos').update({ cobrat: val }).eq('id', bolo.id);
-                                        }}
-                                        disabled={isRebutjat || updating}
-                                        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                                    />
-                                    <label htmlFor="cobrat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
-                                        Cobrat (Ingrés al Pot)
-                                    </label>
-                                </div>
-
-                                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
-                                    <input
-                                        type="checkbox"
-                                        id="pagat_eco"
-                                        checked={economicData.pagaments_musics_fets || false}
-                                        onChange={async (e) => {
-                                            e.stopPropagation();
-                                            const val = e.target.checked;
-                                            // Preserve scroll position to avoid jumping to top on re-render
-                                            const scrollY = window.scrollY;
-                                            setEconomicData(prev => ({ ...prev, pagaments_musics_fets: val }));
-                                            setBolo(prev => prev ? { ...prev, pagaments_musics_fets: val } : null);
-                                            requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: 'instant' }));
-                                            await supabase.from('bolos').update({ pagaments_musics_fets: val }).eq('id', bolo.id);
-                                        }}
-                                        disabled={isRebutjat || updating}
-                                        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                                    />
-                                    <label htmlFor="pagat_eco" className="text-sm text-gray-900 font-black cursor-pointer select-none">
-                                        Pagaments Músics Fets
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-                        <div className="md:col-span-2 pt-2">
-                            <button
-                                onClick={handleSaveEconomicData}
-                                disabled={updating || isRebutjat}
-                                className="w-full sm:w-auto bg-primary hover:bg-red-900 text-white font-black py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-lg hover:shadow-primary/20 uppercase text-xs tracking-widest"
-                            >
-                                <span className="material-icons-outlined mr-2">save</span>
-                                Desar Dades Econòmiques
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-            {/* Internal Comments Section */}
-            {/* Internal Comments Section */}
-            {bolo.notes && (
-                <div className="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-800/60 overflow-hidden mt-6 shadow-md">
-                    <div className="px-6 py-4 border-b border-indigo-100 dark:border-indigo-800/60 bg-indigo-100/50 dark:bg-indigo-900/40">
-                        <h2 className="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest flex items-center">
-                            <span className="material-icons-outlined mr-2 text-lg">description</span>
-                            Notes de la Sol·licitud (Formulari)
-                        </h2>
-                    </div>
-                    <div className="p-6">
-                        <p className="text-indigo-950 dark:text-gray-100 text-sm whitespace-pre-wrap font-bold leading-relaxed italic">
-                            {bolo.notes}
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden mt-6">
-                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer" onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
-                        <button
-                            className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none"
-                        >
-                            <span className="material-icons-outlined transform transition-transform duration-200" style={{ transform: isCommentsExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                                chevron_right
-                            </span>
-                        </button>
-                        <span className="material-icons-outlined mr-2">chat</span>
-                        Comentaris interns
-                    </h2>
-                </div>
-                {isCommentsExpanded && (
-                    <div className="p-6 space-y-6">
-                        {/* List */}
-                        <div className="space-y-4">
-                            {loadingComentaris && comentaris.length === 0 ? (
-                                <p className="text-gray-500 dark:text-text-secondary-dark text-sm">Carregant comentaris...</p>
-                            ) : comentaris.length === 0 ? (
-                                <p className="text-gray-500 dark:text-text-secondary-dark text-sm italic">No hi ha comentaris encara. Aquesta secció serveix per deixar constància interna (decisions, incidències, etc.).</p>
-                            ) : (
-                                comentaris.map((comentari) => (
-                                    <div key={comentari.id} className="bg-gray-50 dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-border-dark group">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="font-bold text-gray-900 dark:text-text-primary-dark text-sm">{comentari.autor || 'Sense autor'}</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs text-gray-500 dark:text-text-secondary-dark">
-                                                    {new Date(comentari.created_at).toLocaleString('ca-ES')}
-                                                </span>
-                                                <button
-                                                    onClick={() => handleDeleteComentari(comentari.id)}
-                                                    className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                                    title="Eliminar comentari"
-                                                >
-                                                    <span className="material-icons-outlined text-sm">delete</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <p className="text-gray-900 dark:text-text-primary-dark text-sm whitespace-pre-wrap">{comentari.text}</p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        {/* Add Form */}
-                        <div className="border-t border-gray-200 dark:border-border-dark pt-4">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
-                                <div className="md:col-span-1">
-                                    <label className="block text-xs font-medium text-gray-500 dark:text-text-secondary-dark mb-1">Autor</label>
-                                    <input
-                                        type="text"
-                                        placeholder="El teu nom"
-                                        className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark text-sm"
-                                        value={newComentari.autor}
-                                        onChange={(e) => setNewComentari({ ...newComentari, autor: e.target.value })}
-                                    />
-                                </div>
-                                <div className="md:col-span-3">
-                                    <label className="block text-xs font-medium text-gray-500 dark:text-text-secondary-dark mb-1">Comentari</label>
-                                    <textarea
-                                        placeholder="Escriu un comentari intern..."
-                                        className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark text-sm min-h-[60px]"
-                                        value={newComentari.text}
-                                        onChange={(e) => setNewComentari({ ...newComentari, text: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={handleAddComentari}
-                                    disabled={!newComentari.text.trim()}
-                                    className="bg-primary hover:bg-red-900 text-white font-medium py-1 px-4 rounded transition-colors text-sm disabled:opacity-50"
-                                >
-                                    Afegir comentari
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {showPreview && (
-                <div className="fixed inset-0 bg-black/80 flex items-start sm:items-center justify-center z-[110] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-white rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 text-gray-900 my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center border-b pb-4">
-                            <h2 className="text-xl sm:text-2xl font-black text-primary uppercase tracking-tight">
-                                PREVISUALITZACIÓ {previewType === 'pressupost' ? 'PRESSUPOST' : 'FACTURA'}
-                            </h2>
-                            <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
-                                <span className="material-icons-outlined text-2xl sm:text-3xl">close</span>
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-                            {/* Left Side: Document & Bolo Info */}
-                            <div className="space-y-4 sm:space-y-6">
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
-                                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Detalls del Document</h4>
-                                    {previewType === 'factura' && (
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Núm. Factura</label>
-                                            <input
-                                                type="text"
-                                                value={manualNumber}
-                                                onChange={(e) => setManualNumber(e.target.value)}
-                                                className="w-full p-2.5 border border-gray-200 rounded-lg font-mono font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm"
-                                            />
-                                        </div>
-                                    )}
-                                    {previewType === 'pressupost' && (
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Tipus Document</label>
-                                            <div className="w-full p-2.5 border border-gray-100 bg-gray-100/50 rounded-lg font-bold text-gray-400 text-xs uppercase tracking-widest">
-                                                Pressupost Proposta
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
-                                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Informació de l'Actuació</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Població</label>
-                                            <input
-                                                type="text"
-                                                value={bolo.nom_poble}
-                                                onChange={(e) => setBolo({ ...bolo, nom_poble: e.target.value })}
-                                                onBlur={(e) => handlePobleChange(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Concepte</label>
-                                            <input
-                                                type="text"
-                                                value={bolo.concepte || ''}
-                                                onChange={(e) => setBolo({ ...bolo, concepte: e.target.value })}
-                                                onBlur={(e) => handleConcepteChange(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Durada (min)</label>
-                                            <input
-                                                type="number"
-                                                value={bolo.durada || ''}
-                                                onChange={(e) => setBolo({ ...bolo, durada: Number(e.target.value) })}
-                                                onBlur={(e) => handleDuradaChange(Number(e.target.value))}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Data</label>
-                                            <input
-                                                type="date"
-                                                value={bolo.data_bolo}
-                                                onChange={(e) => handleDataBoloChange(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Hora</label>
-                                            <input
-                                                type="time"
-                                                value={bolo.hora_inici || ''}
-                                                onChange={(e) => setBolo({ ...bolo, hora_inici: e.target.value })}
-                                                onBlur={(e) => handleUpdateHora(e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Right Side: Client Info */}
-                            <div className="space-y-4 sm:space-y-6">
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm h-full">
-                                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">Dades del Client</h4>
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nom / Entitat</label>
-                                            <input
-                                                type="text"
-                                                value={selectedClient?.nom || ''}
-                                                onChange={(e) => setSelectedClient(prev => prev ? { ...prev, nom: e.target.value } : null)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">NIF / CIF</label>
-                                            <input
-                                                type="text"
-                                                value={selectedClient?.nif || ''}
-                                                onChange={(e) => setSelectedClient(prev => prev ? { ...prev, nif: e.target.value } : null)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Adreça</label>
-                                            <input
-                                                type="text"
-                                                value={selectedClient?.adreca || ''}
-                                                onChange={(e) => setSelectedClient(prev => prev ? { ...prev, adreca: e.target.value } : null)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Població</label>
-                                                <input
-                                                    type="text"
-                                                    value={selectedClient?.poblacio || ''}
-                                                    onChange={(e) => setSelectedClient(prev => prev ? { ...prev, poblacio: e.target.value } : null)}
-                                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Codi Postal</label>
-                                                <input
-                                                    type="text"
-                                                    value={selectedClient?.codi_postal || ''}
-                                                    onChange={(e) => setSelectedClient(prev => prev ? { ...prev, codi_postal: e.target.value } : null)}
-                                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Articles Section */}
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">Articles de Facturació</h4>
-                                <button
-                                    onClick={() => setArticles([...articles, { descripcio: '', preu: 0, quantitat: 1 }])}
-                                    className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
-                                >
-                                    <span className="material-icons-outlined text-sm">add</span> Afegir Article
-                                </button>
-                            </div>
-                            <div className="space-y-3">
-                                {articles.map((art, idx) => (
-                                    <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group">
-                                        <div className="flex-1">
-                                            <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">Descripció</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Descripció de l'article"
-                                                value={art.descripcio}
-                                                onChange={(e) => {
-                                                    const newArts = [...articles];
-                                                    newArts[idx].descripcio = e.target.value;
-                                                    setArticles(newArts);
-                                                }}
-                                                className="w-full p-2 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
-                                            />
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <div className="w-24">
-                                                <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">Preu</label>
-                                                <input
-                                                    type="number"
-                                                    value={art.preu}
-                                                    onChange={(e) => {
-                                                        const newArts = [...articles];
-                                                        newArts[idx].preu = parseFloat(e.target.value) || 0;
-                                                        setArticles(newArts);
-                                                    }}
-                                                    className="w-full p-2 border border-gray-100 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-primary/20 outline-none"
-                                                />
-                                            </div>
-                                            <div className="w-16">
-                                                <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">Cant</label>
-                                                <input
-                                                    type="number"
-                                                    value={art.quantitat}
-                                                    onChange={(e) => {
-                                                        const newArts = [...articles];
-                                                        newArts[idx].quantitat = parseInt(e.target.value) || 0;
-                                                        setArticles(newArts);
-                                                    }}
-                                                    className="w-full p-2 border border-gray-100 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary/20 outline-none"
-                                                />
-                                            </div>
-                                            <div className="w-20 hidden sm:flex items-center justify-end font-black text-sm text-primary">
-                                                {(art.preu * art.quantitat).toFixed(2)}€
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    const newArts = articles.filter((_, i) => i !== idx);
-                                                    setArticles(newArts);
-                                                }}
-                                                className="absolute -top-2 -right-2 sm:static sm:flex bg-red-50 text-red-500 p-1.5 rounded-full hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                                            >
-                                                <span className="material-icons-outlined text-sm">delete</span>
-                                            </button>
-                                        </div>
-                                        <div className="sm:hidden flex justify-between items-center pt-2 mt-2 border-t border-gray-50">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase">Subtotal</span>
-                                            <span className="font-black text-primary">{(art.preu * art.quantitat).toFixed(2)}€</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
-                            <div className="text-center sm:text-left">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Document</p>
-                                <p className="text-3xl font-black text-primary leading-none">
-                                    {articles.reduce((acc, art) => acc + (art.preu * art.quantitat), 0).toFixed(2)}<span className="text-xl ml-1">€</span>
-                                </p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-                                <button
-                                    onClick={() => setShowPreview(false)}
-                                    className="w-full sm:flex-none px-6 py-3 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase text-xs tracking-widest order-2 sm:order-1"
-                                >
-                                    Enrere
-                                </button>
-                                <button
-                                    onClick={() => handleGeneratePDF()}
-                                    disabled={pdfGenerating}
-                                    className="w-full sm:flex-none px-8 py-3 rounded-xl bg-primary text-white font-black hover:bg-red-900 transition-all uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-2 order-1 sm:order-2"
-                                >
-                                    {pdfGenerating ? (
-                                        <>
-                                            <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full"></div>
-                                            Generant...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="material-icons-outlined text-lg">picture_as_pdf</span>
-                                            Generar i Pujar
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {/* Advance Payment Modal (New) */}
-            {showAdvancePaymentModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-card-dark rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-border-dark">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Nou Pagament Anticipat</h3>
-                            <button onClick={() => setShowAdvancePaymentModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <span className="material-icons-outlined">close</span>
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Músic</label>
-                                <select
-                                    value={newAdvancePayment.music_id}
-                                    onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, music_id: e.target.value })}
-                                    className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
-                                >
-                                    <option value="" className="text-gray-900">Selecciona un músic...</option>
-                                    {boloMusics.filter(bm => bm.estat === 'confirmat').map(bm => {
-                                        const m = musics.find(mu => mu.id === bm.music_id);
-                                        return <option key={bm.music_id} value={bm.music_id} className="text-gray-900">{m?.nom}</option>;
-                                    })}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Import (€)</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={newAdvancePayment.import}
-                                        onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, import: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Data</label>
-                                    <input
-                                        type="date"
-                                        value={newAdvancePayment.data_pagament}
-                                        onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, data_pagament: e.target.value })}
-                                        className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">Notes (Opcional)</label>
-                                <input
-                                    type="text"
-                                    value={newAdvancePayment.notes || ''}
-                                    onChange={(e) => setNewAdvancePayment({ ...newAdvancePayment, notes: e.target.value })}
-                                    className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Ex: Pagament en efectiu, Bizum..."
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 mt-8">
-                            <button
-                                onClick={() => setShowAdvancePaymentModal(false)}
-                                className="px-6 py-2 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all uppercase tracking-widest"
-                            >
-                                Cancel·lar
-                            </button>
-                            <button
-                                onClick={handleAddAdvancePayment}
-                                disabled={updating || !newAdvancePayment.music_id || !newAdvancePayment.import}
-                                className="px-8 py-2 rounded-lg bg-amber-600 text-white font-black hover:bg-amber-700 transition-all uppercase text-xs tracking-widest shadow-lg disabled:opacity-50"
-                            >
-                                Guardar Pagament
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {showWhatsappConvoModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[120] p-4 backdrop-blur-md">
-                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-                        <div className="flex justify-between items-center border-b pb-4">
-                            <h3 className="text-xl font-black text-primary uppercase tracking-tight">TEXT CONVOCATÒRIA</h3>
-                            <button onClick={() => setShowWhatsappConvoModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <span className="material-icons-outlined">close</span>
-                            </button>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
-                                {whatsappConvoText}
-                            </pre>
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowWhatsappConvoModal(false)}
-                                className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
-                            >
-                                TANCAR
-                            </button>
-                            <button
-                                onClick={handleCopyWhatsappConvo}
-                                className="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
-                            >
-                                <span className="material-icons-outlined">content_copy</span>
-                                COPIAR TEXT
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+      <div className="p-8 text-center text-gray-500 dark:text-text-secondary-dark">
+        Carregant...
+      </div>
     );
+  if (!bolo)
+    return (
+      <div className="p-8 text-center text-gray-500 dark:text-text-secondary-dark">
+        No s'ha trobat el bolo.
+      </div>
+    );
+
+  const isRebutjat =
+    bolo.estat_rebuig === "rebutjat" ||
+    (bolo.estat as string) === "Cancel·lats" ||
+    (bolo.estat as string) === "Cancel·lat";
+
+  return (
+    <div className="p-2 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 relative">
+      {/* Toast */}
+      {toast.show && (
+        <div
+          className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white z-[110] font-bold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300 ${toast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}
+        >
+          <span className="material-icons-outlined text-base">
+            {toast.type === "success" ? "check_circle" : "error"}
+          </span>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-card-dark p-6 rounded-xl max-w-md w-full shadow-xl border border-gray-200 dark:border-border-dark my-auto max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-text-primary-dark">
+              Rebutjar / Cancel·lar Bolo
+            </h3>
+            <p className="mb-4 text-sm text-gray-500 dark:text-text-secondary-dark">
+              Aquesta acció aturarà el flux de treball del bolo.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">
+                  Motiu
+                </label>
+                <textarea
+                  className="w-full p-2 rounded border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-gray-900 dark:text-text-primary-dark"
+                  rows={3}
+                  value={rejectionData.motiu}
+                  onChange={(e) =>
+                    setRejectionData({
+                      ...rejectionData,
+                      motiu: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-500 dark:text-text-secondary-dark">
+                  Qui ha pres la decisió?
+                </label>
+                <select
+                  className="w-full p-2 rounded border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark text-gray-900 dark:text-text-primary-dark"
+                  value={rejectionData.origen}
+                  onChange={(e) =>
+                    setRejectionData({
+                      ...rejectionData,
+                      origen: e.target.value,
+                    })
+                  }
+                >
+                  <option value="client">Client</option>
+                  <option value="xaranga">Xaranga</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowRejectionModal(false)}
+                className="px-4 py-2 rounded text-gray-500 dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Cancel·lar
+              </button>
+              <button
+                onClick={handleRejection}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-bold"
+              >
+                Continuar amb el rebuig
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+          <Link
+            href="/bolos"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">
+              arrow_back
+            </span>
+          </Link>
+
+          {/* Navigation Arrows */}
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => prevBoloId && router.push(`/bolos/${prevBoloId}`)}
+              disabled={!prevBoloId}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title="Bolo anterior"
+            >
+              <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">
+                chevron_left
+              </span>
+            </button>
+            <button
+              onClick={() => nextBoloId && router.push(`/bolos/${nextBoloId}`)}
+              disabled={!nextBoloId}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title="Bolo següent"
+            >
+              <span className="material-icons-outlined text-gray-500 dark:text-text-secondary-dark">
+                chevron_right
+              </span>
+            </button>
+          </div>
+          <div className="flex-1 min-w-0">
+            {isEditingTitle ? (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                  <div className="flex-1 w-full">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      Títol del Bolo
+                    </label>
+                    <input
+                      type="text"
+                      value={tempTitol}
+                      onChange={(e) => setTempTitol(e.target.value)}
+                      placeholder="Títol del bolo"
+                      className="w-full p-2 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none font-bold"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                  <div className="flex-1 w-full">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      Poble / Municipi
+                    </label>
+                    <MunicipiSelector
+                      value={tempMunicipi}
+                      onChange={setTempMunicipi}
+                      placeholder="Poble"
+                    />
+                  </div>
+                  <div className="w-full sm:w-auto">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      Data
+                    </label>
+                    <input
+                      type="date"
+                      value={tempDate}
+                      onChange={(e) => setTempDate(e.target.value)}
+                      className="w-full sm:w-auto p-1.5 rounded border border-primary bg-white dark:bg-card-dark text-gray-900 dark:text-text-primary-dark focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-1 shrink-0 w-full sm:w-auto justify-end pt-5">
+                    <button
+                      onClick={handleUpdateTitle}
+                      className="p-2 rounded bg-green-100 text-green-700 hover:bg-green-200"
+                    >
+                      <span className="material-icons-outlined text-xl">
+                        check
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setIsEditingTitle(false)}
+                      className="p-2 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                    >
+                      <span className="material-icons-outlined text-xl">
+                        close
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-text-primary-dark flex items-center gap-2 group truncate">
+                <span className="truncate">{bolo.titol || bolo.nom_poble}</span>
+                {!isRebutjat && (bolo.estat as string) !== "Tancat" && (
+                  <button
+                    onClick={() => {
+                      setTempTitol(bolo.titol || "");
+                      setTempTitle(bolo.nom_poble);
+                      setTempDate(bolo.data_bolo);
+                      setTempMunicipi({
+                        municipi_id: bolo.municipi_id || null,
+                        municipi_custom_id: bolo.municipi_custom_id || null,
+                        municipi_text: bolo.municipi_text || bolo.nom_poble,
+                      });
+                      setIsEditingTitle(true);
+                    }}
+                    className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-text-secondary-dark"
+                    title="Editar nom i data"
+                  >
+                    <span className="material-icons-outlined text-lg">
+                      edit
+                    </span>
+                  </button>
+                )}
+              </h1>
+            )}
+          </div>
+        </div>
+
+        {/* State Control Pipeline */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button
+            onClick={() => handleStatusTransition("prev")}
+            disabled={
+              updating ||
+              BOLO_STATES.indexOf(bolo.estat as BoloStatus) <= 0 ||
+              isRebutjat
+            }
+            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            title="Estat anterior"
+          >
+            <span className="material-icons-outlined text-lg">west</span>
+          </button>
+
+          <div
+            className={`px-4 py-2 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all duration-300 ${
+              isRebutjat
+                ? "bg-red-600 text-white"
+                : bolo.estat === "Nova"
+                  ? "bg-red-600 text-white"
+                  : bolo.estat === "Pendent de confirmació"
+                    ? "bg-orange-500 text-white"
+                    : bolo.estat === "Confirmada"
+                      ? "bg-emerald-600 text-white"
+                      : bolo.estat === "Pendents de cobrar"
+                        ? "bg-yellow-400 text-gray-900"
+                        : bolo.estat === "Per pagar"
+                          ? "bg-lime-500 text-gray-900"
+                          : bolo.estat === "Tancades"
+                            ? "bg-red-900 text-white"
+                            : "bg-gray-400 text-white"
+            }`}
+          >
+            {isRebutjat
+              ? "Cancel·lada"
+              : bolo.estat === "Confirmada"
+                ? "En curs"
+                : bolo.estat}
+            {updating && (
+              <div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div>
+            )}
+          </div>
+
+          <button
+            onClick={() => handleStatusTransition("next")}
+            disabled={
+              updating ||
+              BOLO_STATES.indexOf(bolo.estat as BoloStatus) >=
+                BOLO_STATES.length - 1 ||
+              isRebutjat
+            }
+            className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            title="Següent estat"
+          >
+            <span className="material-icons-outlined text-lg">east</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Actions for Status Rejection */}
+      {!isRebutjat && (bolo.estat as string) !== "Tancat" && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowRejectionModal(true)}
+            className="text-red-500 hover:text-red-700 text-xs font-bold flex items-center bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <span className="material-icons-outlined text-sm mr-1">block</span>
+            CANCEL·LAR BOLO
+          </button>
+        </div>
+      )}
+
+      {/* Rejection Info Panel */}
+      {isRebutjat && (
+        <div className="bg-red-600 border-2 border-red-800 rounded-xl p-4 sm:p-5 shadow-lg">
+          <h3 className="text-white font-black flex items-center mb-3 text-base sm:text-lg">
+            <span className="material-icons-outlined mr-2 text-2xl">
+              error_outline
+            </span>
+            BOLO REBUTJAT / CANCEL·LAT
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-white/10 p-4 rounded-lg border border-white/20">
+            <div className="sm:col-span-2">
+              <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">
+                Motiu / Qui:
+              </span>
+              <p className="text-white font-medium text-base">
+                <span className="capitalize opacity-80 mr-2">
+                  [{bolo.origen_rebuig || "-"}]
+                </span>
+                {bolo.motiu_rebuig || "No s'ha especificat cap motiu"}
+              </p>
+            </div>
+            <div className="flex flex-row sm:flex-col justify-between items-end sm:items-end gap-2">
+              <div className="text-right">
+                <span className="font-bold text-red-100 uppercase text-[10px] tracking-widest block mb-1">
+                  Data:
+                </span>
+                <p className="text-white font-medium text-sm">
+                  {bolo.data_rebuig
+                    ? format(new Date(bolo.data_rebuig), "dd/MM/yyyy")
+                    : "-"}
+                </p>
+              </div>
+              <button
+                onClick={handleRecover}
+                disabled={updating}
+                className="bg-white text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-black text-xs shadow-md transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
+              >
+                <span className="material-icons-outlined text-sm">restore</span>
+                RECUPERAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Details Card */}
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-[#8B1538] dark:to-[#5D0E26] rounded-xl border border-gray-200 dark:border-[#A01D47] p-4 sm:p-6 shadow-md relative overflow-hidden text-gray-900 dark:text-white">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+          <span className="material-icons-outlined text-8xl text-current">
+            event
+          </span>
+        </div>
+
+        <div className="relative z-10 flex flex-col gap-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-baseline gap-2 sm:gap-4 w-full lg:w-auto">
+              <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight leading-none uppercase">
+                {format(new Date(bolo.data_bolo), "dd MMMM", { locale: ca })}{" "}
+                <span className="text-lg sm:text-2xl font-normal opacity-60 ml-1">
+                  {new Date(bolo.data_bolo).getFullYear()}
+                </span>
+              </h2>
+
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">
+                      Inici
+                    </span>
+                    <div className="flex items-center">
+                      <span className="material-icons-outlined text-gray-500 text-sm mr-1">
+                        schedule
+                      </span>
+                      <input
+                        type="time"
+                        value={localHora}
+                        onChange={(e) => setLocalHora(e.target.value)}
+                        onBlur={(e) => handleUpdateHora(e.target.value)}
+                        className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[80px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center bg-gray-100 dark:bg-[#A01D47] rounded-lg px-3 py-1.5 border border-transparent hover:border-gray-300 dark:hover:border-[#C02555] transition-colors">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">
+                      Quedada
+                    </span>
+                    <div className="flex items-center">
+                      <span className="material-icons-outlined text-gray-500 text-sm mr-1">
+                        group
+                      </span>
+                      <input
+                        type="time"
+                        value={localHoraConvocatoria}
+                        onChange={(e) =>
+                          setLocalHoraConvocatoria(e.target.value)
+                        }
+                        onBlur={(e) =>
+                          handleUpdateHoraConvocatoria(e.target.value)
+                        }
+                        placeholder="HH:MM"
+                        className="bg-transparent border-none focus:ring-0 text-lg font-bold text-gray-900 dark:text-white cursor-pointer p-0 min-w-[80px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`px-4 py-2 rounded-full flex items-center gap-2 shadow-sm font-bold border-none ${
+                (bolo.estat as string) === "Sol·licitat" ||
+                (bolo.estat as string) === "Nova"
+                  ? "bg-red-600 text-white shadow-md"
+                  : (bolo.estat as string) === "Pendent de confirmació"
+                    ? "bg-orange-500 text-white shadow-md"
+                    : (bolo.estat as string) === "Confirmada"
+                      ? "bg-green-600 text-white shadow-md"
+                      : (bolo.estat as string) === "Pendents de cobrar"
+                        ? "bg-yellow-400 text-gray-900"
+                        : (bolo.estat as string) === "Per pagar"
+                          ? "bg-lime-500 text-gray-900"
+                          : "bg-gray-600 text-white shadow-md"
+              }`}
+            >
+              <span className="material-icons-outlined text-lg">
+                {(bolo.estat as string) === "Confirmada"
+                  ? "check_circle"
+                  : "pending"}
+              </span>
+              <span className="font-bold uppercase tracking-wider text-xs whitespace-nowrap">
+                {(bolo.estat as string) === "Confirmada"
+                  ? "En curs"
+                  : isRebutjat
+                    ? "Cancel·lada"
+                    : bolo.estat}
+              </span>
+            </div>
+
+            {!isRebutjat && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={triggerGoogleSync}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95 border border-gray-300"
+                >
+                  <span className="material-icons-outlined text-sm text-blue-600">
+                    sync
+                  </span>
+                  ACTUALITZA GOOGLE CALENDAR
+                </button>
+                <button
+                  onClick={handleGenerateWhatsappConvo}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95"
+                >
+                  <span className="material-icons-outlined text-sm">chat</span>
+                  CONVOCATÒRIA
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 dark:border-white/10">
+            {/* 1. Type */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Tipus
+              </label>
+              <select
+                value={bolo.tipus_actuacio || ""}
+                onChange={(e) => handleTipusActuacioChange(e.target.value)}
+                disabled={isRebutjat}
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              >
+                <option value="">Selecciona...</option>
+                <option value="Carnestoltes">Carnestoltes</option>
+                <option value="Festa Major">Festa Major</option>
+                <option value="Correbars">Correbars</option>
+                <option value="Gegants">Gegants</option>
+                <option value="Cercavila">Cercavila</option>
+                <option value="Casament">Casament</option>
+                <option value="Concerts">Concerts</option>
+                <option value="Fires">Fires</option>
+              </select>
+            </div>
+
+            {/* 2. Concepte */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Concepte
+              </label>
+              <input
+                type="text"
+                value={bolo.concepte || ""}
+                onChange={(e) => handleConcepteChange(e.target.value)}
+                disabled={isRebutjat}
+                placeholder="Ex: Cercavila..."
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 3. Durada */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Durada (min)
+              </label>
+              <input
+                type="number"
+                value={bolo.durada || ""}
+                onChange={(e) => handleDuradaChange(Number(e.target.value))}
+                disabled={isRebutjat}
+                placeholder="Ex: 120"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 4. Ubicació Inici */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Inici convocatòria
+              </label>
+              <input
+                type="text"
+                value={bolo.ubicacio_inici || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("ubicacio_inici", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Ex: Artés"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 4b. MAPS Inici */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                MAPS: inici
+              </label>
+              <input
+                type="text"
+                value={bolo.maps_inici || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("maps_inici", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Enllaç Google Maps"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Vestimenta
+              </label>
+              <input
+                type="text"
+                value={bolo.vestimenta || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("vestimenta", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Ex: Samarreta BLB + Pantalons Beige"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Partitures
+              </label>
+              <input
+                type="text"
+                value={bolo.partitures || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("partitures", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Ex: Les de sempre"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 7. Fundes */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                On deixem les fundes?
+              </label>
+              <input
+                type="text"
+                value={bolo.notes_fundes || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("notes_fundes", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Ex: Al cotxe"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 7b. MAPS Fundes */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                MAPS: fundes
+              </label>
+              <input
+                type="text"
+                value={bolo.maps_fundes || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("maps_fundes", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Enllaç Google Maps"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 8. Aparcament */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Aparcament
+              </label>
+              <input
+                type="text"
+                value={bolo.ubicacio_aparcament || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange(
+                    "ubicacio_aparcament",
+                    e.target.value,
+                  )
+                }
+                disabled={isRebutjat}
+                placeholder="Ex: Pàrquing de la fageda"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {/* 8b. MAPS Aparcament */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                MAPS: Aparcament
+              </label>
+              <input
+                type="text"
+                value={bolo.maps_aparcament || ""}
+                onChange={(e) =>
+                  handleAutomationFieldChange("maps_aparcament", e.target.value)
+                }
+                disabled={isRebutjat}
+                placeholder="Enllaç Google Maps"
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* NEW: Servies de Menjar (Informatiu) */}
+          <div className="pt-6 mt-6 border-t border-gray-100">
+            <div className="flex flex-wrap gap-2">
+              {[
+                {
+                  id: "menjar_esmorzar",
+                  label: "Esmorzar",
+                  icon: "bakery_dining",
+                },
+                { id: "menjar_dinar", label: "Dinar", icon: "lunch_dining" },
+                { id: "menjar_sopar", label: "Sopar", icon: "dinner_dining" },
+                {
+                  id: "menjar_barra_lliure",
+                  label: "Barra lliure",
+                  icon: "local_bar",
+                },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() =>
+                    handleAutomationFieldChange(
+                      item.id as keyof Bolo,
+                      !bolo[item.id as keyof Bolo],
+                    )
+                  }
+                  disabled={isRebutjat}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                    bolo[item.id as keyof Bolo]
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  <span className="material-icons-outlined text-sm">
+                    {item.icon}
+                  </span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CHECKLISTS */}
+      <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
+        <div
+          className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer"
+          onClick={() => setIsPhasesExpanded(!isPhasesExpanded)}
+        >
+          <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
+            <button className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none">
+              <span
+                className="material-icons-outlined transform transition-transform duration-200"
+                style={{
+                  transform: isPhasesExpanded
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                }}
+              >
+                chevron_right
+              </span>
+            </button>
+            <span className="material-icons-outlined mr-2">checklist</span>
+            Seguiment de Fases
+          </h2>
+        </div>
+
+        {/* Seguiment de Fases - Sistema de Tasques */}
+        {isPhasesExpanded && (
+          <div className="p-6">
+            {loadingTasques && tasques.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Carregant tasques...
+              </div>
+            ) : (
+              <TasquesPerFase
+                boloId={bolo.id}
+                bolo={bolo}
+                faseActual={bolo.estat}
+                tasques={tasques}
+                onTasquesChange={() => fetchTasques(String(bolo.id))}
+                onSystemTaskToggle={handleAutomationFieldChange}
+                isEditable={!isRebutjat}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Client Section */}
+      <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden mb-6">
+        <div
+          className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer"
+          onClick={() => setIsClientExpanded(!isClientExpanded)}
+        >
+          <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
+            <button className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none">
+              <span
+                className="material-icons-outlined transform transition-transform duration-200"
+                style={{
+                  transform: isClientExpanded
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                }}
+              >
+                chevron_right
+              </span>
+            </button>
+            <span className="material-icons-outlined mr-2">business</span>
+            Client
+          </h2>
+          {selectedClient && isClientExpanded && (
+            <Link
+              href="/clients"
+              className="text-xs text-primary hover:underline"
+            >
+              Veure tots els clients
+            </Link>
+          )}
+        </div>
+        {isClientExpanded && (
+          <div className="p-6">
+            {selectedClient ? (
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-text-primary-dark">
+                    {selectedClient.nom}
+                  </h3>
+                  <div className="mt-2 text-sm space-y-1 text-gray-500 dark:text-text-secondary-dark">
+                    <p className="flex items-center">
+                      <span className="material-icons-outlined text-xs mr-2">
+                        phone
+                      </span>{" "}
+                      {selectedClient.telefon ||
+                        selectedClient.telefon_contacte ||
+                        "Sense telèfon"}
+                    </p>
+                    <p className="flex items-center">
+                      <span className="material-icons-outlined text-xs mr-2">
+                        email
+                      </span>{" "}
+                      {selectedClient.correu ||
+                        selectedClient.correu_contacte ||
+                        "Sense correu"}
+                    </p>
+                    <p className="flex items-center">
+                      <span className="material-icons-outlined text-xs mr-2">
+                        badge
+                      </span>{" "}
+                      {selectedClient.nif || "Sense NIF"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end space-y-2">
+                  <Link
+                    href={`/clients?edit=${selectedClient.id}`}
+                    className="text-sm border border-border hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-1 rounded transition-colors text-text-primary"
+                  >
+                    Editar fitxa client
+                  </Link>
+                  <button
+                    onClick={() => handleClientChange("")} // Unassign
+                    className="text-sm text-red-500 hover:text-red-700 hover:underline"
+                  >
+                    Canviar client
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-gray-500 dark:text-text-secondary-dark text-sm">
+                  Aquest bolo no té cap client assignat. Selecciona'n un o
+                  crea'n un de nou.
+                </p>
+                <div className="flex gap-4">
+                  <select
+                    className="flex-1 p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark"
+                    onChange={(e) => handleClientChange(e.target.value)}
+                    value=""
+                  >
+                    <option value="">Selecciona un client existent...</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.nom}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() =>
+                      router.push(
+                        `/clients?new=true&callback=/bolos/${bolo.id}`,
+                      )
+                    }
+                    className="bg-primary hover:bg-red-900 text-white font-medium py-2 px-4 rounded transition-colors whitespace-nowrap"
+                  >
+                    Afegir nou client
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Attendance Section */}
+      <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
+        <div
+          className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer"
+          onClick={() => setIsMusicsExpanded(!isMusicsExpanded)}
+        >
+          <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
+            <button className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none">
+              <span
+                className="material-icons-outlined transform transition-transform duration-200"
+                style={{
+                  transform: isMusicsExpanded
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                }}
+              >
+                chevron_right
+              </span>
+            </button>
+            <span className="material-icons-outlined mr-2">people</span>
+            Assistència dels músics
+          </h2>
+        </div>
+
+        {isMusicsExpanded && (
+          <div className="p-6">
+            {loadingMusics && musics.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                Carregant músics...
+              </div>
+            ) : (
+              <AssistenciaMusics
+                boloId={Number(bolo.id)}
+                musics={musics}
+                attendance={boloMusics}
+                onAdd={handleAddMusicians}
+                onUpdateStatus={handleUpdateMusicianStatus}
+                onUpdateComment={handleUpdateMusicianComment}
+                onUpdateInstrument={handleUpdateMusicianInstrument}
+                onUpdatePrice={handleUpdateMusicianPrice}
+                onUpdateConductor={handleUpdateMusicianConductor}
+                onRemove={handleRemoveMusician}
+                onRequestMaterial={handleRequestMaterial}
+                isEditable={!isRebutjat && (bolo.estat as string) !== "Tancat"}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Economic Information Card */}
+      <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
+        <div
+          className="px-6 py-4 border-b border-gray-200 dark:border-border-dark flex justify-between items-center bg-white cursor-pointer select-none"
+          onClick={() => setIsEconomicsExpanded(!isEconomicsExpanded)}
+        >
+          <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
+            <button className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none">
+              <span
+                className="material-icons-outlined transform transition-transform duration-200"
+                style={{
+                  transform: isEconomicsExpanded
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                }}
+              >
+                chevron_right
+              </span>
+            </button>
+            <span className="material-icons-outlined mr-2">payments</span>
+            Informació econòmica
+          </h2>
+
+          {/* Contextual Actions */}
+          <div className="flex flex-wrap gap-2">
+            {economicData.tipus_ingres !== "Altres" &&
+              (bolo.estat as string) === "Sol·licitat" &&
+              !isRebutjat && (
+                <button
+                  onClick={() => handleOpenPreview("pressupost")}
+                  disabled={updating}
+                  className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-bold transition-all shadow-sm flex items-center gap-2"
+                  title="Previsualitzar i generar pressupost"
+                >
+                  <span className="material-icons-outlined text-sm">
+                    description
+                  </span>
+                  Generar Pressupost
+                </button>
+              )}
+            {economicData.tipus_ingres !== "Altres" &&
+              ((bolo.estat as string) === "Confirmada" ||
+                (bolo.estat as string) === "Tancat") &&
+              !isRebutjat && (
+                <button
+                  onClick={() => handleOpenPreview("factura")}
+                  disabled={updating}
+                  className="text-sm bg-primary hover:bg-red-900 text-white px-4 py-1.5 rounded-lg font-bold transition-all shadow-sm flex items-center gap-2"
+                  title="Previsualitzar i generar factura"
+                >
+                  <span className="material-icons-outlined text-sm">
+                    receipt_long
+                  </span>
+                  Generar Factura
+                </button>
+              )}
+          </div>
+        </div>
+        {isEconomicsExpanded && (
+          <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Automatic Summary */}
+            <div className="md:col-span-2 bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
+              <h3 className="text-[10px] uppercase font-bold text-gray-700 dark:text-white/60 mb-4 tracking-[0.2em]">
+                Resultat Econòmic (Automàtic)
+              </h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                  <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">
+                    Músics
+                  </p>
+                  <p className="text-xl font-black text-gray-900 leading-none">
+                    {bolo.num_musics || 0}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                  <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">
+                    Cost Músics
+                  </p>
+                  <p className="text-xl font-black text-red-700 leading-none">
+                    <PrivacyMask value={bolo.cost_total_musics || 0} />
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border border-gray-200 dark:border-border-dark shadow-sm">
+                  <p className="text-[10px] font-black text-gray-800 uppercase tracking-wider mb-1">
+                    Marge (Pot)
+                  </p>
+                  <div
+                    className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta || 0) >= 0 ? "text-green-700" : "text-red-700"}`}
+                  >
+                    <PrivacyMask value={bolo.pot_delta || 0} />
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-card-dark p-3 rounded-lg border-2 border-primary/30 dark:border-primary/50 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <span className="bg-primary text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 inline-block">
+                      Pot Final (+Ajust)
+                    </span>
+                  </div>
+                  <div
+                    className={`text-xl font-black flex items-center gap-1 leading-none ${(bolo.pot_delta_final || 0) >= 0 ? "text-green-700" : "text-red-700"}`}
+                  >
+                    <PrivacyMask value={bolo.pot_delta_final || 0} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Advance Payments List (New Section) */}
+            <div className="md:col-span-2 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/20 shadow-sm mt-2">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-[10px] uppercase font-black text-amber-700 tracking-[0.2em]">
+                  Pagaments Anticipats
+                </h3>
+                <button
+                  onClick={() => {
+                    setNewAdvancePayment({
+                      ...newAdvancePayment,
+                      music_id: boloMusics[0]?.music_id || "",
+                    });
+                    setShowAdvancePaymentModal(true);
+                  }}
+                  className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
+                >
+                  <span className="material-icons-outlined text-sm">add</span>{" "}
+                  Nou Pagament
+                </button>
+              </div>
+
+              {loadingAdvancePayments ? (
+                <p className="text-sm text-amber-900 font-medium animate-pulse">
+                  Carregant pagaments...
+                </p>
+              ) : advancePayments.length === 0 ? (
+                <p className="text-sm text-amber-900/70 dark:text-amber-400/50 italic font-medium">
+                  No s'han registrat pagaments anticipats per aquest bolo.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {advancePayments.map((p) => {
+                    const music = musics.find((m) => m.id === p.music_id);
+                    return (
+                      <div
+                        key={p.id}
+                        className="bg-white dark:bg-card-dark p-2 rounded-lg border border-amber-200 dark:border-amber-900/30 flex justify-between items-center shadow-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="material-icons-outlined text-amber-500 text-sm">
+                            payments
+                          </span>
+                          <div>
+                            <p className="text-sm font-black text-gray-900 dark:text-gray-900 leading-tight">
+                              {music?.nom || "Músic desconegut"}
+                            </p>
+                            <p className="text-[10px] text-gray-700 dark:text-gray-700 font-bold">
+                              {format(new Date(p.data_pagament), "dd/MM/yyyy")}{" "}
+                              {p.notes ? `• ${p.notes}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">
+                            -{p.import.toFixed(2)}€
+                          </p>
+                          <button
+                            onClick={() => handleDeleteAdvancePayment(p.id)}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                          >
+                            <span className="material-icons-outlined text-sm">
+                              delete
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="pt-2 border-t border-amber-200 dark:border-amber-900/30 flex justify-end">
+                    <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest">
+                      Total Anticipat:{" "}
+                      {advancePayments
+                        .reduce((sum, p) => sum + p.import, 0)
+                        .toFixed(2)}
+                      €
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Edit Fields */}
+            {/* Edit Fields - Hidden if Altres */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                Tipus d’ingrés
+              </label>
+              <select
+                value={economicData.tipus_ingres}
+                onChange={(e) =>
+                  setEconomicData({
+                    ...economicData,
+                    tipus_ingres: e.target.value,
+                  })
+                }
+                disabled={isRebutjat}
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              >
+                <option value="Efectiu">Efectiu</option>
+                <option value="Factura">Factura</option>
+                <option value="Altres">Altres (Gratuït/Intercanvi)</option>
+              </select>
+            </div>
+
+            {economicData.tipus_ingres !== "Altres" && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                    Import total / Pressupost (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={economicData.import_total}
+                    onChange={(e) =>
+                      setEconomicData({
+                        ...economicData,
+                        import_total: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    disabled={isRebutjat}
+                    className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                    Preu per músic (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={economicData.preu_per_musica}
+                    onChange={(e) =>
+                      setEconomicData({
+                        ...economicData,
+                        preu_per_musica: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    disabled={isRebutjat}
+                    className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
+              </>
+            )}
+
+            {economicData.tipus_ingres !== "Altres" && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                  Ajust Manual Pot (€)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={economicData.ajust_pot_manual}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || val === "-" || !isNaN(Number(val))) {
+                      setEconomicData({
+                        ...economicData,
+                        ajust_pot_manual: val as any,
+                      });
+                    }
+                  }}
+                  onBlur={() => {
+                    let final = parseFloat(
+                      String(economicData.ajust_pot_manual),
+                    );
+                    if (isNaN(final)) final = 0;
+                    setEconomicData({
+                      ...economicData,
+                      ajust_pot_manual: final,
+                    });
+                  }}
+                  disabled={isRebutjat}
+                  className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none font-mono"
+                />
+              </div>
+            )}
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest pl-1">
+                {economicData.tipus_ingres === "Altres"
+                  ? "Motiu / Observacions Econòmiques"
+                  : "Motiu Ajust"}
+              </label>
+              <input
+                type="text"
+                value={economicData.comentari_ajust_pot || ""}
+                onChange={(e) =>
+                  setEconomicData({
+                    ...economicData,
+                    comentari_ajust_pot: e.target.value,
+                  })
+                }
+                disabled={isRebutjat}
+                placeholder={
+                  economicData.tipus_ingres === "Altres"
+                    ? "Ex: Intercanvi amb X, Solidaritat..."
+                    : "Ex: Propina, Taxi, Despesa extra..."
+                }
+                className="w-full bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 py-2 px-3 focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+
+            {economicData.tipus_ingres !== "Altres" && (
+              // Stop propagation to prevent section header toggle on checkbox click
+              <div
+                className="md:col-span-2 flex flex-col sm:flex-row gap-3 pt-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                  <input
+                    type="checkbox"
+                    id="cobrat_eco"
+                    checked={economicData.cobrat || false}
+                    onChange={async (e) => {
+                      e.stopPropagation();
+                      const val = e.target.checked;
+                      // Preserve scroll position to avoid jumping to top on re-render
+                      const scrollY = window.scrollY;
+                      setEconomicData((prev) => ({ ...prev, cobrat: val }));
+                      setBolo((prev) =>
+                        prev ? { ...prev, cobrat: val } : null,
+                      );
+                      requestAnimationFrame(() =>
+                        window.scrollTo({ top: scrollY, behavior: "instant" }),
+                      );
+                      await supabase
+                        .from("bolos")
+                        .update({ cobrat: val })
+                        .eq("id", bolo.id);
+                    }}
+                    disabled={isRebutjat || updating}
+                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+                  />
+                  <label
+                    htmlFor="cobrat_eco"
+                    className="text-sm text-gray-900 font-black cursor-pointer select-none"
+                  >
+                    Cobrat (Ingrés al Pot)
+                  </label>
+                </div>
+
+                <div className="flex-1 flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/10">
+                  <input
+                    type="checkbox"
+                    id="pagat_eco"
+                    checked={economicData.pagaments_musics_fets || false}
+                    onChange={async (e) => {
+                      e.stopPropagation();
+                      const val = e.target.checked;
+                      // Preserve scroll position to avoid jumping to top on re-render
+                      const scrollY = window.scrollY;
+                      setEconomicData((prev) => ({
+                        ...prev,
+                        pagaments_musics_fets: val,
+                      }));
+                      setBolo((prev) =>
+                        prev ? { ...prev, pagaments_musics_fets: val } : null,
+                      );
+                      requestAnimationFrame(() =>
+                        window.scrollTo({ top: scrollY, behavior: "instant" }),
+                      );
+                      await supabase
+                        .from("bolos")
+                        .update({ pagaments_musics_fets: val })
+                        .eq("id", bolo.id);
+                    }}
+                    disabled={isRebutjat || updating}
+                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+                  />
+                  <label
+                    htmlFor="pagat_eco"
+                    className="text-sm text-gray-900 font-black cursor-pointer select-none"
+                  >
+                    Pagaments Músics Fets
+                  </label>
+                </div>
+              </div>
+            )}
+            <div className="md:col-span-2 pt-2">
+              <button
+                onClick={handleSaveEconomicData}
+                disabled={updating || isRebutjat}
+                className="w-full sm:w-auto bg-primary hover:bg-red-900 text-white font-black py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-lg hover:shadow-primary/20 uppercase text-xs tracking-widest"
+              >
+                <span className="material-icons-outlined mr-2">save</span>
+                Desar Dades Econòmiques
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      {/* Internal Comments Section */}
+      {/* Internal Comments Section */}
+      {bolo.notes && (
+        <div className="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-800/60 overflow-hidden mt-6 shadow-md">
+          <div className="px-6 py-4 border-b border-indigo-100 dark:border-indigo-800/60 bg-indigo-100/50 dark:bg-indigo-900/40">
+            <h2 className="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest flex items-center">
+              <span className="material-icons-outlined mr-2 text-lg">
+                description
+              </span>
+              Notes de la Sol·licitud (Formulari)
+            </h2>
+          </div>
+          <div className="p-6">
+            <p className="text-indigo-950 dark:text-gray-100 text-sm whitespace-pre-wrap font-bold leading-relaxed italic">
+              {bolo.notes}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-card-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden mt-6">
+        <div
+          className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white cursor-pointer"
+          onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}
+        >
+          <h2 className="text-lg font-bold text-gray-900 dark:text-text-primary-dark flex items-center">
+            <button className="mr-2 text-gray-500 dark:text-text-secondary-dark hover:text-primary transition-colors focus:outline-none">
+              <span
+                className="material-icons-outlined transform transition-transform duration-200"
+                style={{
+                  transform: isCommentsExpanded
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                }}
+              >
+                chevron_right
+              </span>
+            </button>
+            <span className="material-icons-outlined mr-2">chat</span>
+            Comentaris interns
+          </h2>
+        </div>
+        {isCommentsExpanded && (
+          <div className="p-6 space-y-6">
+            {/* List */}
+            <div className="space-y-4">
+              {loadingComentaris && comentaris.length === 0 ? (
+                <p className="text-gray-500 dark:text-text-secondary-dark text-sm">
+                  Carregant comentaris...
+                </p>
+              ) : comentaris.length === 0 ? (
+                <p className="text-gray-500 dark:text-text-secondary-dark text-sm italic">
+                  No hi ha comentaris encara. Aquesta secció serveix per deixar
+                  constància interna (decisions, incidències, etc.).
+                </p>
+              ) : (
+                comentaris.map((comentari) => (
+                  <div
+                    key={comentari.id}
+                    className="bg-gray-50 dark:bg-background-dark p-4 rounded-lg border border-gray-200 dark:border-border-dark group"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-gray-900 dark:text-text-primary-dark text-sm">
+                        {comentari.autor || "Sense autor"}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-500 dark:text-text-secondary-dark">
+                          {new Date(comentari.created_at).toLocaleString(
+                            "ca-ES",
+                          )}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteComentari(comentari.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Eliminar comentari"
+                        >
+                          <span className="material-icons-outlined text-sm">
+                            delete
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-gray-900 dark:text-text-primary-dark text-sm whitespace-pre-wrap">
+                      {comentari.text}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add Form */}
+            <div className="border-t border-gray-200 dark:border-border-dark pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
+                <div className="md:col-span-1">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-text-secondary-dark mb-1">
+                    Autor
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="El teu nom"
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark text-sm"
+                    value={newComentari.autor}
+                    onChange={(e) =>
+                      setNewComentari({
+                        ...newComentari,
+                        autor: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-text-secondary-dark mb-1">
+                    Comentari
+                  </label>
+                  <textarea
+                    placeholder="Escriu un comentari intern..."
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-text-primary-dark text-sm min-h-[60px]"
+                    value={newComentari.text}
+                    onChange={(e) =>
+                      setNewComentari({ ...newComentari, text: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleAddComentari}
+                  disabled={!newComentari.text.trim()}
+                  className="bg-primary hover:bg-red-900 text-white font-medium py-1 px-4 rounded transition-colors text-sm disabled:opacity-50"
+                >
+                  Afegir comentari
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/80 flex items-start sm:items-center justify-center z-[110] p-2 sm:p-4 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 text-gray-900 my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b pb-4">
+              <h2 className="text-xl sm:text-2xl font-black text-primary uppercase tracking-tight">
+                PREVISUALITZACIÓ{" "}
+                {previewType === "pressupost" ? "PRESSUPOST" : "FACTURA"}
+              </h2>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <span className="material-icons-outlined text-2xl sm:text-3xl">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+              {/* Left Side: Document & Bolo Info */}
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">
+                    Detalls del Document
+                  </h4>
+                  {previewType === "factura" && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Núm. Factura
+                      </label>
+                      <input
+                        type="text"
+                        value={manualNumber}
+                        onChange={(e) => setManualNumber(e.target.value)}
+                        className="w-full p-2.5 border border-gray-200 rounded-lg font-mono font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                      />
+                    </div>
+                  )}
+                  {previewType === "pressupost" && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Tipus Document
+                      </label>
+                      <div className="w-full p-2.5 border border-gray-100 bg-gray-100/50 rounded-lg font-bold text-gray-400 text-xs uppercase tracking-widest">
+                        Pressupost Proposta
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">
+                    Informació de l'Actuació
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Població
+                      </label>
+                      <input
+                        type="text"
+                        value={bolo.nom_poble}
+                        onChange={(e) =>
+                          setBolo({ ...bolo, nom_poble: e.target.value })
+                        }
+                        onBlur={(e) => handlePobleChange(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Concepte
+                      </label>
+                      <input
+                        type="text"
+                        value={bolo.concepte || ""}
+                        onChange={(e) =>
+                          setBolo({ ...bolo, concepte: e.target.value })
+                        }
+                        onBlur={(e) => handleConcepteChange(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Durada (min)
+                      </label>
+                      <input
+                        type="number"
+                        value={bolo.durada || ""}
+                        onChange={(e) =>
+                          setBolo({ ...bolo, durada: Number(e.target.value) })
+                        }
+                        onBlur={(e) =>
+                          handleDuradaChange(Number(e.target.value))
+                        }
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Data
+                      </label>
+                      <input
+                        type="date"
+                        value={bolo.data_bolo}
+                        onChange={(e) => handleDataBoloChange(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Hora
+                      </label>
+                      <input
+                        type="time"
+                        value={bolo.hora_inici || ""}
+                        onChange={(e) =>
+                          setBolo({ ...bolo, hora_inici: e.target.value })
+                        }
+                        onBlur={(e) => handleUpdateHora(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Client Info */}
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm h-full">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4">
+                    Dades del Client
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Nom / Entitat
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedClient?.nom || ""}
+                        onChange={(e) =>
+                          setSelectedClient((prev) =>
+                            prev ? { ...prev, nom: e.target.value } : null,
+                          )
+                        }
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        NIF / CIF
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedClient?.nif || ""}
+                        onChange={(e) =>
+                          setSelectedClient((prev) =>
+                            prev ? { ...prev, nif: e.target.value } : null,
+                          )
+                        }
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Adreça
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedClient?.adreca || ""}
+                        onChange={(e) =>
+                          setSelectedClient((prev) =>
+                            prev ? { ...prev, adreca: e.target.value } : null,
+                          )
+                        }
+                        className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                          Població
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedClient?.poblacio || ""}
+                          onChange={(e) =>
+                            setSelectedClient((prev) =>
+                              prev
+                                ? { ...prev, poblacio: e.target.value }
+                                : null,
+                            )
+                          }
+                          className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                          Codi Postal
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedClient?.codi_postal || ""}
+                          onChange={(e) =>
+                            setSelectedClient((prev) =>
+                              prev
+                                ? { ...prev, codi_postal: e.target.value }
+                                : null,
+                            )
+                          }
+                          className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Articles Section */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">
+                  Articles de Facturació
+                </h4>
+                <button
+                  onClick={() =>
+                    setArticles([
+                      ...articles,
+                      { descripcio: "", preu: 0, quantitat: 1 },
+                    ])
+                  }
+                  className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full font-black uppercase tracking-widest flex items-center gap-1 transition-all shadow-sm"
+                >
+                  <span className="material-icons-outlined text-sm">add</span>{" "}
+                  Afegir Article
+                </button>
+              </div>
+              <div className="space-y-3">
+                {articles.map((art, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col sm:flex-row gap-2 sm:items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group"
+                  >
+                    <div className="flex-1">
+                      <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">
+                        Descripció
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Descripció de l'article"
+                        value={art.descripcio}
+                        onChange={(e) => {
+                          const newArts = [...articles];
+                          newArts[idx].descripcio = e.target.value;
+                          setArticles(newArts);
+                        }}
+                        className="w-full p-2 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="w-24">
+                        <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">
+                          Preu
+                        </label>
+                        <input
+                          type="number"
+                          value={art.preu}
+                          onChange={(e) => {
+                            const newArts = [...articles];
+                            newArts[idx].preu = parseFloat(e.target.value) || 0;
+                            setArticles(newArts);
+                          }}
+                          className="w-full p-2 border border-gray-100 rounded-lg text-sm text-right font-mono focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                      <div className="w-16">
+                        <label className="block sm:hidden text-[9px] font-bold text-gray-400 uppercase mb-1">
+                          Cant
+                        </label>
+                        <input
+                          type="number"
+                          value={art.quantitat}
+                          onChange={(e) => {
+                            const newArts = [...articles];
+                            newArts[idx].quantitat =
+                              parseInt(e.target.value) || 0;
+                            setArticles(newArts);
+                          }}
+                          className="w-full p-2 border border-gray-100 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                      <div className="w-20 hidden sm:flex items-center justify-end font-black text-sm text-primary">
+                        {(art.preu * art.quantitat).toFixed(2)}€
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newArts = articles.filter((_, i) => i !== idx);
+                          setArticles(newArts);
+                        }}
+                        className="absolute -top-2 -right-2 sm:static sm:flex bg-red-50 text-red-500 p-1.5 rounded-full hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                      >
+                        <span className="material-icons-outlined text-sm">
+                          delete
+                        </span>
+                      </button>
+                    </div>
+                    <div className="sm:hidden flex justify-between items-center pt-2 mt-2 border-t border-gray-50">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">
+                        Subtotal
+                      </span>
+                      <span className="font-black text-primary">
+                        {(art.preu * art.quantitat).toFixed(2)}€
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
+              <div className="text-center sm:text-left">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Total Document
+                </p>
+                <p className="text-3xl font-black text-primary leading-none">
+                  {articles
+                    .reduce((acc, art) => acc + art.preu * art.quantitat, 0)
+                    .toFixed(2)}
+                  <span className="text-xl ml-1">€</span>
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="w-full sm:flex-none px-6 py-3 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase text-xs tracking-widest order-2 sm:order-1"
+                >
+                  Enrere
+                </button>
+                <button
+                  onClick={() => handleGeneratePDF()}
+                  disabled={pdfGenerating}
+                  className="w-full sm:flex-none px-8 py-3 rounded-xl bg-primary text-white font-black hover:bg-red-900 transition-all uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-2 order-1 sm:order-2"
+                >
+                  {pdfGenerating ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full"></div>
+                      Generant...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-icons-outlined text-lg">
+                        picture_as_pdf
+                      </span>
+                      Generar i Pujar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Advance Payment Modal (New) */}
+      {showAdvancePaymentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-card-dark rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-border-dark">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                Nou Pagament Anticipat
+              </h3>
+              <button
+                onClick={() => setShowAdvancePaymentModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="material-icons-outlined">close</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">
+                  Músic
+                </label>
+                <select
+                  value={newAdvancePayment.music_id}
+                  onChange={(e) =>
+                    setNewAdvancePayment({
+                      ...newAdvancePayment,
+                      music_id: e.target.value,
+                    })
+                  }
+                  className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="" className="text-gray-900">
+                    Selecciona un músic...
+                  </option>
+                  {boloMusics
+                    .filter((bm) => bm.estat === "confirmat")
+                    .map((bm) => {
+                      const m = musics.find((mu) => mu.id === bm.music_id);
+                      return (
+                        <option
+                          key={bm.music_id}
+                          value={bm.music_id}
+                          className="text-gray-900"
+                        >
+                          {m?.nom}
+                        </option>
+                      );
+                    })}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">
+                    Import (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newAdvancePayment.import}
+                    onChange={(e) =>
+                      setNewAdvancePayment({
+                        ...newAdvancePayment,
+                        import: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">
+                    Data
+                  </label>
+                  <input
+                    type="date"
+                    value={newAdvancePayment.data_pagament}
+                    onChange={(e) =>
+                      setNewAdvancePayment({
+                        ...newAdvancePayment,
+                        data_pagament: e.target.value,
+                      })
+                    }
+                    className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-900 uppercase tracking-wider mb-1">
+                  Notes (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={newAdvancePayment.notes || ""}
+                  onChange={(e) =>
+                    setNewAdvancePayment({
+                      ...newAdvancePayment,
+                      notes: e.target.value,
+                    })
+                  }
+                  className="w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
+                  placeholder="Ex: Pagament en efectiu, Bizum..."
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                onClick={() => setShowAdvancePaymentModal(false)}
+                className="px-6 py-2 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all uppercase tracking-widest"
+              >
+                Cancel·lar
+              </button>
+              <button
+                onClick={handleAddAdvancePayment}
+                disabled={
+                  updating ||
+                  !newAdvancePayment.music_id ||
+                  !newAdvancePayment.import
+                }
+                className="px-8 py-2 rounded-lg bg-amber-600 text-white font-black hover:bg-amber-700 transition-all uppercase text-xs tracking-widest shadow-lg disabled:opacity-50"
+              >
+                Guardar Pagament
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showWhatsappConvoModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[120] p-4 backdrop-blur-md">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b pb-4">
+              <h3 className="text-xl font-black text-primary uppercase tracking-tight">
+                TEXT CONVOCATÒRIA
+              </h3>
+              <button
+                onClick={() => setShowWhatsappConvoModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <span className="material-icons-outlined">close</span>
+              </button>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
+                {whatsappConvoText}
+              </pre>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowWhatsappConvoModal(false)}
+                className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                TANCAR
+              </button>
+              <button
+                onClick={handleCopyWhatsappConvo}
+                className="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-icons-outlined">content_copy</span>
+                COPIAR TEXT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function ChecklistItem({ label, checked, onChange, disabled }: { label: string, checked: boolean, onChange: (v: boolean) => void, disabled: boolean }) {
-    return (
-        <div className="flex items-center space-x-3">
-            <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => onChange(e.target.checked)}
-                disabled={disabled}
-                className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            <span className={`text-gray-900 dark:text-text-primary-dark ${disabled ? 'opacity-70' : ''}`}>
-                {label}
-            </span>
-        </div>
-    );
+function ChecklistItem({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center space-x-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+      <span
+        className={`text-gray-900 dark:text-text-primary-dark ${disabled ? "opacity-70" : ""}`}
+      >
+        {label}
+      </span>
+    </div>
+  );
 }
