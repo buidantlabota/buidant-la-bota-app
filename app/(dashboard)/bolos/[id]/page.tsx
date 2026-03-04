@@ -1694,13 +1694,22 @@ ${bolo.notes ? `ℹ️ *Informació addicional:*\n${bolo.notes}\n` : ''}
                         </div>
 
                         {!isRebutjat && (
-                            <button
-                                onClick={handleGenerateWhatsappConvo}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95"
-                            >
-                                <span className="material-icons-outlined text-sm">chat</span>
-                                CONVOCATÒRIA
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <button
+                                    onClick={triggerGoogleSync}
+                                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95 border border-gray-300"
+                                >
+                                    <span className="material-icons-outlined text-sm text-blue-600">sync</span>
+                                    ACTUALITZA GOOGLE CALENDAR
+                                </button>
+                                <button
+                                    onClick={handleGenerateWhatsappConvo}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-bold text-xs shadow-md transition-all active:scale-95"
+                                >
+                                    <span className="material-icons-outlined text-sm">chat</span>
+                                    CONVOCATÒRIA
+                                </button>
+                            </div>
                         )}
                     </div>
 

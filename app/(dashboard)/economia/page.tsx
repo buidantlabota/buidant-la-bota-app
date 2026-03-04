@@ -46,8 +46,8 @@ export default function EconomiaPage() {
     const [isDistModalOpen, setIsDistModalOpen] = useState(false);
     const [newDistItem, setNewDistItem] = useState({ name: '', amount: 0 });
 
-    const fetchEconomia = async () => {
-        setLoading(true);
+    const fetchEconomia = async (silent = false) => {
+        if (!silent) setLoading(true);
 
         const now = new Date();
         let startDate, endDate;
@@ -217,7 +217,7 @@ export default function EconomiaPage() {
         } else {
             // Briefly wait for DB trigger to calc new pot/cost if import changed
             setTimeout(() => {
-                fetchEconomia();
+                fetchEconomia(true);
             }, 500);
         }
     };
@@ -480,7 +480,7 @@ export default function EconomiaPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-light text-sm">
-                            {loading ? (
+                            {loading && bolos.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className="p-8 text-center text-text-secondary">Carregant dades...</td>
                                 </tr>

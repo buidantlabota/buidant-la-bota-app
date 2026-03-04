@@ -155,12 +155,21 @@ export default function LiquidacioPage() {
             setMusics(musicsData);
             setAttendance(attendanceData);
 
-            // Initialize all bolos as NOT selected for payment by default
-            const initialSelected: Record<number, boolean> = {};
-            activeBolos.forEach((b: Bolo) => {
-                initialSelected[b.id] = false;
-            });
-            setSelectedBolos(initialSelected);
+            // Load selected bolos from localStorage if available
+            if (typeof window !== 'undefined') {
+                const key = `selected-bolos-${selectedYears.join('-')}`;
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    setSelectedBolos(JSON.parse(saved));
+                } else {
+                    // Initialize all bolos as NOT selected for payment by default
+                    const initialSelected: Record<number, boolean> = {};
+                    activeBolos.forEach((b: Bolo) => {
+                        initialSelected[b.id] = false;
+                    });
+                    setSelectedBolos(initialSelected);
+                }
+            }
 
         } catch (error) {
             console.error('Error fetching liquidation data:', error);
@@ -363,7 +372,17 @@ export default function LiquidacioPage() {
                                         <input
                                             type="checkbox"
                                             checked={selectedBolos[bolo.id]}
-                                            onChange={(e) => setSelectedBolos(prev => ({ ...prev, [bolo.id]: e.target.checked }))}
+                                            onChange={(e) => {
+                                                const newValue = e.target.checked;
+                                                setSelectedBolos(prev => {
+                                                    const next = { ...prev, [bolo.id]: newValue };
+                                                    if (typeof window !== 'undefined') {
+                                                        const key = `selected-bolos-${selectedYears.join('-')}`;
+                                                        localStorage.setItem(key, JSON.stringify(next));
+                                                    }
+                                                    return next;
+                                                });
+                                            }}
                                             className="w-4 h-4 text-primary rounded cursor-pointer"
                                         />
                                         <span className={`mt-1 font-bold ${selectedBolos[bolo.id] ? 'text-green-600' : 'text-gray-400'}`}>
