@@ -223,23 +223,21 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
         summary,
         description,
         location: activeBolo.ubicacio_detallada || activeBolo.nom_poble,
-        colorId: '6', // Tangerine (Orange)
+        colorId: '11', // (Vermell)
         start: {
             date: activeBolo.data_bolo,
-            timeZone: 'Europe/Madrid',
         },
         end: {
             date: allDayEndStr,
-            timeZone: 'Europe/Madrid'
         },
     };
 
-    if (bolo.google_event_id) {
+    if (activeBolo.google_event_id) {
         // UPDATE
         try {
             await calendar.events.update({
                 calendarId: CALENDAR_ID,
-                eventId: bolo.google_event_id,
+                eventId: activeBolo.google_event_id,
                 requestBody: resource,
             });
             console.log('Google Calendar: event updated');
