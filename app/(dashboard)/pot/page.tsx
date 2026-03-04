@@ -252,7 +252,11 @@ export default function GestioPotPage() {
 
         setLedger([...yearLedger].reverse()); // Newest first for display (.reverse() on a copy)
         setMovements(yearData || []);
-        setActiveAdvances((allAdvances || []).filter((p: any) => !['Tancat', 'Tancades'].includes((p.bolos as any)?.estat)));
+        setActiveAdvances((allAdvances || []).filter((p: any) => {
+            const b = p.bolos as any;
+            if (!b) return true;
+            return !(['Tancat', 'Tancades'].includes(b.estat) || b.pagaments_musics_fets);
+        }));
 
         // Fetch Distribution from app_config
         const { data: configData } = await supabase

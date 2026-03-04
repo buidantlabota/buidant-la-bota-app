@@ -215,17 +215,21 @@ export async function syncBoloToGoogleCalendar(boloId: number) {
         `*A Buidar-la fortíssim*🍷🍷🥳🇧🇷🥾`
     ].join('\n');
 
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const nextDateObj = new Date(year, month - 1, day + 1);
+    const allDayEndStr = `${nextDateObj.getFullYear()}-${pad(nextDateObj.getMonth() + 1)}-${pad(nextDateObj.getDate())}`;
+
     const resource = {
         summary,
         description,
-        location: bolo.ubicacio_detallada || bolo.nom_poble,
+        location: activeBolo.ubicacio_detallada || activeBolo.nom_poble,
         colorId: '6', // Tangerine (Orange)
         start: {
-            dateTime: getLocalISO(startDateObj),
+            date: activeBolo.data_bolo,
             timeZone: 'Europe/Madrid',
         },
         end: {
-            dateTime: getLocalISO(endDateObj),
+            date: allDayEndStr,
             timeZone: 'Europe/Madrid'
         },
     };
