@@ -49,12 +49,15 @@ CREATE INDEX IF NOT EXISTS idx_notes_search ON public.notes USING gin(to_tsvecto
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION update_notes_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = now();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_notes_updated_at
     BEFORE UPDATE ON public.notes
@@ -103,7 +106,10 @@ RETURNS TABLE (
     bolo_id bigint,
     created_at timestamptz,
     rank real
-) AS $$
+) 
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     RETURN QUERY
     SELECT 
@@ -125,7 +131,7 @@ BEGIN
         AND to_tsvector('catalan', coalesce(n.title, '') || ' ' || n.content) @@ plainto_tsquery('catalan', search_query)
     ORDER BY rank DESC, n.pinned DESC, n.created_at DESC;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 -- 5. DADES DE MOSTRA (OPCIONAL)

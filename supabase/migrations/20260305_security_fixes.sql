@@ -1,77 +1,30 @@
 -- ============================================================================
--- MIGRACIÓ: SISTEMA DE TASQUES PER FASE
+-- MIGRACIÓ: CORRECCIÓ DE WARNINGS DE SEGURETAT (SUPABASE LINTER)
 -- ============================================================================
--- Objectiu: Evolucionar el sistema de checklist hardcoded cap a tasques
---           dinàmiques associades a fases del workflow del bolo.
--- ============================================================================
-
--- 1. CREAR TAULA DE TASQUES DE BOLO
+-- 1. Fix: Function Search Path Mutable
+-- 2. Fix: Security Definer View
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS public.bolo_tasques (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    bolo_id bigint REFERENCES public.bolos(id) ON DELETE CASCADE NOT NULL,
-    
-    -- Informació de la tasca
-    titol text NOT NULL,
-    descripcio text,
-    
-    -- Associació a fase
-    fase_associada text NOT NULL CHECK (fase_associada IN ('Sol·licitat', 'Confirmat', 'Tancat', 'Cancel·lat')),
-    
-    -- Estat i prioritat
-    completada boolean NOT NULL DEFAULT false,
-    obligatoria boolean NOT NULL DEFAULT false, -- Si és obligatòria per avançar de fase
-    importancia text NOT NULL DEFAULT 'mitjana' CHECK (importancia IN ('baixa', 'mitjana', 'alta')),
-    
-    -- Metadata
-    origen text NOT NULL DEFAULT 'manual' CHECK (origen IN ('automatica', 'manual')), -- Com s'ha creat
-    creada_per text, -- Usuari que l'ha creat (si és manual)
-    data_completada timestamptz,
-    
-    -- Ordre de visualització dins de la fase
-    ordre integer NOT NULL DEFAULT 0,
-    
-    -- Timestamps
-    created_at timestamptz DEFAULT now() NOT NULL,
-    updated_at timestamptz DEFAULT now() NOT NULL
-);
+BEGIN;
 
--- Índexs per optimitzar consultes
-CREATE INDEX IF NOT EXISTS idx_bolo_tasques_bolo_id ON public.bolo_tasques(bolo_id);
-CREATE INDEX IF NOT EXISTS idx_bolo_tasques_fase ON public.bolo_tasques(fase_associada);
-CREATE INDEX IF NOT EXISTS idx_bolo_tasques_completada ON public.bolo_tasques(completada);
-
--- RLS Policies
-ALTER TABLE public.bolo_tasques ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Enable read access for authenticated users" 
-    ON public.bolo_tasques FOR SELECT 
-    TO authenticated 
-    USING (true);
-
-CREATE POLICY "Enable insert access for authenticated users" 
-    ON public.bolo_tasques FOR INSERT 
-    TO authenticated 
-    WITH CHECK (true);
-
-CREATE POLICY "Enable update access for authenticated users" 
-    ON public.bolo_tasques FOR UPDATE 
-    TO authenticated 
-    USING (true);
-
-CREATE POLICY "Enable delete access for authenticated users" 
-    ON public.bolo_tasques FOR DELETE 
-    TO authenticated 
-    USING (true);
-
-
--- 2. FUNCIÓ PER MIGRAR TASQUES EXISTENTS
+-- 1. MODIFICACIÓ DE FUNCIONS (SET search_path = public)
 -- ============================================================================
--- Aquesta funció converteix els camps booleans actuals en registres de tasques
 
-CREATE OR REPLACE FUNCTION migrate_existing_checklist_to_tasques()
-RETURNS void 
+-- update_updated_at_column
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+-- migrate_existing_checklist_to_tasques
+CREATE OR REPLACE FUNCTION public.migrate_existing_checklist_to_tasques()
+RETURNS void
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
@@ -119,15 +72,9 @@ BEGIN
 END;
 $$;
 
-
--- 3. FUNCIÓ PER CREAR TASQUES AUTOMÀTIQUES EN ENTRAR A UNA FASE
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION create_automatic_tasks_for_phase(
-    p_bolo_id bigint,
-    p_fase text
-)
-RETURNS void 
+-- create_automatic_tasks_for_phase
+CREATE OR REPLACE FUNCTION public.create_automatic_tasks_for_phase(p_bolo_id bigint, p_fase text)
+RETURNS void
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
@@ -186,14 +133,11 @@ BEGIN
         );
     END IF;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-
--- 4. TRIGGER PER CREAR TASQUES AUTOMÀTICAMENT EN CREAR UN BOLO
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION trigger_create_initial_tasks()
-RETURNS TRIGGER 
+-- trigger_create_initial_tasks
+CREATE OR REPLACE FUNCTION public.trigger_create_initial_tasks()
+RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
@@ -202,19 +146,11 @@ BEGIN
     PERFORM create_automatic_tasks_for_phase(NEW.id, NEW.estat);
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE TRIGGER after_bolo_insert_create_tasks
-    AFTER INSERT ON public.bolos
-    FOR EACH ROW
-    EXECUTE FUNCTION trigger_create_initial_tasks();
-
-
--- 5. TRIGGER PER CREAR TASQUES EN CANVIAR DE FASE
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION trigger_create_tasks_on_phase_change()
-RETURNS TRIGGER 
+-- trigger_create_tasks_on_phase_change
+CREATE OR REPLACE FUNCTION public.trigger_create_tasks_on_phase_change()
+RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
@@ -225,21 +161,120 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE TRIGGER after_bolo_update_create_tasks
-    AFTER UPDATE ON public.bolos
-    FOR EACH ROW
-    WHEN (OLD.estat IS DISTINCT FROM NEW.estat)
-    EXECUTE FUNCTION trigger_create_tasks_on_phase_change();
+-- update_notes_updated_at
+CREATE OR REPLACE FUNCTION public.update_notes_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+-- search_notes
+CREATE OR REPLACE FUNCTION public.search_notes(search_query text)
+RETURNS TABLE(id uuid, title text, content text, color text, pinned boolean, categoria text, bolo_id bigint, created_at timestamp with time zone, rank real)
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        n.id,
+        n.title,
+        n.content,
+        n.color,
+        n.pinned,
+        n.categoria,
+        n.bolo_id,
+        n.created_at,
+        ts_rank(
+            to_tsvector('catalan', coalesce(n.title, '') || ' ' || n.content),
+            plainto_tsquery('catalan', search_query)
+        ) as rank
+    FROM public.notes n
+    WHERE 
+        NOT n.archived
+        AND to_tsvector('catalan', coalesce(n.title, '') || ' ' || n.content) @@ plainto_tsquery('catalan', search_query)
+    ORDER BY rank DESC, n.pinned DESC, n.created_at DESC;
+END;
+$$;
+
+-- get_upcoming_bolos_with_musicians
+CREATE OR REPLACE FUNCTION public.get_upcoming_bolos_with_musicians()
+RETURNS TABLE(bolo_id bigint, nom_poble text, municipi_text text, data_bolo date, hora_inici text, estat text, tipus_actuacio text, lineup_confirmed boolean, lineup_no_pot text, lineup_pendent text, lineup_notes text, total_musics bigint, musicians jsonb)
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        b.id as bolo_id,
+        b.nom_poble,
+        b.municipi_text,
+        b.data_bolo,
+        b.hora_inici,
+        b.estat,
+        b.tipus_actuacio,
+        b.lineup_confirmed,
+        b.lineup_no_pot,
+        b.lineup_pendent,
+        b.lineup_notes,
+        COUNT(bm.id) as total_musics,
+        COALESCE(
+            jsonb_agg(
+                jsonb_build_object(
+                    'id', m.id,
+                    'nom', m.nom,
+                    'instruments', m.instruments,
+                    'tipus', bm.tipus,
+                    'estat', bm.estat,
+                    'note', bm.comentari
+                )
+                ORDER BY m.instruments, m.nom
+            ) FILTER (WHERE m.id IS NOT NULL),
+            '[]'::jsonb
+        ) as musicians
+    FROM public.bolos b
+    LEFT JOIN public.bolo_musics bm ON b.id = bm.bolo_id
+    LEFT JOIN public.musics m ON bm.music_id = m.id
+    WHERE 
+        b.data_bolo >= CURRENT_DATE
+        AND b.data_bolo <= CURRENT_DATE + INTERVAL '30 days'
+        AND b.estat != 'Cancel·lat'
+    GROUP BY b.id
+    ORDER BY b.data_bolo, b.hora_inici NULLS LAST;
+END;
+$$;
 
 
--- 6. EXECUTAR MIGRACIÓ DE BOLOS EXISTENTS
+-- 2. RECREACIÓ DE LA VISTA (security_invoker = true)
 -- ============================================================================
--- IMPORTANT: Executar només una vegada!
 
--- Descomentar la següent línia per executar la migració:
--- SELECT migrate_existing_checklist_to_tasques();
+-- Recreem la vista per assegurar que utilitza els permisos de l'usuari que la consulta (INVOKER)
+CREATE OR REPLACE VIEW public.view_inventory_status 
+WITH (security_invoker = true) 
+AS
+SELECT
+    ic.id as catalog_id,
+    ic.name,
+    ic.type,
+    s.id as stock_id,
+    s.size,
+    s.quantity_total,
+    (
+        s.quantity_total - (
+            SELECT COUNT(*) 
+            FROM material_loans l 
+            WHERE l.stock_id = s.id AND l.status = 'prestat'
+        )
+    ) as quantity_available
+FROM inventory_catalog ic
+JOIN inventory_stock s ON s.catalog_id = ic.id
+WHERE ic.type IN ('samarreta', 'dessuadora', 'altre');
 
--- NOTA: Després de la migració, els camps booleans de la taula bolos
---       es poden mantenir per compatibilitat o eliminar en una migració futura.
+COMMIT;

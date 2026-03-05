@@ -72,7 +72,10 @@ RETURNS TABLE (
     lineup_notes text,
     total_musics bigint,
     musicians jsonb
-) AS $$
+) 
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     RETURN QUERY
     SELECT 
@@ -112,7 +115,7 @@ BEGIN
     GROUP BY b.id
     ORDER BY b.data_bolo, b.hora_inici NULLS LAST;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 -- 5. COMENTARIS
